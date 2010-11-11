@@ -39,6 +39,7 @@
 //  cpu: the CPU that the module was built for
 //  symbol_file: the contents of the breakpad-format symbol file
 
+#include <stdlib.h>  // for exit()
 #include <unistd.h>
 #include <stdlib.h>
 
