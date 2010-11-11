@@ -1,6 +1,8 @@
-CXX=g++
-
-CXXFLAGS=-gstabs -I../../.. -Wall -D_REENTRANT
+# Take portage defaults
+#CXX=g++
+#
+#CXXFLAGS=-gstabs -I../../.. -Wall -D_REENTRANT
+CXXFLAGS+=-I../../.. -D_REENTRANT
 
 .PHONY:all clean
 
