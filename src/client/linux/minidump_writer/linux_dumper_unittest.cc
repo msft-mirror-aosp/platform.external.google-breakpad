@@ -80,6 +80,10 @@ TEST(LinuxDumperTest, ThreadList) {
   }
 }
 
+// Comment out this test due to crosbug.com/6712.  Only seems to
+// fail on heavily loaded buildbots and is written with timing
+// assumptions.
+#if 0
 TEST(LinuxDumperTest, VerifyStackReadWithMultipleThreads) {
   static const int kNumberOfThreadsInHelperProgram = 5;
   char kNumberOfThreadsArgument[2];
@@ -128,6 +132,7 @@ TEST(LinuxDumperTest, VerifyStackReadWithMultipleThreads) {
   }
   kill(child_pid, SIGKILL);
 }
+#endif
 
 TEST(LinuxDumperTest, BuildProcPath) {
   const pid_t pid = getpid();
