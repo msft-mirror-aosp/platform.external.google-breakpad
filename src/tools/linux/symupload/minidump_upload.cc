@@ -33,6 +33,8 @@
 //  ver: the product version
 //  symbol_file: the breakpad format symbol file
 
+#include <stdio.h>  // for printf() and stderr
+#include <stdlib.h>  // for exit()
 #include <unistd.h>
 
 #include <string>
