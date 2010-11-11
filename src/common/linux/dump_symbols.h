@@ -40,10 +40,15 @@
 
 namespace google_breakpad {
 
-// Find all the debugging information in OBJ_FILE, an ELF executable
-// or shared library, and write it to SYM_FILE in the Breakpad symbol
-// file format.
-bool WriteSymbolFile(const std::string &obj_file, FILE *sym_file);
+// Find all the debugging information in DEBUG_FILE, an ELF file
+// and consult TEXT_FILE, an ELF executable or shared library with target
+// resident code/data, and write it to SYM_FILE in the Breakpad symbol
+// file format.  DEBUG_FILE and TEXT_FILE should be set to the same
+// path if a single file has both debug information and target resident
+// code/data.
+bool WriteSymbolFile(const std::string &debug_file,
+                     const std::string &text_file,
+                     FILE *sym_file);
 
 }  // namespace google_breakpad
 

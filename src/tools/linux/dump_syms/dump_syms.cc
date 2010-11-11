@@ -35,14 +35,19 @@
 using namespace google_breakpad;
 
 int main(int argc, char **argv) {
-  if (argc != 2) {
-    fprintf(stderr, "Usage: %s <binary-with-debugging-info>\n", argv[0]);
+  if (argc != 2 && argc != 3) {
+    fprintf(stderr, "Usage:\n\n"
+            "  For a standard ELF file with both debug info and code:\n"
+            "    %s <single-ELF>\n\n"
+            "  For a pair of ELF files split into debug info and code:\n"
+            "    %s <debug-ELF> <code-ELF>\n\n", argv[0], argv[0]);
     return 1;
   }
 
-  const char *binary = argv[1];
+  const char *debug_file = argv[1];
+  const char *text_file = argc == 3 ? argv[2] : argv[1];
 
-  if (!WriteSymbolFile(binary, stdout)) {
+  if (!WriteSymbolFile(debug_file, text_file, stdout)) {
     fprintf(stderr, "Failed to write symbol file.\n");
     return 1;
   }
