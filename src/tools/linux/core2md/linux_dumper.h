@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// This file is a patched version from Google Breakpad revision 598 to
+// This file is a patched version from Google Breakpad revision 734 to
 // support core dump to minidump conversion.  Original copyright follows.
 //
-// Copyright (c) 2009, Google Inc.
+// Copyright (c) 2010, Google Inc.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -41,21 +41,41 @@
 #include <linux/limits.h>
 #include <stdint.h>
 #include <sys/types.h>
+#if !defined(__ANDROID__)
 #include <sys/user.h>
+#endif
 
 #include <map>
 
-#include "common/linux/memory.h"
 #include "common/linux/mmapped_range.h"
+#include "common/memory.h"
 #include "google_breakpad/common/minidump_format.h"
 
 namespace google_breakpad {
 
+#if defined(__i386) || defined(__x86_64)
 typedef typeof(((struct user*) 0)->u_debugreg[0]) debugreg_t;
+#endif
 
 // Typedef for our parsing of the auxv variables in /proc/pid/auxv.
 #if defined(__i386) || defined(__ARM_EABI__)
+#if !defined(__ANDROID__)
 typedef Elf32_auxv_t elf_aux_entry;
+#else
+// Android is missing this structure definition
+typedef struct
+{
+  uint32_t a_type;              /* Entry type */
+  union
+    {
+      uint32_t a_val;           /* Integer value */
+    } a_un;
+} elf_aux_entry;
+
+#if !defined(AT_SYSINFO_EHDR)
+#define AT_SYSINFO_EHDR 33
+#endif
+#endif  // __ANDROID__
 #elif defined(__x86_64__)
 typedef Elf64_auxv_t elf_aux_entry;
 #endif
@@ -86,8 +106,12 @@ struct ThreadInfo {
 
 #elif defined(__ARM_EABI__)
   // Mimicking how strace does this(see syscall.c, search for GETREGS)
+#if defined(__ANDROID__)
+  struct pt_regs regs;
+#else
   struct user_regs regs;
   struct user_fpregs fpregs;
+#endif  // __ANDROID__
 #endif
 };
 
@@ -164,6 +188,10 @@ class LinuxDumper {
     *exception_code = core_exception_information_.crashing_signal;
   }
 
+  bool IsPostMortem() const {
+    return core_path_ != NULL;
+  }
+
  private:
   typedef std::map<int, google_breakpad::ThreadInfo>::iterator ThreadIterator;
 
@@ -180,9 +208,17 @@ class LinuxDumper {
   bool EnumerateMappings(wasteful_vector<MappingInfo*>* result) const;
   bool EnumerateThreads(wasteful_vector<pid_t>* result) const;
 
-  bool IsPostMortem() const {
-    return core_path_ != NULL;
-  }
+  // For the case where a running program has been deleted, it'll show up in
+  // /proc/pid/maps as "/path/to/program (deleted)". If this is the case, then
+  // see if '/path/to/program (deleted)' matches /proc/pid/exe and return
+  // /proc/pid/exe in |path| so ELF identifier generation works correctly. This
+  // also checks to see if '/path/to/program (deleted)' exists, so it does not
+  // get fooled by a poorly named binary.
+  // For programs that don't end with ' (deleted)', this is a no-op.
+  // This assumes |path| is a buffer with length NAME_MAX.
+  // Returns true if |path| is modified.
+  bool HandleDeletedFileInMapping(char* path);
+
   bool LoadCoreFile();
   void CopyFromCore(void* dest, pid_t child, const void* src,
                     size_t length);

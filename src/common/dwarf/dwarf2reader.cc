@@ -31,16 +31,18 @@
 // Implementation of dwarf2reader::LineInfo, dwarf2reader::CompilationUnit,
 // and dwarf2reader::CallFrameInfo. See dwarf2reader.h for details.
 
-#include <cassert>
-#include <cstdio>
-#include <cstring>
+#include "common/dwarf/dwarf2reader.h"
+
+#include <assert.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+
 #include <map>
-#include <memory>
 #include <stack>
 #include <utility>
 
 #include "common/dwarf/bytereader-inl.h"
-#include "common/dwarf/dwarf2reader.h"
 #include "common/dwarf/bytereader.h"
 #include "common/dwarf/line_state_machine.h"
 
@@ -88,7 +90,7 @@ void CompilationUnit::ReadAbbrevs() {
   while (1) {
     CompilationUnit::Abbrev abbrev;
     size_t len;
-    const uint32 number = reader_->ReadUnsignedLEB128(abbrevptr, &len);
+    const uint64 number = reader_->ReadUnsignedLEB128(abbrevptr, &len);
 
     if (number == 0)
       break;
@@ -96,7 +98,7 @@ void CompilationUnit::ReadAbbrevs() {
     abbrevptr += len;
 
     assert(abbrevptr < abbrev_start + abbrev_length);
-    const uint32 tag = reader_->ReadUnsignedLEB128(abbrevptr, &len);
+    const uint64 tag = reader_->ReadUnsignedLEB128(abbrevptr, &len);
     abbrevptr += len;
     abbrev.tag = static_cast<enum DwarfTag>(tag);
 
@@ -107,11 +109,11 @@ void CompilationUnit::ReadAbbrevs() {
     assert(abbrevptr < abbrev_start + abbrev_length);
 
     while (1) {
-      const uint32 nametemp = reader_->ReadUnsignedLEB128(abbrevptr, &len);
+      const uint64 nametemp = reader_->ReadUnsignedLEB128(abbrevptr, &len);
       abbrevptr += len;
 
       assert(abbrevptr < abbrev_start + abbrev_length);
-      const uint32 formtemp = reader_->ReadUnsignedLEB128(abbrevptr, &len);
+      const uint64 formtemp = reader_->ReadUnsignedLEB128(abbrevptr, &len);
       abbrevptr += len;
       if (nametemp == 0 && formtemp == 0)
         break;
@@ -491,11 +493,8 @@ void CompilationUnit::ProcessDIEs() {
   else
     lengthstart += 4;
 
-  // we need semantics of boost scoped_ptr here - no intention of trasnferring
-  // ownership of the stack.  use const, but then we limit ourselves to not
-  // ever being able to call .reset() on the smart pointer.
-  std::auto_ptr<stack<uint64> > const die_stack(new stack<uint64>);
-
+  stack<uint64> die_stack;
+  
   while (dieptr < (lengthstart + header_.length)) {
     // We give the user the absolute offset from the beginning of
     // debug_info, since they need it to deal with ref_addr forms.
@@ -505,15 +504,19 @@ void CompilationUnit::ProcessDIEs() {
 
     dieptr += len;
 
-    // Abbrev == 0 represents the end of a list of children.
+    // Abbrev == 0 represents the end of a list of children, or padding
+    // at the end of the compilation unit.
     if (abbrev_num == 0) {
-      const uint64 offset = die_stack->top();
-      die_stack->pop();
+      if (die_stack.size() == 0)
+        // If it is padding, then we are done with the compilation unit's DIEs.
+        return;
+      const uint64 offset = die_stack.top();
+      die_stack.pop();
       handler_->EndDIE(offset);
       continue;
     }
 
-    const Abbrev& abbrev = abbrevs_->at(abbrev_num);
+    const Abbrev& abbrev = abbrevs_->at(static_cast<size_t>(abbrev_num));
     const enum DwarfTag tag = abbrev.tag;
     if (!handler_->StartDIE(absolute_offset, tag, abbrev.attributes)) {
       dieptr = SkipDIE(dieptr, abbrev);
@@ -522,7 +525,7 @@ void CompilationUnit::ProcessDIEs() {
     }
 
     if (abbrev.has_children) {
-      die_stack->push(absolute_offset);
+      die_stack.push(absolute_offset);
     } else {
       handler_->EndDIE(absolute_offset);
     }
@@ -616,8 +619,8 @@ void LineInfo::ReadHeader() {
 
       uint64 filelength = reader_->ReadUnsignedLEB128(lineptr, &len);
       lineptr += len;
-      handler_->DefineFile(filename, fileindex, dirindex, mod_time,
-                           filelength);
+      handler_->DefineFile(filename, fileindex, static_cast<uint32>(dirindex), 
+                           mod_time, filelength);
       fileindex++;
     }
   }
@@ -647,7 +650,7 @@ bool LineInfo::ProcessOneOpcode(ByteReader* reader,
     opcode -= header.opcode_base;
     const int64 advance_address = (opcode / header.line_range)
                                   * header.min_insn_length;
-    const int64 advance_line = (opcode % header.line_range)
+    const int32 advance_line = (opcode % header.line_range)
                                + header.line_base;
 
     // Check if the lsm passes "pc". If so, mark it as passed.
@@ -687,7 +690,7 @@ bool LineInfo::ProcessOneOpcode(ByteReader* reader,
     case DW_LNS_advance_line: {
       const int64 advance_line = reader->ReadSignedLEB128(start, &templen);
       oplen += templen;
-      lsm->line_num += advance_line;
+      lsm->line_num += static_cast<int32>(advance_line);
 
       // With gcc 4.2.1, we can get the line_no here for the first time
       // since DW_LNS_advance_line is called after DW_LNE_set_address is
@@ -701,13 +704,13 @@ bool LineInfo::ProcessOneOpcode(ByteReader* reader,
     case DW_LNS_set_file: {
       const uint64 fileno = reader->ReadUnsignedLEB128(start, &templen);
       oplen += templen;
-      lsm->file_num = fileno;
+      lsm->file_num = static_cast<uint32>(fileno);
     }
       break;
     case DW_LNS_set_column: {
       const uint64 colno = reader->ReadUnsignedLEB128(start, &templen);
       oplen += templen;
-      lsm->column_num = colno;
+      lsm->column_num = static_cast<uint32>(colno);
     }
       break;
     case DW_LNS_negate_stmt: {
@@ -746,7 +749,7 @@ bool LineInfo::ProcessOneOpcode(ByteReader* reader,
     }
       break;
     case DW_LNS_extended_op: {
-      const size_t extended_op_len = reader->ReadUnsignedLEB128(start,
+      const uint64 extended_op_len = reader->ReadUnsignedLEB128(start,
                                                                 &templen);
       start += templen;
       oplen += templen + extended_op_len;
@@ -788,8 +791,8 @@ bool LineInfo::ProcessOneOpcode(ByteReader* reader,
           oplen += templen;
 
           if (handler) {
-            handler->DefineFile(filename, -1, dirindex, mod_time,
-                                filelength);
+            handler->DefineFile(filename, -1, static_cast<uint32>(dirindex), 
+                                mod_time, filelength);
           }
         }
           break;
@@ -801,7 +804,6 @@ bool LineInfo::ProcessOneOpcode(ByteReader* reader,
       // Ignore unknown opcode  silently
       if (header.std_opcode_lengths) {
         for (int i = 0; i < (*header.std_opcode_lengths)[opcode]; i++) {
-          size_t templen;
           reader->ReadUnsignedLEB128(start, &templen);
           start += templen;
           oplen += templen;
@@ -969,7 +971,7 @@ class CallFrameInfo::OffsetRule: public CallFrameInfo::Rule {
   // computes the address at which a register is saved, not a value.
  private:
   int base_register_;
-  int offset_;
+  long offset_;
 };
 
 // Rule: the value the register had in the caller is the value of
@@ -996,7 +998,7 @@ class CallFrameInfo::ValOffsetRule: public CallFrameInfo::Rule {
   void SetOffset(long long offset) { offset_ = offset; }
  private:
   int base_register_;
-  int offset_;
+  long offset_;
 };
 
 // Rule: the register has been saved in another register REGISTER_NUMBER_.
@@ -1938,7 +1940,7 @@ bool CallFrameInfo::ReadCIEFields(CIE *cie) {
   // If we have a 'z' augmentation string, find the augmentation data and
   // use the augmentation string to parse it.
   if (cie->has_z_augmentation) {
-    size_t data_size = reader_->ReadUnsignedLEB128(cursor, &len);
+    uint64_t data_size = reader_->ReadUnsignedLEB128(cursor, &len);
     if (size_t(cie->end - cursor) < len + data_size)
       return ReportIncomplete(cie);
     cursor += len;
@@ -2058,7 +2060,7 @@ bool CallFrameInfo::ReadFDEFields(FDE *fde) {
   // If the CIE has a 'z' augmentation string, then augmentation data
   // appears here.
   if (fde->cie->has_z_augmentation) {
-    size_t data_size = reader_->ReadUnsignedLEB128(cursor, &size);
+    uint64_t data_size = reader_->ReadUnsignedLEB128(cursor, &size);
     if (size_t(fde->end - cursor) < size + data_size)
       return ReportIncomplete(fde);
     cursor += size;

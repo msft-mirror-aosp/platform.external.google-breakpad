@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// This file is a patched version from Google Breakpad revision 598 to
+// This file is a patched version from Google Breakpad revision 734 to
 // support core dump to minidump conversion.  Original copyright follows.
 //
-// Copyright (c) 2009, Google Inc.
+// Copyright (c) 2010, Google Inc.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without

@@ -52,9 +52,9 @@ using google_breakpad::StackFrameX86;
 using google_breakpad::StackwalkerX86;
 using google_breakpad::SystemInfo;
 using google_breakpad::WindowsFrameInfo;
-using google_breakpad::TestAssembler::kLittleEndian;
-using google_breakpad::TestAssembler::Label;
-using google_breakpad::TestAssembler::Section;
+using google_breakpad::test_assembler::kLittleEndian;
+using google_breakpad::test_assembler::Label;
+using google_breakpad::test_assembler::Section;
 using std::string;
 using std::vector;
 using testing::_;
@@ -86,15 +86,18 @@ class StackwalkerX86Fixture {
 
     // By default, none of the modules have symbol info; call
     // SetModuleSymbols to override this.
-    EXPECT_CALL(supplier, GetSymbolFile(_, _, _, _))
+    EXPECT_CALL(supplier, GetCStringSymbolData(_, _, _, _))
       .WillRepeatedly(Return(MockSymbolSupplier::NOT_FOUND));
   }
 
   // Set the Breakpad symbol information that supplier should return for
   // MODULE to INFO.
   void SetModuleSymbols(MockCodeModule *module, const string &info) {
-    EXPECT_CALL(supplier, GetSymbolFile(module, &system_info, _, _))
-      .WillRepeatedly(DoAll(SetArgumentPointee<3>(info),
+    unsigned int buffer_size = info.size() + 1;
+    char *buffer = reinterpret_cast<char*>(operator new(buffer_size));
+    strcpy(buffer, info.c_str());
+    EXPECT_CALL(supplier, GetCStringSymbolData(module, &system_info, _, _))
+      .WillRepeatedly(DoAll(SetArgumentPointee<3>(buffer),
                             Return(MockSymbolSupplier::FOUND)));
   }
 
@@ -174,7 +177,7 @@ TEST_F(GetCallerFrame, Traditional) {
   ASSERT_EQ(2U, frames->size());
 
   StackFrameX86 *frame0 = static_cast<StackFrameX86 *>(frames->at(0));
-  EXPECT_EQ(StackFrameX86::FRAME_TRUST_CONTEXT, frame0->trust);
+  EXPECT_EQ(StackFrame::FRAME_TRUST_CONTEXT, frame0->trust);
   EXPECT_EQ(StackFrameX86::CONTEXT_VALID_ALL, frame0->context_validity);
   EXPECT_EQ(0x4000c7a5U, frame0->instruction);
   EXPECT_EQ(0x4000c7a5U, frame0->context.eip);
@@ -182,7 +185,7 @@ TEST_F(GetCallerFrame, Traditional) {
   EXPECT_EQ(NULL, frame0->windows_frame_info);
 
   StackFrameX86 *frame1 = static_cast<StackFrameX86 *>(frames->at(1));
-  EXPECT_EQ(StackFrameX86::FRAME_TRUST_FP, frame1->trust);
+  EXPECT_EQ(StackFrame::FRAME_TRUST_FP, frame1->trust);
   ASSERT_EQ((StackFrameX86::CONTEXT_VALID_EIP
              | StackFrameX86::CONTEXT_VALID_ESP
              | StackFrameX86::CONTEXT_VALID_EBP),
@@ -225,7 +228,7 @@ TEST_F(GetCallerFrame, TraditionalScan) {
   ASSERT_EQ(2U, frames->size());
 
   StackFrameX86 *frame0 = static_cast<StackFrameX86 *>(frames->at(0));
-  EXPECT_EQ(StackFrameX86::FRAME_TRUST_CONTEXT, frame0->trust);
+  EXPECT_EQ(StackFrame::FRAME_TRUST_CONTEXT, frame0->trust);
   ASSERT_EQ(StackFrameX86::CONTEXT_VALID_ALL, frame0->context_validity);
   EXPECT_EQ(0x4000f49dU, frame0->instruction);
   EXPECT_EQ(0x4000f49dU, frame0->context.eip);
@@ -234,7 +237,7 @@ TEST_F(GetCallerFrame, TraditionalScan) {
   EXPECT_EQ(NULL, frame0->windows_frame_info);
 
   StackFrameX86 *frame1 = static_cast<StackFrameX86 *>(frames->at(1));
-  EXPECT_EQ(StackFrameX86::FRAME_TRUST_SCAN, frame1->trust);
+  EXPECT_EQ(StackFrame::FRAME_TRUST_SCAN, frame1->trust);
   // I'd argue that CONTEXT_VALID_EBP shouldn't be here, since the
   // walker does not actually fetch the EBP after a scan (forcing the
   // next frame to be scanned as well). But let's grandfather the existing
@@ -246,6 +249,63 @@ TEST_F(GetCallerFrame, TraditionalScan) {
   EXPECT_EQ(0x4000129dU, frame1->instruction + 1);
   EXPECT_EQ(0x4000129dU, frame1->context.eip);
   EXPECT_EQ(0x80000014U, frame1->context.esp);
+  EXPECT_EQ(0xd43eed6eU, frame1->context.ebp);
+  EXPECT_EQ(NULL, frame1->windows_frame_info);
+}
+
+// Force scanning for a return address a long way down the stack
+TEST_F(GetCallerFrame, TraditionalScanLongWay) {
+  stack_section.start() = 0x80000000;
+  Label frame1_ebp;
+  stack_section
+    // frame 0
+    .D32(0xf065dc76)    // locals area:
+    .D32(0x46ee2167)    // garbage that doesn't look like
+    .D32(0xbab023ec)    // a return address
+    .Append(20 * 4, 0)  // a bunch of space
+    .D32(frame1_ebp)    // saved %ebp (%ebp fails to point here, forcing scan)
+    .D32(0x4000129d)    // return address
+    // frame 1
+    .Append(8, 0)       // space
+    .Mark(&frame1_ebp)  // %ebp points here
+    .D32(0)             // saved %ebp (stack end)
+    .D32(0);            // return address (stack end)
+
+  RegionFromSection();
+  raw_context.eip = 0x4000f49d;
+  raw_context.esp = stack_section.start().Value();
+  // Make the frame pointer bogus, to make the stackwalker scan the stack
+  // for something that looks like a return address.
+  raw_context.ebp = 0xd43eed6e;
+
+  StackwalkerX86 walker(&system_info, &raw_context, &stack_region, &modules,
+                        &supplier, &resolver);
+  ASSERT_TRUE(walker.Walk(&call_stack));
+  frames = call_stack.frames();
+  ASSERT_EQ(2U, frames->size());
+
+  StackFrameX86 *frame0 = static_cast<StackFrameX86 *>(frames->at(0));
+  EXPECT_EQ(StackFrame::FRAME_TRUST_CONTEXT, frame0->trust);
+  ASSERT_EQ(StackFrameX86::CONTEXT_VALID_ALL, frame0->context_validity);
+  EXPECT_EQ(0x4000f49dU, frame0->instruction);
+  EXPECT_EQ(0x4000f49dU, frame0->context.eip);
+  EXPECT_EQ(stack_section.start().Value(), frame0->context.esp);
+  EXPECT_EQ(0xd43eed6eU, frame0->context.ebp);
+  EXPECT_EQ(NULL, frame0->windows_frame_info);
+
+  StackFrameX86 *frame1 = static_cast<StackFrameX86 *>(frames->at(1));
+  EXPECT_EQ(StackFrame::FRAME_TRUST_SCAN, frame1->trust);
+  // I'd argue that CONTEXT_VALID_EBP shouldn't be here, since the
+  // walker does not actually fetch the EBP after a scan (forcing the
+  // next frame to be scanned as well). But let's grandfather the existing
+  // behavior in for now.
+  ASSERT_EQ((StackFrameX86::CONTEXT_VALID_EIP
+             | StackFrameX86::CONTEXT_VALID_ESP
+             | StackFrameX86::CONTEXT_VALID_EBP),
+            frame1->context_validity);
+  EXPECT_EQ(0x4000129dU, frame1->instruction + 1);
+  EXPECT_EQ(0x4000129dU, frame1->context.eip);
+  EXPECT_EQ(0x80000064U, frame1->context.esp);
   EXPECT_EQ(0xd43eed6eU, frame1->context.ebp);
   EXPECT_EQ(NULL, frame1->windows_frame_info);
 }
@@ -292,7 +352,7 @@ TEST_F(GetCallerFrame, WindowsFrameData) {
   ASSERT_EQ(2U, frames->size());
 
   StackFrameX86 *frame0 = static_cast<StackFrameX86 *>(frames->at(0));
-  EXPECT_EQ(StackFrameX86::FRAME_TRUST_CONTEXT, frame0->trust);
+  EXPECT_EQ(StackFrame::FRAME_TRUST_CONTEXT, frame0->trust);
   ASSERT_EQ(StackFrameX86::CONTEXT_VALID_ALL, frame0->context_validity);
   EXPECT_EQ(0x4000aa85U, frame0->instruction);
   EXPECT_EQ(0x4000aa85U, frame0->context.eip);
@@ -301,7 +361,7 @@ TEST_F(GetCallerFrame, WindowsFrameData) {
   EXPECT_TRUE(frame0->windows_frame_info != NULL);
 
   StackFrameX86 *frame1 = static_cast<StackFrameX86 *>(frames->at(1));
-  EXPECT_EQ(StackFrameX86::FRAME_TRUST_CFI, frame1->trust);
+  EXPECT_EQ(StackFrame::FRAME_TRUST_CFI, frame1->trust);
   ASSERT_EQ((StackFrameX86::CONTEXT_VALID_EIP
              | StackFrameX86::CONTEXT_VALID_ESP
              | StackFrameX86::CONTEXT_VALID_EBP
@@ -376,7 +436,7 @@ TEST_F(GetCallerFrame, WindowsFrameDataParameterSize) {
   ASSERT_EQ(3U, frames->size());
 
   StackFrameX86 *frame0 = static_cast<StackFrameX86 *>(frames->at(0));
-  EXPECT_EQ(StackFrameX86::FRAME_TRUST_CONTEXT, frame0->trust);
+  EXPECT_EQ(StackFrame::FRAME_TRUST_CONTEXT, frame0->trust);
   ASSERT_EQ(StackFrameX86::CONTEXT_VALID_ALL, frame0->context_validity);
   EXPECT_EQ(0x40001004U, frame0->instruction);
   EXPECT_EQ(0x40001004U, frame0->context.eip);
@@ -393,7 +453,7 @@ TEST_F(GetCallerFrame, WindowsFrameDataParameterSize) {
   EXPECT_EQ(12U, frame0->windows_frame_info->parameter_size);
 
   StackFrameX86 *frame1 = static_cast<StackFrameX86 *>(frames->at(1));
-  EXPECT_EQ(StackFrameX86::FRAME_TRUST_FP, frame1->trust);
+  EXPECT_EQ(StackFrame::FRAME_TRUST_FP, frame1->trust);
   ASSERT_EQ((StackFrameX86::CONTEXT_VALID_EIP
              | StackFrameX86::CONTEXT_VALID_ESP
              | StackFrameX86::CONTEXT_VALID_EBP),
@@ -412,7 +472,7 @@ TEST_F(GetCallerFrame, WindowsFrameDataParameterSize) {
   EXPECT_EQ(4U, frame1->windows_frame_info->parameter_size);
 
   StackFrameX86 *frame2 = static_cast<StackFrameX86 *>(frames->at(2));
-  EXPECT_EQ(StackFrameX86::FRAME_TRUST_CFI, frame2->trust);
+  EXPECT_EQ(StackFrame::FRAME_TRUST_CFI, frame2->trust);
   ASSERT_EQ((StackFrameX86::CONTEXT_VALID_EIP
              | StackFrameX86::CONTEXT_VALID_ESP
              | StackFrameX86::CONTEXT_VALID_EBP
@@ -460,7 +520,7 @@ TEST_F(GetCallerFrame, WindowsFrameDataScan) {
   ASSERT_EQ(2U, frames->size());
 
   StackFrameX86 *frame0 = static_cast<StackFrameX86 *>(frames->at(0));
-  EXPECT_EQ(StackFrameX86::FRAME_TRUST_CONTEXT, frame0->trust);
+  EXPECT_EQ(StackFrame::FRAME_TRUST_CONTEXT, frame0->trust);
   ASSERT_EQ(StackFrameX86::CONTEXT_VALID_ALL, frame0->context_validity);
   EXPECT_EQ(0x40000c9cU, frame0->instruction);
   EXPECT_EQ(0x40000c9cU, frame0->context.eip);
@@ -469,7 +529,7 @@ TEST_F(GetCallerFrame, WindowsFrameDataScan) {
   EXPECT_TRUE(frame0->windows_frame_info != NULL);
 
   StackFrameX86 *frame1 = static_cast<StackFrameX86 *>(frames->at(1));
-  EXPECT_EQ(StackFrameX86::FRAME_TRUST_SCAN, frame1->trust);
+  EXPECT_EQ(StackFrame::FRAME_TRUST_SCAN, frame1->trust);
   // I'd argue that CONTEXT_VALID_EBP shouldn't be here, since the walker
   // does not actually fetch the EBP after a scan (forcing the next frame
   // to be scanned as well). But let's grandfather the existing behavior in
@@ -539,7 +599,7 @@ TEST_F(GetCallerFrame, WindowsFrameDataBadEIPScan) {
   ASSERT_EQ(2U, frames->size());
 
   StackFrameX86 *frame0 = static_cast<StackFrameX86 *>(frames->at(0));
-  EXPECT_EQ(StackFrameX86::FRAME_TRUST_CONTEXT, frame0->trust);
+  EXPECT_EQ(StackFrame::FRAME_TRUST_CONTEXT, frame0->trust);
   ASSERT_EQ(StackFrameX86::CONTEXT_VALID_ALL, frame0->context_validity);
   EXPECT_EQ(0x40000700U, frame0->instruction);
   EXPECT_EQ(0x40000700U, frame0->context.eip);
@@ -548,7 +608,7 @@ TEST_F(GetCallerFrame, WindowsFrameDataBadEIPScan) {
   EXPECT_TRUE(frame0->windows_frame_info != NULL);
 
   StackFrameX86 *frame1 = static_cast<StackFrameX86 *>(frames->at(1));
-  EXPECT_EQ(StackFrameX86::FRAME_TRUST_CFI_SCAN, frame1->trust);
+  EXPECT_EQ(StackFrame::FRAME_TRUST_CFI_SCAN, frame1->trust);
   // I'd argue that CONTEXT_VALID_EBP shouldn't be here, since the
   // walker does not actually fetch the EBP after a scan (forcing the
   // next frame to be scanned as well). But let's grandfather the existing
@@ -602,7 +662,7 @@ TEST_F(GetCallerFrame, WindowsFPOUnchangedEBP) {
   ASSERT_EQ(2U, frames->size());
 
   StackFrameX86 *frame0 = static_cast<StackFrameX86 *>(frames->at(0));
-  EXPECT_EQ(StackFrameX86::FRAME_TRUST_CONTEXT, frame0->trust);
+  EXPECT_EQ(StackFrame::FRAME_TRUST_CONTEXT, frame0->trust);
   ASSERT_EQ(StackFrameX86::CONTEXT_VALID_ALL, frame0->context_validity);
   EXPECT_EQ(0x4000e8b8U, frame0->instruction);
   EXPECT_EQ(0x4000e8b8U, frame0->context.eip);
@@ -618,7 +678,7 @@ TEST_F(GetCallerFrame, WindowsFPOUnchangedEBP) {
   EXPECT_EQ(0x10U, frame0->windows_frame_info->local_size);
 
   StackFrameX86 *frame1 = static_cast<StackFrameX86 *>(frames->at(1));
-  EXPECT_EQ(StackFrameX86::FRAME_TRUST_CFI, frame1->trust);
+  EXPECT_EQ(StackFrame::FRAME_TRUST_CFI, frame1->trust);
   ASSERT_EQ((StackFrameX86::CONTEXT_VALID_EIP
              | StackFrameX86::CONTEXT_VALID_ESP
              | StackFrameX86::CONTEXT_VALID_EBP),
@@ -672,7 +732,7 @@ TEST_F(GetCallerFrame, WindowsFPOUsedEBP) {
   ASSERT_EQ(2U, frames->size());
 
   StackFrameX86 *frame0 = static_cast<StackFrameX86 *>(frames->at(0));
-  EXPECT_EQ(StackFrameX86::FRAME_TRUST_CONTEXT, frame0->trust);
+  EXPECT_EQ(StackFrame::FRAME_TRUST_CONTEXT, frame0->trust);
   ASSERT_EQ(StackFrameX86::CONTEXT_VALID_ALL, frame0->context_validity);
   EXPECT_EQ(0x40009ab8U, frame0->instruction);
   EXPECT_EQ(0x40009ab8U, frame0->context.eip);
@@ -689,7 +749,7 @@ TEST_F(GetCallerFrame, WindowsFPOUsedEBP) {
   EXPECT_TRUE(frame0->windows_frame_info->allocates_base_pointer);
 
   StackFrameX86 *frame1 = static_cast<StackFrameX86 *>(frames->at(1));
-  EXPECT_EQ(StackFrameX86::FRAME_TRUST_CFI, frame1->trust);
+  EXPECT_EQ(StackFrame::FRAME_TRUST_CFI, frame1->trust);
   ASSERT_EQ((StackFrameX86::CONTEXT_VALID_EIP
              | StackFrameX86::CONTEXT_VALID_ESP
              | StackFrameX86::CONTEXT_VALID_EBP),
@@ -757,7 +817,7 @@ struct CFIFixture: public StackwalkerX86Fixture {
     ASSERT_EQ(2U, frames->size());
 
     StackFrameX86 *frame0 = static_cast<StackFrameX86 *>(frames->at(0));
-    EXPECT_EQ(StackFrameX86::FRAME_TRUST_CONTEXT, frame0->trust);
+    EXPECT_EQ(StackFrame::FRAME_TRUST_CONTEXT, frame0->trust);
     ASSERT_EQ(StackFrameX86::CONTEXT_VALID_ALL, frame0->context_validity);
     EXPECT_EQ("enchiridion", frame0->function_name);
     EXPECT_EQ(0x40004000U, frame0->function_base);
@@ -767,7 +827,7 @@ struct CFIFixture: public StackwalkerX86Fixture {
     ASSERT_TRUE(frame0->cfi_frame_info != NULL);
 
     StackFrameX86 *frame1 = static_cast<StackFrameX86 *>(frames->at(1));
-    EXPECT_EQ(StackFrameX86::FRAME_TRUST_CFI, frame1->trust);
+    EXPECT_EQ(StackFrame::FRAME_TRUST_CFI, frame1->trust);
     ASSERT_EQ((StackFrameX86::CONTEXT_VALID_EIP |
                StackFrameX86::CONTEXT_VALID_ESP |
                StackFrameX86::CONTEXT_VALID_EBP |

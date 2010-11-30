@@ -32,14 +32,15 @@
 // test_assembler.cc: Implementation of google_breakpad::TestAssembler.
 // See test_assembler.h for details.
 
-#include <cassert>
-#include <cstdio>
-#include <iterator>
-
 #include "common/test_assembler.h"
 
+#include <assert.h>
+#include <stdio.h>
+
+#include <iterator>
+
 namespace google_breakpad {
-namespace TestAssembler {
+namespace test_assembler {
 
 using std::back_insert_iterator;
 
@@ -95,7 +96,7 @@ u_int64_t Label::operator-(const Label &label) const {
 }
 
 u_int64_t Label::Value() const {
-  u_int64_t v;
+  u_int64_t v = 0;
   ALWAYS_EVALUATE_AND_ASSERT(IsKnownConstant(&v));
   return v;
 };
@@ -201,7 +202,7 @@ void Label::Binding::Get(Binding **base, u_int64_t *addend) {
 }
 
 template<typename Inserter>
-static inline void InsertEndian(TestAssembler::Endianness endianness,
+static inline void InsertEndian(test_assembler::Endianness endianness,
                                 size_t size, u_int64_t number, Inserter dest) {
   assert(size > 0);
   if (endianness == kLittleEndian) {
@@ -341,7 +342,7 @@ bool Section::GetContents(string *contents) {
     Reference &r = references_[i];
     u_int64_t value;
     if (!r.label.IsKnownConstant(&value)) {
-      fprintf(stderr, "Undefined label #%d at offset 0x%x\n", i, r.offset);
+      fprintf(stderr, "Undefined label #%zu at offset 0x%zx\n", i, r.offset);
       return false;
     }
     assert(r.offset < contents_.size());
@@ -354,5 +355,5 @@ bool Section::GetContents(string *contents) {
   return true;
 }
 
-} // namespace TestAssembler
-} // namespace google_breakpad
+}  // namespace test_assembler
+}  // namespace google_breakpad
