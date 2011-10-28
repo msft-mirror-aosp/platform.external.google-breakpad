@@ -104,12 +104,12 @@ static bool ResumeThread(pid_t pid) {
 }
 
 inline static bool IsMappedFileOpenUnsafe(
-    const google_breakpad::MappingInfo* mapping) {
+    const google_breakpad::MappingInfo& mapping) {
   // It is unsafe to attempt to open a mapped file that lives under /dev,
   // because the semantics of the open may be driver-specific so we'd risk
   // hanging the crash dumper. And a file in /dev/ almost certainly has no
   // ELF file identifier anyways.
-  return my_strncmp(mapping->name,
+  return my_strncmp(mapping.name,
                     kMappedFileUnsafePrefix,
                     sizeof(kMappedFileUnsafePrefix) - 1) == 0;
 }
@@ -203,21 +203,37 @@ LinuxDumper::BuildProcPath(char* path, pid_t pid, const char* node) const {
 }
 
 bool
-LinuxDumper::ElfFileIdentifierForMapping(unsigned int mapping_id,
+LinuxDumper::ElfFileIdentifierForMapping(const MappingInfo& mapping,
+                                         bool member,
+                                         unsigned int mapping_id,
                                          uint8_t identifier[sizeof(MDGUID)])
 {
-  assert(mapping_id < mappings_.size());
+  assert(!member || mapping_id < mappings_.size());
   my_memset(identifier, 0, sizeof(MDGUID));
-  MappingInfo* mapping = mappings_[mapping_id];
   if (IsMappedFileOpenUnsafe(mapping))
     return false;
 
+  // Special-case linux-gate because it's not a real file.
+  if (my_strcmp(mapping.name, kLinuxGateLibraryName) == 0) {
+    const uintptr_t kPageSize = getpagesize();
+    void* linux_gate = NULL;
+    if (pid_ == sys_getpid()) {
+      linux_gate = reinterpret_cast<void*>(mapping.start_addr);
+    } else {
+      linux_gate = allocator_.Alloc(kPageSize);
+      CopyFromProcess(linux_gate, pid_,
+                      reinterpret_cast<const void*>(mapping.start_addr),
+                      kPageSize);
+    }
+    return FileID::ElfFileIdentifierFromMappedFile(linux_gate, identifier);
+  }
+
   char filename[NAME_MAX];
-  size_t filename_len = my_strlen(mapping->name);
+  size_t filename_len = my_strlen(mapping.name);
   assert(filename_len < NAME_MAX);
   if (filename_len >= NAME_MAX)
     return false;
-  memcpy(filename, mapping->name, filename_len);
+  memcpy(filename, mapping.name, filename_len);
   filename[filename_len] = '\0';
   bool filename_modified = HandleDeletedFileInMapping(filename);
 
@@ -239,14 +255,17 @@ LinuxDumper::ElfFileIdentifierForMapping(unsigned int mapping_id,
 
   bool success = FileID::ElfFileIdentifierFromMappedFile(base, identifier);
   sys_munmap(base, st.st_size);
-  if (success && filename_modified)
-    mapping->name[filename_len - sizeof(kDeletedSuffix) + 1] = '\0';
+  if (success && member && filename_modified) {
+    mappings_[mapping_id]->name[filename_len -
+                                sizeof(kDeletedSuffix) + 1] = '\0';
+  }
+
   return success;
 }
 
 void*
 LinuxDumper::FindBeginningOfLinuxGateSharedLibrary(const pid_t pid) const {
-  char auxv_path[80];
+  char auxv_path[NAME_MAX];
   BuildProcPath(auxv_path, pid, "auxv");
 
   // If BuildProcPath errors out due to invalid input, we'll handle it when
@@ -276,7 +295,7 @@ LinuxDumper::FindBeginningOfLinuxGateSharedLibrary(const pid_t pid) const {
 
 bool
 LinuxDumper::EnumerateMappings(wasteful_vector<MappingInfo*>* result) const {
-  char maps_path[80];
+  char maps_path[NAME_MAX];
   BuildProcPath(maps_path, pid_, "maps");
 
   // linux_gate_loc is the beginning of the kernel's mapping of
@@ -303,25 +322,36 @@ LinuxDumper::EnumerateMappings(wasteful_vector<MappingInfo*>* result) const {
       if (*i2 == ' ') {
         const char* i3 = my_read_hex_ptr(&offset, i2 + 6 /* skip ' rwxp ' */);
         if (*i3 == ' ') {
+          const char* name = NULL;
+          // Only copy name if the name is a valid path name, or if
+          // it's the VDSO image.
+          if (((name = my_strchr(line, '/')) == NULL) &&
+              linux_gate_loc &&
+              reinterpret_cast<void*>(start_addr) == linux_gate_loc) {
+            name = kLinuxGateLibraryName;
+            offset = 0;
+          }
+          // Merge adjacent mappings with the same name into one module,
+          // assuming they're a single library mapped by the dynamic linker
+          if (name && result->size()) {
+            MappingInfo* module = (*result)[result->size() - 1];
+            if ((start_addr == module->start_addr + module->size) &&
+                (my_strlen(name) == my_strlen(module->name)) &&
+                (my_strncmp(name, module->name, my_strlen(name)) == 0)) {
+              module->size = end_addr - module->start_addr;
+              line_reader->PopLine(line_len);
+              continue;
+            }
+          }
           MappingInfo* const module = new(allocator_) MappingInfo;
           memset(module, 0, sizeof(MappingInfo));
           module->start_addr = start_addr;
           module->size = end_addr - start_addr;
           module->offset = offset;
-          const char* name = NULL;
-          // Only copy name if the name is a valid path name, or if
-          // we've found the VDSO image
-          if ((name = my_strchr(line, '/')) != NULL) {
+          if (name != NULL) {
             const unsigned l = my_strlen(name);
             if (l < sizeof(module->name))
               memcpy(module->name, name, l);
-          } else if (linux_gate_loc &&
-                     reinterpret_cast<void*>(module->start_addr) ==
-                     linux_gate_loc) {
-            memcpy(module->name,
-                   kLinuxGateLibraryName,
-                   my_strlen(kLinuxGateLibraryName));
-            module->offset = 0;
           }
           result->push_back(module);
         }
@@ -338,7 +368,7 @@ LinuxDumper::EnumerateMappings(wasteful_vector<MappingInfo*>* result) const {
 // Parse /proc/$pid/task to list all the threads of the process identified by
 // pid.
 bool LinuxDumper::EnumerateThreads(wasteful_vector<pid_t>* result) const {
-  char task_path[80];
+  char task_path[NAME_MAX];
   BuildProcPath(task_path, pid_, "task");
 
   const int fd = sys_open(task_path, O_RDONLY | O_DIRECTORY, 0);
@@ -373,7 +403,7 @@ bool LinuxDumper::EnumerateThreads(wasteful_vector<pid_t>* result) const {
 // available.
 bool LinuxDumper::ThreadInfoGet(pid_t tid, ThreadInfo* info) {
   assert(info != NULL);
-  char status_path[80];
+  char status_path[NAME_MAX];
   BuildProcPath(status_path, tid, "status");
 
   const int fd = open(status_path, O_RDONLY);
@@ -500,7 +530,7 @@ const MappingInfo* LinuxDumper::FindMapping(const void* address) const {
   return NULL;
 }
 
-bool LinuxDumper::HandleDeletedFileInMapping(char* path) {
+bool LinuxDumper::HandleDeletedFileInMapping(char* path) const {
   static const size_t kDeletedSuffixLen = sizeof(kDeletedSuffix) - 1;
 
   // Check for ' (deleted)' in |path|.
