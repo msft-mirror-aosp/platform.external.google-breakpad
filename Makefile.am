@@ -1,6 +1,6 @@
 ## Process this file with automake to produce Makefile.in
 
-# Copyright (c) 2010, Google Inc.
+# Copyright (c) 2011, Google Inc.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -212,10 +212,13 @@ bin_PROGRAMS += \
 if !DISABLE_TOOLS
 bin_PROGRAMS += \
 	src/tools/linux/dump_syms/dump_syms \
-	src/tools/linux/md2core/minidump-2-core \
 	src/tools/linux/symupload/minidump_upload \
 	src/tools/linux/symupload/sym_upload
-endif
+endif !DISABLE_TOOLS
+if !DISABLE_MD2CORE
+bin_PROGRAMS += \
+	src/tools/linux/md2core/minidump-2-core
+endif !DISABLE_MD2CORE
 endif LINUX_HOST
 
 
@@ -333,9 +336,6 @@ src_tools_linux_dump_syms_dump_syms_SOURCES = \
 	src/common/linux/file_id.cc \
 	src/tools/linux/dump_syms/dump_syms.cc
 
-src_tools_linux_md2core_minidump_2_core_SOURCES = \
-	src/tools/linux/md2core/minidump-2-core.cc
-
 src_tools_linux_symupload_minidump_upload_SOURCES = \
 	src/common/linux/http_upload.cc \
 	src/tools/linux/symupload/minidump_upload.cc
@@ -387,6 +387,12 @@ src_common_dumper_unittest_CPPFLAGS = \
 	-I$(top_srcdir)/src/testing/gtest \
 	-I$(top_srcdir)/src/testing
 endif
+
+if !DISABLE_MD2CORE
+src_tools_linux_md2core_minidump_2_core_SOURCES = \
+	src/tools/linux/md2core/minidump-2-core.cc
+endif !DISABLE_MD2CORE
+
 endif LINUX_HOST
 
 if !DISABLE_PROCESSOR
