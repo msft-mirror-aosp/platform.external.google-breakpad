@@ -13,10 +13,10 @@
 #include <cstdio>
 #include <list>
 
+#include "client/linux/minidump_writer/core_reader.h"
 #include "common/linux/mmapped_range.h"
 #include "google_breakpad/common/minidump_cpu_x86.h"
 #include "google_breakpad/common/minidump_format.h"
-#include "tools/linux/core2md/core_reader.h"
 
 static int usage(const char* argv0) {
   fprintf(stderr, "Usage: %s <core file>\n", argv0);

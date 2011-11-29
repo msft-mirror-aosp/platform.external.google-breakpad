@@ -1,3 +1,10 @@
+// Copyright (c) 2011 The Chromium OS Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+//
+// This file is a patched version from Google Breakpad revision 875 to
+// support core dump to minidump conversion.  Original copyright follows.
+//
 // Copyright (c) 2010, Google Inc.
 // All rights reserved.
 //
@@ -46,12 +53,21 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+
+#include <elf.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <link.h>
+
+#include <sys/types.h>
+#include <sys/procfs.h>
 #include <sys/ptrace.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
 #include <algorithm>
 
+#include "client/linux/minidump_writer/core_reader.h"
 #include "client/linux/minidump_writer/directory_reader.h"
 #include "client/linux/minidump_writer/line_reader.h"
 #include "common/linux/file_id.h"
@@ -120,15 +136,32 @@ LinuxDumper::LinuxDumper(int pid)
     : pid_(pid),
       threads_suspended_(false),
       threads_(&allocator_, 8),
-      mappings_(&allocator_) {
+      mappings_(&allocator_),
+      override_procfs_prefix_(NULL),
+      core_path_(NULL),
+      core_buffer_(NULL) {
+}
+
+LinuxDumper::~LinuxDumper() {
+  if (core_buffer_ != NULL) {
+    munmap(core_buffer_, core_.length());
+  }
 }
 
 bool LinuxDumper::Init() {
-  return EnumerateThreads(&threads_) &&
-         EnumerateMappings(&mappings_);
+  if (!EnumerateThreads(&threads_))
+    return false;
+  if (core_path_ != NULL && !LoadCoreFile())
+    return false;
+  if (!EnumerateMappings(&mappings_))
+    return false;
+  return true;
 }
 
 bool LinuxDumper::ThreadsSuspend() {
+  // Nothing to suspend if we're reading a core file.
+  if (IsPostMortem())
+    return true;
   if (threads_suspended_)
     return true;
   for (size_t i = 0; i < threads_.size(); ++i) {
@@ -147,6 +180,9 @@ bool LinuxDumper::ThreadsSuspend() {
 }
 
 bool LinuxDumper::ThreadsResume() {
+  // Nothing to resume if we're reading a core file.
+  if (IsPostMortem())
+    return true;
   if (!threads_suspended_)
     return false;
   bool good = true;
@@ -183,22 +219,33 @@ LinuxDumper::BuildProcPath(char* path, pid_t pid, const char* node) const {
     return;
   }
 
-  assert(pid > 0);
-  if (pid <= 0) {
-    return;
+  size_t total_length;
+  if (override_procfs_prefix_ != NULL) {
+    total_length = strlen(override_procfs_prefix_) + 1 + node_len;
+  } else {
+    assert(pid > 0);
+    if (pid <= 0) {
+      return;
+    }
+    total_length = 6 + pid_len + 1 + node_len;
   }
-
-  const size_t total_length = 6 + pid_len + 1 + node_len;
 
   assert(total_length < NAME_MAX);
   if (total_length >= NAME_MAX) {
     return;
   }
 
-  memcpy(path, "/proc/", 6);
-  my_itos(path + 6, pid, pid_len);
-  memcpy(path + 6 + pid_len, "/", 1);
-  memcpy(path + 6 + pid_len + 1, node, node_len);
+  if (!override_procfs_prefix_) {
+    memcpy(path, "/proc/", 6);
+    my_itos(path + 6, pid, pid_len);
+    memcpy(path + 6 + pid_len, "/", 1);
+    memcpy(path + 6 + pid_len + 1, node, node_len);
+  } else {
+    int override_procfs_prefix_len = strlen(override_procfs_prefix_);
+    memcpy(path, override_procfs_prefix_, override_procfs_prefix_len);
+    memcpy(path + override_procfs_prefix_len, "/", 1);
+    memcpy(path + override_procfs_prefix_len + 1, node, node_len);
+  }
   path[total_length] = '\0';
 }
 
@@ -365,9 +412,109 @@ LinuxDumper::EnumerateMappings(wasteful_vector<MappingInfo*>* result) const {
   return result->size() > 0;
 }
 
+bool LinuxDumper::LoadCoreFile() {
+  assert(core_path_);
+  off_t size;
+  if (!MmapAndValidateCoreFile(core_path_, &core_buffer_, &size)) {
+    return false;
+  }
+
+  core_.Set(core_buffer_, size);
+  const Ehdr* header = reinterpret_cast<const Ehdr*>(
+      core_.GetObject(0, sizeof(Ehdr)));
+  const Phdr* note = NULL;
+  // Find PT_NOTES information.
+  for (int i = 0; i < header->e_phnum; ++i) {
+    const Phdr* program = reinterpret_cast<const Phdr*>(
+        core_.GetArrayElement(header->e_phoff,
+                              header->e_phentsize, i));
+    if (program->p_type == PT_NOTE) {
+      note = program;
+      break;
+    }
+  }
+
+  if (!note) {
+    return false;
+  }
+
+  bool was_last_pid = false;
+  static int last_pid = 0;
+  MMappedRange contents = core_.Subrange(note->p_offset, note->p_filesz);
+  for (u_int32_t offset = 0; offset < note->p_filesz;) {
+    const Nhdr* nhdr = reinterpret_cast<const Nhdr*>(
+        contents.GetObject(offset, sizeof(Nhdr)));
+    const char* name = reinterpret_cast<const char*>(
+        contents.GetObject(offset + sizeof(Nhdr), nhdr->n_namesz));
+    int desc_offset = WordUp(sizeof(Nhdr) + nhdr->n_namesz);
+    const void* desc = reinterpret_cast<const void*>(
+        contents.GetObject(offset + desc_offset, nhdr->n_descsz));
+    if (nhdr == NULL || name == NULL || desc == NULL) {
+      fprintf(stderr, "Problem reading PT_NOTE.\n");
+      return false;
+    }
+    switch(nhdr->n_type) {
+      case NT_PRSTATUS: {
+        const elf_prstatus* status =
+            reinterpret_cast<const elf_prstatus*>(desc);
+        pid_t pid = status->pr_pid;
+        ThreadInfo thread;
+        memset(&thread, 0, sizeof(ThreadInfo));
+        thread.tgid = status->pr_pgrp;
+        thread.ppid = status->pr_ppid;
+        memcpy(&thread.regs, status->pr_reg, sizeof(thread.regs));
+        core_thread_map_.insert(std::pair<pid_t, ThreadInfo>(pid, thread));
+        if (!was_last_pid) {
+          core_exception_information_.crashing_pid = pid;
+          core_exception_information_.crashing_signal =
+              status->pr_info.si_signo;
+        }
+        was_last_pid = true;
+        last_pid = pid;
+        threads_.push_back(pid);
+        break;
+      }
+#if defined(__i386__)
+      case NT_FPREGSET: {
+        ThreadIterator thread = core_thread_map_.find(last_pid);
+        if (was_last_pid &&
+            thread != core_thread_map_.end()) {
+          if (nhdr->n_descsz != sizeof(thread->second.fpregs)) {
+            fprintf(stderr, "NT_FPREGSET descriptor of unexpected size\n");
+          } else {
+            memcpy(&thread->second.fpregs, desc,
+                   sizeof(thread->second.fpregs));
+          }
+        }
+        break;
+      }
+      case NT_PRXFPREG: {
+        ThreadIterator thread = core_thread_map_.find(last_pid);
+        if (was_last_pid && thread != core_thread_map_.end()) {
+          if (nhdr->n_descsz != sizeof(thread->second.fpxregs)) {
+            fprintf(stderr, "NT_PRXFPREG descriptor of unexpected size\n");
+          } else {
+            memcpy(&thread->second.fpxregs, desc,
+                   sizeof(thread->second.fpxregs));
+          }
+        }
+        break;
+      }
+#endif
+    }
+    offset += WordUp(desc_offset + nhdr->n_descsz);
+  }
+
+  return true;
+}
+
 // Parse /proc/$pid/task to list all the threads of the process identified by
 // pid.
 bool LinuxDumper::EnumerateThreads(wasteful_vector<pid_t>* result) const {
+  if (IsPostMortem()) {
+    // Threads are enumerated as part of loading the core file.
+    return true;
+  }
   char task_path[NAME_MAX];
   BuildProcPath(task_path, pid_, "task");
 
@@ -401,7 +548,7 @@ bool LinuxDumper::EnumerateThreads(wasteful_vector<pid_t>* result) const {
 // Fill out the |tgid|, |ppid| and |pid| members of |info|. If unavailable,
 // these members are set to -1. Returns true iff all three members are
 // available.
-bool LinuxDumper::ThreadInfoGet(pid_t tid, ThreadInfo* info) {
+bool LinuxDumper::ThreadInfoGetUsingPtrace(pid_t tid, ThreadInfo* info) {
   assert(info != NULL);
   char status_path[NAME_MAX];
   BuildProcPath(status_path, tid, "status");
@@ -456,6 +603,21 @@ bool LinuxDumper::ThreadInfoGet(pid_t tid, ThreadInfo* info) {
     }
   }
 #endif
+  return true;
+}
+
+bool LinuxDumper::ThreadInfoGet(pid_t tid, ThreadInfo* info) {
+  if (IsPostMortem()) {
+    ThreadIterator i = core_thread_map_.find(tid);
+    if (i == core_thread_map_.end()) {
+      return false;
+    }
+    *info = i->second;
+  } else {
+    if (!ThreadInfoGetUsingPtrace(tid, info)) {
+      return false;
+    }
+  }
 
   const uint8_t* stack_pointer;
 #if defined(__i386)
@@ -498,9 +660,44 @@ bool LinuxDumper::GetStackInfo(const void** stack, size_t* stack_len,
   return true;
 }
 
+void LinuxDumper::CopyFromCore(void* dest, pid_t child, const void* src,
+                               size_t length) {
+  const Ehdr* header = reinterpret_cast<const Ehdr*>(
+      core_.GetObject(0, sizeof(Ehdr)));
+  const char* src_bytes = reinterpret_cast<const char*>(src);
+
+  // Find PT_NOTES information.
+  for (int i = 0; i < header->e_phnum; ++i) {
+    const Phdr* program =
+        (const Phdr*)core_.GetArrayElement(header->e_phoff,
+                                           header->e_phentsize, i);
+    const char* segment_bytes = reinterpret_cast<const char*>(program->p_vaddr);
+    if (program->p_type != PT_LOAD)
+      continue;
+
+    size_t offset_in_segment = src_bytes - segment_bytes;
+    const char* mapped_memory =
+        reinterpret_cast<const char*>(
+            core_.GetObject(program->p_offset + offset_in_segment, length));
+
+    if (segment_bytes < src_bytes &&
+        offset_in_segment < program->p_filesz &&
+        mapped_memory != NULL) {
+      memcpy(dest, mapped_memory, length);
+      return;
+    }
+  }
+  // Not found, fill with marker characters.
+  memset(dest, 0xab, length);
+}
+
 // static
 void LinuxDumper::CopyFromProcess(void* dest, pid_t child, const void* src,
                                   size_t length) {
+  if (IsPostMortem()) {
+    CopyFromCore(dest, child, src, length);
+    return;
+  }
   unsigned long tmp = 55;
   size_t done = 0;
   static const size_t word_size = sizeof(tmp);

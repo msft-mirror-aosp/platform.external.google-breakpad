@@ -65,6 +65,7 @@ lib_LIBRARIES += src/client/linux/libbreakpad_client.a
 src_client_linux_libbreakpad_client_a_SOURCES = \
 	src/client/linux/crash_generation/crash_generation_client.cc \
 	src/client/linux/handler/exception_handler.cc \
+	src/client/linux/minidump_writer/core_reader.cc \
 	src/client/linux/minidump_writer/linux_dumper.cc \
 	src/client/linux/minidump_writer/minidump_writer.cc \
 	src/client/minidump_file_writer.cc \
@@ -215,6 +216,11 @@ bin_PROGRAMS += \
 	src/tools/linux/symupload/minidump_upload \
 	src/tools/linux/symupload/sym_upload
 endif !DISABLE_TOOLS
+if !DISABLE_CORE2MD
+bin_PROGRAMS += \
+	src/tools/linux/core2md/core2md \
+	src/tools/linux/core2md/core_dumper
+endif !DISABLE_CORE2MD
 if !DISABLE_MD2CORE
 bin_PROGRAMS += \
 	src/tools/linux/md2core/minidump-2-core
@@ -308,6 +314,7 @@ src_client_linux_linux_client_unittest_CPPFLAGS = \
 src_client_linux_linux_client_unittest_LDADD = \
 	src/client/linux/handler/exception_handler.o \
 	src/client/linux/crash_generation/crash_generation_client.o \
+	src/client/linux/minidump_writer/core_reader.o \
 	src/client/linux/minidump_writer/linux_dumper.o \
 	src/client/linux/minidump_writer/minidump_writer.o \
 	src/client/minidump_file_writer.o \
@@ -387,6 +394,17 @@ src_common_dumper_unittest_CPPFLAGS = \
 	-I$(top_srcdir)/src/testing/gtest \
 	-I$(top_srcdir)/src/testing
 endif
+
+if !DISABLE_CORE2MD
+src_tools_linux_core2md_core2md_SOURCES = \
+	src/tools/linux/core2md/core2md.cc
+src_tools_linux_core2md_core2md_LDADD = \
+	src/client/linux/libbreakpad_client.a
+src_tools_linux_core2md_core_dumper_SOURCES = \
+	src/tools/linux/core2md/core_dumper.cc
+src_tools_linux_core2md_core_dumper_LDADD = \
+	src/client/linux/libbreakpad_client.a
+endif !DISABLE_CORE2MD
 
 if !DISABLE_MD2CORE
 src_tools_linux_md2core_minidump_2_core_SOURCES = \

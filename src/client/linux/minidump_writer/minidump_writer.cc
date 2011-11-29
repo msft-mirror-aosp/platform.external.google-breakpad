@@ -1,3 +1,10 @@
+// Copyright (c) 2011 The Chromium OS Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+//
+// This file is a patched version from Google Breakpad revision 875 to
+// support core dump to minidump conversion.  Original copyright follows.
+//
 // Copyright (c) 2010, Google Inc.
 // All rights reserved.
 //
@@ -386,9 +393,33 @@ class MinidumpWriter {
         mapping_list_(mappings) {
   }
 
+  // Construct a minidump writer which uses a core file for
+  // post-mortem dump conversion.  Make sure this constructor
+  // initializes the same fields as the above constructor.
+  MinidumpWriter(const char* filename,
+                 const char* core_path,
+                 const char* procfs_override,
+                 const MappingList& mappings)
+      : filename_(filename),
+        siginfo_(NULL),
+        ucontext_(NULL),
+        float_state_(NULL),
+        crashing_tid_(0),
+        dumper_(0),
+        memory_blocks_(dumper_.allocator()),
+        mapping_list_(mappings) {
+    // Note that crashing tid will be set once dumper_ is Initialized.
+    dumper_.SetCore(core_path, procfs_override);
+  }
+
   bool Init() {
-    return dumper_.Init() && minidump_writer_.Open(filename_) &&
+    bool init =
+        dumper_.Init() && minidump_writer_.Open(filename_) &&
            dumper_.ThreadsSuspend();
+    if (init && IsPostMortem()) {
+      crashing_tid_ = dumper_.GetCrashingPidFromCore();
+    }
+    return init;
   }
 
   ~MinidumpWriter() {
@@ -403,11 +434,17 @@ class MinidumpWriter {
     struct r_debug* r_debug = NULL;
     uint32_t dynamic_length = 0;
 #if !defined(__ANDROID__)
+    // This code assumes the crashing process is the same as this process and
+    // may hang or take a long time to complete if not so.  This is never so
+    // for post-mortem based minidump writing.
+    if (!dumper_.IsPostMortem()) {
     // The Android NDK is missing structure definitions for most of this.
     // For now, it's simpler just to skip it.
     for (int i = 0;;) {
       ElfW(Dyn) dyn;
       dynamic_length += sizeof(dyn);
+      // Note, use of _DYNAMIC assumes this is the same process as the
+      // crashing process.  This loop will go forever if it's out of bounds.
       dumper_.CopyFromProcess(&dyn, crashing_tid_, _DYNAMIC+i++, sizeof(dyn));
       if (dyn.d_tag == DT_DEBUG) {
         r_debug = (struct r_debug*)dyn.d_un.d_ptr;
@@ -415,6 +452,7 @@ class MinidumpWriter {
       } else if (dyn.d_tag == DT_NULL) {
         break;
       }
+    }
     }
 #endif
 
@@ -648,7 +686,7 @@ class MinidumpWriter {
       // we used the actual state of the thread we would find it running in the
       // signal handler with the alternative stack, which would be deeply
       // unhelpful.
-      if ((pid_t)thread.thread_id == crashing_tid_) {
+      if (!IsPostMortem() && (pid_t)thread.thread_id == crashing_tid_) {
         const void* stack;
         size_t stack_len;
         if (!dumper_.GetStackInfo(&stack, &stack_len, GetStackPointer()))
@@ -737,6 +775,10 @@ class MinidumpWriter {
         CPUFillFromThreadInfo(cpu.get(), info);
         PopSeccompStackFrame(cpu.get(), thread, stack_copy);
         thread.thread_context = cpu.location();
+        if (dumper_.threads()[i] == crashing_tid_) {
+          assert(IsPostMortem());
+          crashing_thread_context_ = cpu.location();
+        }
       }
 
       list.CopyIndexAfterObject(i, &thread, sizeof(thread));
@@ -906,9 +948,17 @@ class MinidumpWriter {
     dirent->location = exc.location();
 
     exc.get()->thread_id = crashing_tid_;
-    exc.get()->exception_record.exception_code = siginfo_->si_signo;
-    exc.get()->exception_record.exception_address =
-        (uintptr_t) siginfo_->si_addr;
+    if (IsPostMortem()) {
+      dumper_.GetExceptionInfoFromCore(
+          &exc.get()->exception_record.exception_code);
+      // Core files do not provide the address associated with the
+      // signal (the unmapped address, for instance), so set to zero.
+      exc.get()->exception_record.exception_address = 0;
+    } else {
+      exc.get()->exception_record.exception_code = siginfo_->si_signo;
+      exc.get()->exception_record.exception_address =
+          (uintptr_t) siginfo_->si_addr;
+    }
     exc.get()->thread_context = crashing_thread_context_;
 
     return true;
@@ -1011,6 +1061,10 @@ class MinidumpWriter {
   }
 
  private:
+  bool IsPostMortem() const {
+    return siginfo_ == NULL;
+  }
+
 #if defined(__i386)
   uintptr_t GetStackPointer() {
     return ucontext_->uc_mcontext.gregs[REG_ESP];
@@ -1285,7 +1339,7 @@ class MinidumpWriter {
   const siginfo_t* const siginfo_;  // from the signal handler (see sigaction)
   const struct ucontext* const ucontext_;  // also from the signal handler
   const struct _libc_fpstate* const float_state_;  // ditto
-  const pid_t crashing_tid_;  // the process which actually crashed
+  pid_t crashing_tid_;  // the process which actually crashed
   LinuxDumper dumper_;
   MinidumpFileWriter minidump_writer_;
   MDLocationDescriptor crashing_thread_context_;
@@ -1311,6 +1365,16 @@ bool WriteMinidump(const char* filename, pid_t crashing_process,
   const ExceptionHandler::CrashContext* context =
       reinterpret_cast<const ExceptionHandler::CrashContext*>(blob);
   MinidumpWriter writer(filename, crashing_process, context, mappings);
+  if (!writer.Init())
+    return false;
+  return writer.Dump();
+}
+
+bool WriteMinidumpFromCore(const char* filename,
+                           const char* core_path,
+                           const char* procfs_override) {
+  MappingList m;
+  MinidumpWriter writer(filename, core_path, procfs_override, m);
   if (!writer.Init())
     return false;
   return writer.Dump();

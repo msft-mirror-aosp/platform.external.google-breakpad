@@ -1,3 +1,10 @@
+// Copyright (c) 2011 The Chromium OS Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+//
+// This file is a patched version from Google Breakpad revision 875 to
+// support core dump to minidump conversion.  Original copyright follows.
+//
 // Copyright (c) 2010, Google Inc.
 // All rights reserved.
 //
@@ -38,6 +45,9 @@
 #include <sys/user.h>
 #endif
 
+#include <map>
+
+#include "common/linux/mmapped_range.h"
 #include "common/memory.h"
 #include "google_breakpad/common/minidump_format.h"
 
@@ -118,6 +128,8 @@ class LinuxDumper {
  public:
   explicit LinuxDumper(pid_t pid);
 
+  ~LinuxDumper();
+
   // Parse the data for |threads| and |mappings|.
   bool Init();
 
@@ -143,8 +155,8 @@ class LinuxDumper {
   PageAllocator* allocator() { return &allocator_; }
 
   // memcpy from a remote process.
-  static void CopyFromProcess(void* dest, pid_t child, const void* src,
-                              size_t length);
+  void CopyFromProcess(void* dest, pid_t child, const void* src,
+                       size_t length);
 
   // Builds a proc path for a certain pid for a node.  path is a
   // character array that is overwritten, and node is the final node
@@ -164,7 +176,38 @@ class LinuxDumper {
   // shared object.  Parsing the auxilary vector for AT_SYSINFO_EHDR
   // is the safest way to go.)
   void* FindBeginningOfLinuxGateSharedLibrary(const pid_t pid) const;
+
+  // Enable a post-mortem dump from a core file and copy of procfs.
+  void SetCore(const char* core_path, const char* procfs_prefix) {
+    core_path_ = core_path;
+    override_procfs_prefix_ = procfs_prefix;
+  }
+
+  pid_t GetCrashingPidFromCore() {
+    return core_exception_information_.crashing_pid;
+  }
+
+  void GetExceptionInfoFromCore(u_int32_t* exception_code) {
+    *exception_code = core_exception_information_.crashing_signal;
+  }
+
+  bool IsPostMortem() const {
+    return core_path_ != NULL;
+  }
+
  private:
+  typedef std::map<int, google_breakpad::ThreadInfo>::iterator ThreadIterator;
+
+  struct CoreExceptionInformation {
+    CoreExceptionInformation()
+        : crashing_pid(0),
+	  crashing_signal(0) {
+    }
+
+    pid_t crashing_pid;
+    int crashing_signal;
+  };
+
   bool EnumerateMappings(wasteful_vector<MappingInfo*>* result) const;
   bool EnumerateThreads(wasteful_vector<pid_t>* result) const;
 
@@ -179,6 +222,11 @@ class LinuxDumper {
   // Returns true if |path| is modified.
   bool HandleDeletedFileInMapping(char* path) const;
 
+  bool LoadCoreFile();
+  void CopyFromCore(void* dest, pid_t child, const void* src,
+                    size_t length);
+  bool ThreadInfoGetUsingPtrace(pid_t tid, ThreadInfo* info);
+
   const pid_t pid_;
 
   mutable PageAllocator allocator_;
@@ -186,6 +234,20 @@ class LinuxDumper {
   bool threads_suspended_;
   wasteful_vector<pid_t> threads_;  // the ids of all the threads
   wasteful_vector<MappingInfo*> mappings_;  // info from /proc/<pid>/maps
+
+  // If not NULL, use this path prefix instead of /proc/<pid>.
+  const char* override_procfs_prefix_;
+
+  // Core dump's path.
+  const char* core_path_;
+
+  // Core file's memory mapped contents.
+  void* core_buffer_;
+  MMappedRange core_;
+
+  std::map<int, google_breakpad::ThreadInfo> core_thread_map_;
+
+  CoreExceptionInformation core_exception_information_;
 };
 
 }  // namespace google_breakpad
