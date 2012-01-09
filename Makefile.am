@@ -72,8 +72,11 @@ src_client_linux_libbreakpad_client_a_SOURCES = \
 	src/common/convert_UTF.c \
 	src/common/md5.cc \
 	src/common/string_conversion.cc \
+	src/common/linux/elf_core_dump.cc \
 	src/common/linux/file_id.cc \
-	src/common/linux/guid_creator.cc
+	src/common/linux/guid_creator.cc \
+	src/common/linux/memory_mapped_file.cc \
+	src/common/linux/safe_readlink.cc
 endif LINUX_HOST
 
 if !DISABLE_PROCESSOR
@@ -263,7 +266,11 @@ check_PROGRAMS += \
 if !DISABLE_TOOLS
 check_PROGRAMS += \
 	src/common/dumper_unittest
-endif
+if !DISABLE_MD2CORE
+check_PROGRAMS += \
+	src/tools/linux/md2core/minidump_2_core_unittest
+endif !DISABLE_MD2CORE
+endif !DISABLE_TOOLS
 endif LINUX_HOST
 
 if !DISABLE_PROCESSOR
@@ -320,8 +327,11 @@ src_client_linux_linux_client_unittest_LDADD = \
 	src/client/minidump_file_writer.o \
 	src/common/convert_UTF.o \
 	src/common/md5.o \
+	src/common/linux/elf_core_dump.o \
 	src/common/linux/file_id.o \
 	src/common/linux/guid_creator.o \
+	src/common/linux/memory_mapped_file.o \
+	src/common/linux/safe_readlink.o \
 	src/common/string_conversion.o
 
 src_client_linux_linux_client_unittest_DEPENDENCIES = src/client/linux/linux_dumper_unittest_helper src/client/linux/libbreakpad_client.a src/libbreakpad.a
@@ -341,6 +351,8 @@ src_tools_linux_dump_syms_dump_syms_SOURCES = \
 	src/common/linux/dump_symbols.cc \
 	src/common/linux/elf_symbols_to_module.cc \
 	src/common/linux/file_id.cc \
+	src/common/linux/memory_mapped_file.cc \
+	src/common/linux/safe_readlink.cc \
 	src/tools/linux/dump_syms/dump_syms.cc
 
 src_tools_linux_symupload_minidump_upload_SOURCES = \
@@ -362,6 +374,7 @@ src_common_dumper_unittest_SOURCES = \
 	src/common/dwarf_line_to_module.cc \
 	src/common/dwarf_line_to_module_unittest.cc \
 	src/common/language.cc \
+	src/common/memory_range_unittest.cc \
 	src/common/module.cc \
 	src/common/module_unittest.cc \
 	src/common/stabs_reader.cc \
@@ -378,12 +391,20 @@ src_common_dumper_unittest_SOURCES = \
 	src/common/dwarf/dwarf2reader_cfi_unittest.cc \
 	src/common/linux/dump_symbols.cc \
 	src/common/linux/dump_symbols_unittest.cc \
+	src/common/linux/elf_core_dump.cc \
+	src/common/linux/elf_core_dump_unittest.cc \
 	src/common/linux/elf_symbols_to_module.cc \
 	src/common/linux/elf_symbols_to_module_unittest.cc \
+	src/common/linux/memory_mapped_file.cc \
+	src/common/linux/memory_mapped_file_unittest.cc \
 	src/common/linux/synth_elf.cc \
 	src/common/linux/synth_elf_unittest.cc \
 	src/common/linux/file_id.cc \
 	src/common/linux/file_id_unittest.cc \
+	src/common/linux/safe_readlink.cc \
+	src/common/linux/safe_readlink_unittest.cc \
+	src/common/linux/tests/crash_generator.cc \
+	src/common/tests/file_utils.cc \
 	src/testing/gtest/src/gtest-all.cc \
 	src/testing/gtest/src/gtest_main.cc \
 	src/testing/src/gmock-all.cc
@@ -392,7 +413,9 @@ src_common_dumper_unittest_CPPFLAGS = \
 	-I$(top_srcdir)/src/testing/include \
 	-I$(top_srcdir)/src/testing/gtest/include \
 	-I$(top_srcdir)/src/testing/gtest \
-	-I$(top_srcdir)/src/testing
+	-I$(top_srcdir)/src/testing \
+	$(PTHREAD_CFLAGS)
+src_common_dumper_unittest_LDADD = $(PTHREAD_CFLAGS) $(PTHREAD_LIBS)
 endif
 
 if !DISABLE_CORE2MD
@@ -408,7 +431,19 @@ endif !DISABLE_CORE2MD
 
 if !DISABLE_MD2CORE
 src_tools_linux_md2core_minidump_2_core_SOURCES = \
+	src/common/linux/memory_mapped_file.cc \
 	src/tools/linux/md2core/minidump-2-core.cc
+src_tools_linux_md2core_minidump_2_core_unittest_SOURCES = \
+	src/testing/gtest/src/gtest-all.cc \
+	src/testing/gtest/src/gtest_main.cc \
+	src/testing/src/gmock-all.cc \
+	src/tools/linux/md2core/minidump_memory_range_unittest.cc
+src_tools_linux_md2core_minidump_2_core_unittest_CPPFLAGS = \
+	-I$(top_srcdir)/src \
+	-I$(top_srcdir)/src/testing/include \
+	-I$(top_srcdir)/src/testing/gtest/include \
+	-I$(top_srcdir)/src/testing/gtest \
+	-I$(top_srcdir)/src/testing
 endif !DISABLE_MD2CORE
 
 endif LINUX_HOST

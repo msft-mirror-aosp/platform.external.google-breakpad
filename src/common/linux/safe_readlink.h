@@ -27,72 +27,39 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Utility class for creating a temporary directory for unit tests
-// that is deleted in the destructor.
-#ifndef GOOGLE_BREAKPAD_COMMON_TESTS_AUTO_TEMPDIR
-#define GOOGLE_BREAKPAD_COMMON_TESTS_AUTO_TEMPDIR
+// safe_readlink.h: Define the google_breakpad::SafeReadLink function,
+// which wraps sys_readlink and gurantees the result is NULL-terminated.
 
-#include <dirent.h>
-#include <sys/types.h>
+#ifndef COMMON_LINUX_SAFE_READLINK_H_
+#define COMMON_LINUX_SAFE_READLINK_H_
 
-#include <string>
-
-#include "breakpad_googletest_includes.h"
-
-#if !defined(__ANDROID__)
-#define TEMPDIR "/tmp"
-#else
-#define TEMPDIR "/data/local/tmp"
-#endif
+#include <stddef.h>
 
 namespace google_breakpad {
 
-class AutoTempDir {
- public:
-  AutoTempDir() {
-    char temp_dir[] = TEMPDIR "/breakpad.XXXXXXXXXX";
-    EXPECT_TRUE(mkdtemp(temp_dir) != NULL);
-    path_.assign(temp_dir);
-  }
+// This function wraps sys_readlink() and performs the same functionalty,
+// but guarantees |buffer| is NULL-terminated if sys_readlink() returns
+// no error. It takes the same arguments as sys_readlink(), but unlike
+// sys_readlink(), it returns true on success.
+//
+// |buffer_size| specifies the size of |buffer| in bytes. As this function
+// always NULL-terminates |buffer| on success, |buffer_size| should be
+// at least one byte longer than the expected path length (e.g. PATH_MAX,
+// which is typically defined as the maximum length of a path name
+// including the NULL byte).
+//
+// The implementation of this function calls sys_readlink() instead of
+// readlink(), it can thus be used in the context where calling to libc
+// functions is discouraged.
+bool SafeReadLink(const char* path, char* buffer, size_t buffer_size);
 
-  ~AutoTempDir() {
-    DeleteRecursively(path_);
-  }
-
-  const std::string& path() const {
-    return path_;
-  }
-
- private:
-  void DeleteRecursively(const std::string& path) {
-    // First remove any files in the dir
-    DIR* dir = opendir(path.c_str());
-    if (!dir)
-      return;
-
-    dirent* entry;
-    while ((entry = readdir(dir)) != NULL) {
-      if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
-        continue;
-      std::string entry_path = path + "/" + entry->d_name;
-      struct stat stats;
-      EXPECT_TRUE(lstat(entry_path.c_str(), &stats) == 0);
-      if (S_ISDIR(stats.st_mode))
-        DeleteRecursively(entry_path);
-      else
-        EXPECT_TRUE(unlink(entry_path.c_str()) == 0);
-    }
-    EXPECT_TRUE(closedir(dir) == 0);
-    EXPECT_TRUE(rmdir(path.c_str()) == 0);
-  }
-
-  // prevent copy construction and assignment
-  AutoTempDir(const AutoTempDir&);
-  AutoTempDir& operator=(const AutoTempDir&);
-
-  std::string path_;
-};
+// Same as the three-argument version of SafeReadLink() but deduces the
+// size of |buffer| if it is a char array of known size.
+template <size_t N>
+bool SafeReadLink(const char* path, char (&buffer)[N]) {
+  return SafeReadLink(path, buffer, sizeof(buffer));
+}
 
 }  // namespace google_breakpad
 
-#endif  // GOOGLE_BREAKPAD_COMMON_TESTS_AUTO_TEMPDIR
+#endif  // COMMON_LINUX_SAFE_READLINK_H_

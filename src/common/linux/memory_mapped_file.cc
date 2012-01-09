@@ -27,72 +27,76 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Utility class for creating a temporary directory for unit tests
-// that is deleted in the destructor.
-#ifndef GOOGLE_BREAKPAD_COMMON_TESTS_AUTO_TEMPDIR
-#define GOOGLE_BREAKPAD_COMMON_TESTS_AUTO_TEMPDIR
+// memory_mapped_file.cc: Implement google_breakpad::MemoryMappedFile.
+// See memory_mapped_file.h for details.
 
-#include <dirent.h>
-#include <sys/types.h>
+#include "common/linux/memory_mapped_file.h"
 
-#include <string>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <unistd.h>
 
-#include "breakpad_googletest_includes.h"
-
-#if !defined(__ANDROID__)
-#define TEMPDIR "/tmp"
-#else
-#define TEMPDIR "/data/local/tmp"
-#endif
+#include "common/memory_range.h"
+#include "third_party/lss/linux_syscall_support.h"
 
 namespace google_breakpad {
 
-class AutoTempDir {
- public:
-  AutoTempDir() {
-    char temp_dir[] = TEMPDIR "/breakpad.XXXXXXXXXX";
-    EXPECT_TRUE(mkdtemp(temp_dir) != NULL);
-    path_.assign(temp_dir);
+MemoryMappedFile::MemoryMappedFile() {}
+
+MemoryMappedFile::MemoryMappedFile(const char* path) {
+  Map(path);
+}
+
+MemoryMappedFile::~MemoryMappedFile() {
+  Unmap();
+}
+
+bool MemoryMappedFile::Map(const char* path) {
+  Unmap();
+
+  int fd = sys_open(path, O_RDONLY, 0);
+  if (fd == -1) {
+    return false;
   }
 
-  ~AutoTempDir() {
-    DeleteRecursively(path_);
+#if defined(__x86_64__)
+  struct kernel_stat st;
+  if (sys_fstat(fd, &st) == -1 || st.st_size < 0) {
+#else
+  struct kernel_stat64 st;
+  if (sys_fstat64(fd, &st) == -1 || st.st_size < 0) {
+#endif
+    sys_close(fd);
+    return false;
   }
 
-  const std::string& path() const {
-    return path_;
+  // If the file size is zero, simply use an empty MemoryRange and return
+  // true. Don't bother to call mmap() even though mmap() can handle an
+  // empty file on some platforms.
+  if (st.st_size == 0) {
+    sys_close(fd);
+    return true;
   }
 
- private:
-  void DeleteRecursively(const std::string& path) {
-    // First remove any files in the dir
-    DIR* dir = opendir(path.c_str());
-    if (!dir)
-      return;
-
-    dirent* entry;
-    while ((entry = readdir(dir)) != NULL) {
-      if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
-        continue;
-      std::string entry_path = path + "/" + entry->d_name;
-      struct stat stats;
-      EXPECT_TRUE(lstat(entry_path.c_str(), &stats) == 0);
-      if (S_ISDIR(stats.st_mode))
-        DeleteRecursively(entry_path);
-      else
-        EXPECT_TRUE(unlink(entry_path.c_str()) == 0);
-    }
-    EXPECT_TRUE(closedir(dir) == 0);
-    EXPECT_TRUE(rmdir(path.c_str()) == 0);
+#if defined(__x86_64__)
+  void* data = sys_mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+#else
+  void* data = sys_mmap2(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+#endif
+  sys_close(fd);
+  if (data == MAP_FAILED) {
+    return false;
   }
 
-  // prevent copy construction and assignment
-  AutoTempDir(const AutoTempDir&);
-  AutoTempDir& operator=(const AutoTempDir&);
+  content_.Set(data, st.st_size);
+  return true;
+}
 
-  std::string path_;
-};
+void MemoryMappedFile::Unmap() {
+  if (content_.data()) {
+    sys_munmap(const_cast<u_int8_t*>(content_.data()), content_.length());
+    content_.Set(NULL, 0);
+  }
+}
 
 }  // namespace google_breakpad
-
-#endif  // GOOGLE_BREAKPAD_COMMON_TESTS_AUTO_TEMPDIR

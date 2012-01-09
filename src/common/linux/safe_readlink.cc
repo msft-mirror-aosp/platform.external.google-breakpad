@@ -27,72 +27,27 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Utility class for creating a temporary directory for unit tests
-// that is deleted in the destructor.
-#ifndef GOOGLE_BREAKPAD_COMMON_TESTS_AUTO_TEMPDIR
-#define GOOGLE_BREAKPAD_COMMON_TESTS_AUTO_TEMPDIR
+// safe_readlink.cc: Implement google_breakpad::SafeReadLink.
+// See safe_readlink.h for details.
 
-#include <dirent.h>
-#include <sys/types.h>
+#include <stddef.h>
 
-#include <string>
-
-#include "breakpad_googletest_includes.h"
-
-#if !defined(__ANDROID__)
-#define TEMPDIR "/tmp"
-#else
-#define TEMPDIR "/data/local/tmp"
-#endif
+#include "third_party/lss/linux_syscall_support.h"
 
 namespace google_breakpad {
 
-class AutoTempDir {
- public:
-  AutoTempDir() {
-    char temp_dir[] = TEMPDIR "/breakpad.XXXXXXXXXX";
-    EXPECT_TRUE(mkdtemp(temp_dir) != NULL);
-    path_.assign(temp_dir);
+bool SafeReadLink(const char* path, char* buffer, size_t buffer_size) {
+  // sys_readlink() does not add a NULL byte to |buffer|. In order to return
+  // a NULL-terminated string in |buffer|, |buffer_size| should be at least
+  // one byte longer than the expected path length. Also, sys_readlink()
+  // returns the actual path length on success, which does not count the
+  // NULL byte, so |result_size| should be less than |buffer_size|.
+  ssize_t result_size = sys_readlink(path, buffer, buffer_size);
+  if (result_size >= 0 && static_cast<size_t>(result_size) < buffer_size) {
+    buffer[result_size] = '\0';
+    return true;
   }
-
-  ~AutoTempDir() {
-    DeleteRecursively(path_);
-  }
-
-  const std::string& path() const {
-    return path_;
-  }
-
- private:
-  void DeleteRecursively(const std::string& path) {
-    // First remove any files in the dir
-    DIR* dir = opendir(path.c_str());
-    if (!dir)
-      return;
-
-    dirent* entry;
-    while ((entry = readdir(dir)) != NULL) {
-      if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
-        continue;
-      std::string entry_path = path + "/" + entry->d_name;
-      struct stat stats;
-      EXPECT_TRUE(lstat(entry_path.c_str(), &stats) == 0);
-      if (S_ISDIR(stats.st_mode))
-        DeleteRecursively(entry_path);
-      else
-        EXPECT_TRUE(unlink(entry_path.c_str()) == 0);
-    }
-    EXPECT_TRUE(closedir(dir) == 0);
-    EXPECT_TRUE(rmdir(path.c_str()) == 0);
-  }
-
-  // prevent copy construction and assignment
-  AutoTempDir(const AutoTempDir&);
-  AutoTempDir& operator=(const AutoTempDir&);
-
-  std::string path_;
-};
+  return false;
+}
 
 }  // namespace google_breakpad
-
-#endif  // GOOGLE_BREAKPAD_COMMON_TESTS_AUTO_TEMPDIR
