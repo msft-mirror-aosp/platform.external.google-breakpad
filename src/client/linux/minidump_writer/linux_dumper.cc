@@ -1,10 +1,3 @@
-// Copyright (c) 2011 The Chromium OS Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
-//
-// This file is a patched version from Google Breakpad revision 875 to
-// support core dump to minidump conversion.  Original copyright follows.
-//
 // Copyright (c) 2010, Google Inc.
 // All rights reserved.
 //
@@ -34,6 +27,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// linux_dumper.cc: Implement google_breakpad::LinuxDumper.
+// See linux_dumper.h for details.
+
 // This code deals with the mechanics of getting information about a crashed
 // process. Since this code may run in a compromised address space, the same
 // rules apply as detailed at the top of minidump_writer.h: no libc calls and
@@ -41,34 +37,12 @@
 
 #include "client/linux/minidump_writer/linux_dumper.h"
 
-#include <asm/ptrace.h>
 #include <assert.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
-#if !defined(__ANDROID__)
-#include <link.h>
-#endif
 #include <stddef.h>
-#include <stdlib.h>
-#include <stdio.h>
 #include <string.h>
 
-#include <elf.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <link.h>
-
-#include <sys/types.h>
-#include <sys/procfs.h>
-#include <sys/ptrace.h>
-#include <sys/wait.h>
-#include <unistd.h>
-
-#include <algorithm>
-
-#include "client/linux/minidump_writer/core_reader.h"
-#include "client/linux/minidump_writer/directory_reader.h"
 #include "client/linux/minidump_writer/line_reader.h"
 #include "common/linux/file_id.h"
 #include "common/linux/linux_libc_support.h"
@@ -78,48 +52,6 @@
 
 static const char kMappedFileUnsafePrefix[] = "/dev/";
 static const char kDeletedSuffix[] = " (deleted)";
-
-// Suspend a thread by attaching to it.
-static bool SuspendThread(pid_t pid) {
-  // This may fail if the thread has just died or debugged.
-  errno = 0;
-  if (sys_ptrace(PTRACE_ATTACH, pid, NULL, NULL) != 0 &&
-      errno != 0) {
-    return false;
-  }
-  while (sys_waitpid(pid, NULL, __WALL) < 0) {
-    if (errno != EINTR) {
-      sys_ptrace(PTRACE_DETACH, pid, NULL, NULL);
-      return false;
-    }
-  }
-#if defined(__i386) || defined(__x86_64)
-  // On x86, the stack pointer is NULL or -1, when executing trusted code in
-  // the seccomp sandbox. Not only does this cause difficulties down the line
-  // when trying to dump the thread's stack, it also results in the minidumps
-  // containing information about the trusted threads. This information is
-  // generally completely meaningless and just pollutes the minidumps.
-  // We thus test the stack pointer and exclude any threads that are part of
-  // the seccomp sandbox's trusted code.
-  user_regs_struct regs;
-  if (sys_ptrace(PTRACE_GETREGS, pid, NULL, &regs) == -1 ||
-#if defined(__i386)
-      !regs.esp
-#elif defined(__x86_64)
-      !regs.rsp
-#endif
-      ) {
-    sys_ptrace(PTRACE_DETACH, pid, NULL, NULL);
-    return false;
-  }
-#endif
-  return true;
-}
-
-// Resume a thread by detaching from it.
-static bool ResumeThread(pid_t pid) {
-  return sys_ptrace(PTRACE_DETACH, pid, NULL, NULL) >= 0;
-}
 
 inline static bool IsMappedFileOpenUnsafe(
     const google_breakpad::MappingInfo& mapping) {
@@ -134,121 +66,20 @@ inline static bool IsMappedFileOpenUnsafe(
 
 namespace google_breakpad {
 
-LinuxDumper::LinuxDumper(int pid)
+LinuxDumper::LinuxDumper(pid_t pid)
     : pid_(pid),
-      threads_suspended_(false),
+      crash_address_(0),
+      crash_signal_(0),
+      crash_thread_(0),
       threads_(&allocator_, 8),
-      mappings_(&allocator_),
-      override_procfs_prefix_(NULL),
-      core_path_(NULL),
-      core_buffer_(NULL) {
+      mappings_(&allocator_) {
 }
 
 LinuxDumper::~LinuxDumper() {
-  if (core_buffer_ != NULL) {
-    munmap(core_buffer_, core_.length());
-  }
 }
 
 bool LinuxDumper::Init() {
-  if (!EnumerateThreads(&threads_))
-    return false;
-  if (core_path_ != NULL && !LoadCoreFile())
-    return false;
-  if (!EnumerateMappings(&mappings_))
-    return false;
-  return true;
-}
-
-bool LinuxDumper::ThreadsSuspend() {
-  // Nothing to suspend if we're reading a core file.
-  if (IsPostMortem())
-    return true;
-  if (threads_suspended_)
-    return true;
-  for (size_t i = 0; i < threads_.size(); ++i) {
-    if (!SuspendThread(threads_[i])) {
-      // If the thread either disappeared before we could attach to it, or if
-      // it was part of the seccomp sandbox's trusted code, it is OK to
-      // silently drop it from the minidump.
-      memmove(&threads_[i], &threads_[i+1],
-              (threads_.size() - i - 1) * sizeof(threads_[i]));
-      threads_.resize(threads_.size() - 1);
-      --i;
-    }
-  }
-  threads_suspended_ = true;
-  return threads_.size() > 0;
-}
-
-bool LinuxDumper::ThreadsResume() {
-  // Nothing to resume if we're reading a core file.
-  if (IsPostMortem())
-    return true;
-  if (!threads_suspended_)
-    return false;
-  bool good = true;
-  for (size_t i = 0; i < threads_.size(); ++i)
-    good &= ResumeThread(threads_[i]);
-  threads_suspended_ = false;
-  return good;
-}
-
-void
-LinuxDumper::BuildProcPath(char* path, pid_t pid, const char* node) const {
-  assert(path);
-  if (!path) {
-    return;
-  }
-
-  path[0] = '\0';
-
-  const unsigned pid_len = my_int_len(pid);
-
-  assert(node);
-  if (!node) {
-    return;
-  }
-
-  size_t node_len = my_strlen(node);
-  assert(node_len < NAME_MAX);
-  if (node_len >= NAME_MAX) {
-    return;
-  }
-
-  assert(node_len > 0);
-  if (node_len == 0) {
-    return;
-  }
-
-  size_t total_length;
-  if (override_procfs_prefix_ != NULL) {
-    total_length = strlen(override_procfs_prefix_) + 1 + node_len;
-  } else {
-    assert(pid > 0);
-    if (pid <= 0) {
-      return;
-    }
-    total_length = 6 + pid_len + 1 + node_len;
-  }
-
-  assert(total_length < NAME_MAX);
-  if (total_length >= NAME_MAX) {
-    return;
-  }
-
-  if (!override_procfs_prefix_) {
-    memcpy(path, "/proc/", 6);
-    my_itos(path + 6, pid, pid_len);
-    memcpy(path + 6 + pid_len, "/", 1);
-    memcpy(path + 6 + pid_len + 1, node, node_len);
-  } else {
-    int override_procfs_prefix_len = strlen(override_procfs_prefix_);
-    memcpy(path, override_procfs_prefix_, override_procfs_prefix_len);
-    memcpy(path + override_procfs_prefix_len, "/", 1);
-    memcpy(path + override_procfs_prefix_len + 1, node, node_len);
-  }
-  path[total_length] = '\0';
+  return EnumerateThreads() && EnumerateMappings();
 }
 
 bool
@@ -303,10 +134,8 @@ LinuxDumper::ElfFileIdentifierForMapping(const MappingInfo& mapping,
 void*
 LinuxDumper::FindBeginningOfLinuxGateSharedLibrary(const pid_t pid) const {
   char auxv_path[NAME_MAX];
-  BuildProcPath(auxv_path, pid, "auxv");
-
-  // If BuildProcPath errors out due to invalid input, we'll handle it when
-  // we try to sys_open the file.
+  if (!BuildProcPath(auxv_path, pid, "auxv"))
+    return NULL;
 
   // Find the AT_SYSINFO_EHDR entry for linux-gate.so
   // See http://www.trilithium.com/johan/2005/08/linux-gate/ for more
@@ -330,10 +159,10 @@ LinuxDumper::FindBeginningOfLinuxGateSharedLibrary(const pid_t pid) const {
   return NULL;
 }
 
-bool
-LinuxDumper::EnumerateMappings(wasteful_vector<MappingInfo*>* result) const {
+bool LinuxDumper::EnumerateMappings() {
   char maps_path[NAME_MAX];
-  BuildProcPath(maps_path, pid_, "maps");
+  if (!BuildProcPath(maps_path, pid_, "maps"))
+    return false;
 
   // linux_gate_loc is the beginning of the kernel's mapping of
   // linux-gate.so in the process.  It doesn't actually show up in the
@@ -370,8 +199,8 @@ LinuxDumper::EnumerateMappings(wasteful_vector<MappingInfo*>* result) const {
           }
           // Merge adjacent mappings with the same name into one module,
           // assuming they're a single library mapped by the dynamic linker
-          if (name && result->size()) {
-            MappingInfo* module = (*result)[result->size() - 1];
+          if (name && !mappings_.empty()) {
+            MappingInfo* module = mappings_.back();
             if ((start_addr == module->start_addr + module->size) &&
                 (my_strlen(name) == my_strlen(module->name)) &&
                 (my_strncmp(name, module->name, my_strlen(name)) == 0)) {
@@ -390,7 +219,7 @@ LinuxDumper::EnumerateMappings(wasteful_vector<MappingInfo*>* result) const {
             if (l < sizeof(module->name))
               memcpy(module->name, name, l);
           }
-          result->push_back(module);
+          mappings_.push_back(module);
         }
       }
     }
@@ -399,229 +228,7 @@ LinuxDumper::EnumerateMappings(wasteful_vector<MappingInfo*>* result) const {
 
   sys_close(fd);
 
-  return result->size() > 0;
-}
-
-bool LinuxDumper::LoadCoreFile() {
-  assert(core_path_);
-  off_t size;
-  if (!MmapAndValidateCoreFile(core_path_, &core_buffer_, &size)) {
-    return false;
-  }
-
-  core_.Set(core_buffer_, size);
-  const Ehdr* header = reinterpret_cast<const Ehdr*>(
-      core_.GetObject(0, sizeof(Ehdr)));
-  const Phdr* note = NULL;
-  // Find PT_NOTES information.
-  for (int i = 0; i < header->e_phnum; ++i) {
-    const Phdr* program = reinterpret_cast<const Phdr*>(
-        core_.GetArrayElement(header->e_phoff,
-                              header->e_phentsize, i));
-    if (program->p_type == PT_NOTE) {
-      note = program;
-      break;
-    }
-  }
-
-  if (!note) {
-    return false;
-  }
-
-  bool was_last_pid = false;
-  static int last_pid = 0;
-  MMappedRange contents = core_.Subrange(note->p_offset, note->p_filesz);
-  for (u_int32_t offset = 0; offset < note->p_filesz;) {
-    const Nhdr* nhdr = reinterpret_cast<const Nhdr*>(
-        contents.GetObject(offset, sizeof(Nhdr)));
-    const char* name = reinterpret_cast<const char*>(
-        contents.GetObject(offset + sizeof(Nhdr), nhdr->n_namesz));
-    int desc_offset = WordUp(sizeof(Nhdr) + nhdr->n_namesz);
-    const void* desc = reinterpret_cast<const void*>(
-        contents.GetObject(offset + desc_offset, nhdr->n_descsz));
-    if (nhdr == NULL || name == NULL || desc == NULL) {
-      fprintf(stderr, "Problem reading PT_NOTE.\n");
-      return false;
-    }
-    switch(nhdr->n_type) {
-      case NT_PRSTATUS: {
-        const elf_prstatus* status =
-            reinterpret_cast<const elf_prstatus*>(desc);
-        pid_t pid = status->pr_pid;
-        ThreadInfo thread;
-        memset(&thread, 0, sizeof(ThreadInfo));
-        thread.tgid = status->pr_pgrp;
-        thread.ppid = status->pr_ppid;
-        memcpy(&thread.regs, status->pr_reg, sizeof(thread.regs));
-        core_thread_map_.insert(std::pair<pid_t, ThreadInfo>(pid, thread));
-        if (!was_last_pid) {
-          core_exception_information_.crashing_pid = pid;
-          core_exception_information_.crashing_signal =
-              status->pr_info.si_signo;
-        }
-        was_last_pid = true;
-        last_pid = pid;
-        threads_.push_back(pid);
-        break;
-      }
-#if defined(__i386__)
-      case NT_FPREGSET: {
-        ThreadIterator thread = core_thread_map_.find(last_pid);
-        if (was_last_pid &&
-            thread != core_thread_map_.end()) {
-          if (nhdr->n_descsz != sizeof(thread->second.fpregs)) {
-            fprintf(stderr, "NT_FPREGSET descriptor of unexpected size\n");
-          } else {
-            memcpy(&thread->second.fpregs, desc,
-                   sizeof(thread->second.fpregs));
-          }
-        }
-        break;
-      }
-      case NT_PRXFPREG: {
-        ThreadIterator thread = core_thread_map_.find(last_pid);
-        if (was_last_pid && thread != core_thread_map_.end()) {
-          if (nhdr->n_descsz != sizeof(thread->second.fpxregs)) {
-            fprintf(stderr, "NT_PRXFPREG descriptor of unexpected size\n");
-          } else {
-            memcpy(&thread->second.fpxregs, desc,
-                   sizeof(thread->second.fpxregs));
-          }
-        }
-        break;
-      }
-#endif
-    }
-    offset += WordUp(desc_offset + nhdr->n_descsz);
-  }
-
-  return true;
-}
-
-// Parse /proc/$pid/task to list all the threads of the process identified by
-// pid.
-bool LinuxDumper::EnumerateThreads(wasteful_vector<pid_t>* result) const {
-  if (IsPostMortem()) {
-    // Threads are enumerated as part of loading the core file.
-    return true;
-  }
-  char task_path[NAME_MAX];
-  BuildProcPath(task_path, pid_, "task");
-
-  const int fd = sys_open(task_path, O_RDONLY | O_DIRECTORY, 0);
-  if (fd < 0)
-    return false;
-  DirectoryReader* dir_reader = new(allocator_) DirectoryReader(fd);
-
-  // The directory may contain duplicate entries which we filter by assuming
-  // that they are consecutive.
-  int last_tid = -1;
-  const char* dent_name;
-  while (dir_reader->GetNextEntry(&dent_name)) {
-    if (my_strcmp(dent_name, ".") &&
-        my_strcmp(dent_name, "..")) {
-      int tid = 0;
-      if (my_strtoui(&tid, dent_name) &&
-          last_tid != tid) {
-        last_tid = tid;
-        result->push_back(tid);
-      }
-    }
-    dir_reader->PopEntry();
-  }
-
-  sys_close(fd);
-  return true;
-}
-
-// Read thread info from /proc/$pid/status.
-// Fill out the |tgid|, |ppid| and |pid| members of |info|. If unavailable,
-// these members are set to -1. Returns true iff all three members are
-// available.
-bool LinuxDumper::ThreadInfoGetUsingPtrace(pid_t tid, ThreadInfo* info) {
-  assert(info != NULL);
-  char status_path[NAME_MAX];
-  BuildProcPath(status_path, tid, "status");
-
-  const int fd = open(status_path, O_RDONLY);
-  if (fd < 0)
-    return false;
-
-  LineReader* const line_reader = new(allocator_) LineReader(fd);
-  const char* line;
-  unsigned line_len;
-
-  info->ppid = info->tgid = -1;
-
-  while (line_reader->GetNextLine(&line, &line_len)) {
-    if (my_strncmp("Tgid:\t", line, 6) == 0) {
-      my_strtoui(&info->tgid, line + 6);
-    } else if (my_strncmp("PPid:\t", line, 6) == 0) {
-      my_strtoui(&info->ppid, line + 6);
-    }
-
-    line_reader->PopLine(line_len);
-  }
-
-  if (info->ppid == -1 || info->tgid == -1)
-    return false;
-
-  if (sys_ptrace(PTRACE_GETREGS, tid, NULL, &info->regs) == -1) {
-    return false;
-  }
-
-#if !defined(__ANDROID__)
-  if (sys_ptrace(PTRACE_GETFPREGS, tid, NULL, &info->fpregs) == -1) {
-    return false;
-  }
-#endif
-
-#if defined(__i386)
-  if (sys_ptrace(PTRACE_GETFPXREGS, tid, NULL, &info->fpxregs) == -1)
-    return false;
-#endif
-
-#if defined(__i386) || defined(__x86_64)
-  for (unsigned i = 0; i < ThreadInfo::kNumDebugRegisters; ++i) {
-    if (sys_ptrace(
-        PTRACE_PEEKUSER, tid,
-        reinterpret_cast<void*> (offsetof(struct user,
-                                          u_debugreg[0]) + i *
-                                 sizeof(debugreg_t)),
-        &info->dregs[i]) == -1) {
-      return false;
-    }
-  }
-#endif
-  return true;
-}
-
-bool LinuxDumper::ThreadInfoGet(pid_t tid, ThreadInfo* info) {
-  if (IsPostMortem()) {
-    ThreadIterator i = core_thread_map_.find(tid);
-    if (i == core_thread_map_.end()) {
-      return false;
-    }
-    *info = i->second;
-  } else {
-    if (!ThreadInfoGetUsingPtrace(tid, info)) {
-      return false;
-    }
-  }
-
-  const uint8_t* stack_pointer;
-#if defined(__i386)
-  memcpy(&stack_pointer, &info->regs.esp, sizeof(info->regs.esp));
-#elif defined(__x86_64)
-  memcpy(&stack_pointer, &info->regs.rsp, sizeof(info->regs.rsp));
-#elif defined(__ARM_EABI__)
-  memcpy(&stack_pointer, &info->regs.ARM_sp, sizeof(info->regs.ARM_sp));
-#else
-#error "This code hasn't been ported to your platform yet."
-#endif
-
-  return GetStackInfo(&info->stack, &info->stack_len,
-                      (uintptr_t) stack_pointer);
+  return !mappings_.empty();
 }
 
 // Get information about the stack, given the stack pointer. We don't try to
@@ -648,60 +255,6 @@ bool LinuxDumper::GetStackInfo(const void** stack, size_t* stack_len,
       kStackToCapture : distance_to_end;
   *stack = stack_pointer;
   return true;
-}
-
-void LinuxDumper::CopyFromCore(void* dest, pid_t child, const void* src,
-                               size_t length) {
-  const Ehdr* header = reinterpret_cast<const Ehdr*>(
-      core_.GetObject(0, sizeof(Ehdr)));
-  const char* src_bytes = reinterpret_cast<const char*>(src);
-
-  // Find PT_NOTES information.
-  for (int i = 0; i < header->e_phnum; ++i) {
-    const Phdr* program =
-        (const Phdr*)core_.GetArrayElement(header->e_phoff,
-                                           header->e_phentsize, i);
-    const char* segment_bytes = reinterpret_cast<const char*>(program->p_vaddr);
-    if (program->p_type != PT_LOAD)
-      continue;
-
-    size_t offset_in_segment = src_bytes - segment_bytes;
-    const char* mapped_memory =
-        reinterpret_cast<const char*>(
-            core_.GetObject(program->p_offset + offset_in_segment, length));
-
-    if (segment_bytes <= src_bytes &&
-        offset_in_segment < program->p_filesz &&
-        mapped_memory != NULL) {
-      memcpy(dest, mapped_memory, length);
-      return;
-    }
-  }
-  // Not found, fill with marker characters.
-  memset(dest, 0xab, length);
-}
-
-// static
-void LinuxDumper::CopyFromProcess(void* dest, pid_t child, const void* src,
-                                  size_t length) {
-  if (IsPostMortem()) {
-    CopyFromCore(dest, child, src, length);
-    return;
-  }
-  unsigned long tmp = 55;
-  size_t done = 0;
-  static const size_t word_size = sizeof(tmp);
-  uint8_t* const local = (uint8_t*) dest;
-  uint8_t* const remote = (uint8_t*) src;
-
-  while (done < length) {
-    const size_t l = length - done > word_size ? word_size : length - done;
-    if (sys_ptrace(PTRACE_PEEKDATA, child, remote + done, &tmp) == -1) {
-      tmp = 0;
-    }
-    memcpy(local + done, &tmp, l);
-    done += l;
-  }
 }
 
 // Find the mapping which the given memory address falls in.
@@ -733,7 +286,8 @@ bool LinuxDumper::HandleDeletedFileInMapping(char* path) const {
   // Check |path| against the /proc/pid/exe 'symlink'.
   char exe_link[NAME_MAX];
   char new_path[NAME_MAX];
-  BuildProcPath(exe_link, pid_, "exe");
+  if (!BuildProcPath(exe_link, pid_, "exe"))
+    return false;
   if (!SafeReadLink(exe_link, new_path))
     return false;
   if (my_strcmp(path, new_path) != 0)
