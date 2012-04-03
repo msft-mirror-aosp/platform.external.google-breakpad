@@ -1,4 +1,5 @@
-// Copyright 2008 Google, Inc.  All Rights reserved
+// Copyright (c) 2012, Google Inc.
+// All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -26,30 +27,38 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// ios_exception_minidump_generator.h:  Create a fake minidump from a
+// NSException.
 
-// This file contains some typedefs for basic types
+#ifndef CLIENT_IOS_HANDLER_IOS_EXCEPTION_MINIDUMP_GENERATOR_H_
+#define CLIENT_IOS_HANDLER_IOS_EXCEPTION_MINIDUMP_GENERATOR_H_
 
+#include <Foundation/Foundation.h>
 
-#ifndef _COMMON_DWARF_TYPES_H__
-#define _COMMON_DWARF_TYPES_H__
+#include "client/mac/handler/minidump_generator.h"
 
-#include <stdint.h>
+namespace google_breakpad {
 
-typedef signed char         int8;
-typedef short               int16;
-typedef int                 int32;
-typedef long long           int64;
+class IosExceptionMinidumpGenerator : public MinidumpGenerator {
+ public:
+  explicit IosExceptionMinidumpGenerator(NSException *exception);
+  virtual ~IosExceptionMinidumpGenerator();
 
-typedef unsigned char      uint8;
-typedef unsigned short     uint16;
-typedef unsigned int       uint32;
-typedef unsigned long long uint64;
+ protected:
+  virtual bool WriteExceptionStream(MDRawDirectory *exception_stream);
+  virtual bool WriteThreadStream(mach_port_t thread_id, MDRawThread *thread);
 
-#ifdef __PTRDIFF_TYPE__
-typedef          __PTRDIFF_TYPE__ intptr;
-typedef unsigned __PTRDIFF_TYPE__ uintptr;
-#else
-#error "Can't find pointer-sized integral types."
-#endif
+ private:
 
-#endif // _COMMON_DWARF_TYPES_H__
+  // Get the crashing program counter from the exception.
+  uint32_t GetPCFromException();
+
+  // Write a virtual thread context for the crashing site.
+  bool WriteCrashingContext(MDLocationDescriptor *register_location);
+
+  NSArray *return_addresses_;
+};
+
+}  // namespace google_breakpad
+
+#endif  // CLIENT_IOS_HANDLER_IOS_EXCEPTION_MINIDUMP_GENERATOR_H_
