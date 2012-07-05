@@ -1,4 +1,6 @@
-// Copyright (c) 2010, Google Inc.
+// -*- mode: C++ -*-
+
+// Copyright (c) 2012, Google Inc.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -27,22 +29,37 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// The Android NDK doesn't have link.h. Fortunately, the only thing
-// that Breakpad uses from it is the ElfW macro, so define it here.
+// Original author: Ivan Penkov
 
-#ifndef GOOGLE_BREAKPAD_CLIENT_LINUX_ANDROID_LINK_H_
-#define GOOGLE_BREAKPAD_CLIENT_LINUX_ANDROID_LINK_H_
+// using_std_string.h: Allows building this code in environments where
+//                     global string (::string) exists.
+//
+// The problem:
+// -------------
+// Let's say you want to build this code in an environment where a global
+// string type is defined (i.e. ::string).  Now, let's suppose that ::string
+// is different that std::string and you'd like to have the option to easily
+// choose between the two string types.  Ideally you'd like to control which
+// string type is chosen by simply #defining an identifier.
+//
+// The solution:
+// -------------
+// #define HAS_GLOBAL_STRING somewhere in a global header file and then
+// globally replace std::string with string.  Then include this header
+// file everywhere where string is used.  If you want to revert back to
+// using std::string, simply remove the #define (HAS_GLOBAL_STRING).
 
-// TODO(zhenghao): exec_elf.h conflicts with linux/elf.h.
-// But we still need ELFSIZE.
-//#include <sys/exec_elf.h>
-#include <machine/exec.h>
-#define ELFSIZE ARCH_ELFSIZE
+#ifndef THIRD_PARTY_BREAKPAD_SRC_COMMON_USING_STD_STRING_H_
+#define THIRD_PARTY_BREAKPAD_SRC_COMMON_USING_STD_STRING_H_
 
-#ifndef ElfW
-#define ElfW(type)	_ElfW (Elf, ELFSIZE, type)
-#define _ElfW(e,w,t)	_ElfW_1 (e, w, _##t)
-#define _ElfW_1(e,w,t)	e##w##t
+#ifdef HAS_GLOBAL_STRING
+  typedef ::string google_breakpad_string;
+#else
+  using std::string;
+  typedef std::string google_breakpad_string;
 #endif
 
-#endif  // GOOGLE_BREAKPAD_CLIENT_LINUX_ANDROID_LINK_H_
+// Inicates that type google_breakpad_string is defined
+#define HAS_GOOGLE_BREAKPAD_STRING
+
+#endif  // THIRD_PARTY_BREAKPAD_SRC_COMMON_USING_STD_STRING_H_
