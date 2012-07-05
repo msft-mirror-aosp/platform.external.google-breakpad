@@ -37,7 +37,6 @@
 
 #include "breakpad_googletest_includes.h"
 #include "common/test_assembler.h"
-#include "common/using_std_string.h"
 #include "google_breakpad/common/minidump_format.h"
 #include "google_breakpad/processor/basic_source_line_resolver.h"
 #include "google_breakpad/processor/call_stack.h"
@@ -57,6 +56,7 @@ using google_breakpad::WindowsFrameInfo;
 using google_breakpad::test_assembler::kLittleEndian;
 using google_breakpad::test_assembler::Label;
 using google_breakpad::test_assembler::Section;
+using std::string;
 using std::vector;
 using testing::_;
 using testing::Return;
@@ -94,7 +94,9 @@ class StackwalkerARMFixture {
   // Set the Breakpad symbol information that supplier should return for
   // MODULE to INFO.
   void SetModuleSymbols(MockCodeModule *module, const string &info) {
-    char *buffer = supplier.CopySymbolDataAndOwnTheCopy(info);
+    unsigned int buffer_size = info.size() + 1;
+    char *buffer = reinterpret_cast<char*>(operator new(buffer_size));
+    strcpy(buffer, info.c_str());
     EXPECT_CALL(supplier, GetCStringSymbolData(module, &system_info, _, _))
       .WillRepeatedly(DoAll(SetArgumentPointee<3>(buffer),
                             Return(MockSymbolSupplier::FOUND)));

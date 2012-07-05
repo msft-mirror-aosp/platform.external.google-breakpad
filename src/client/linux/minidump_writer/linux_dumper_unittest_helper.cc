@@ -38,7 +38,6 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 
-#include "processor/scoped_ptr.h"
 #include "third_party/lss/linux_syscall_support.h"
 
 #if defined(__ARM_EABI__)
@@ -52,14 +51,7 @@
 #endif
 
 void *thread_function(void *data) {
-  int pipefd = *static_cast<int *>(data);
   volatile pid_t thread_id = syscall(__NR_gettid);
-  // Signal parent that a thread has started.
-  uint8_t byte = 1;
-  if (write(pipefd, &byte, sizeof(byte)) != sizeof(byte)) {
-    perror("ERROR: parent notification failed");
-    return NULL;
-  }
   register volatile pid_t *thread_id_ptr asm(TID_PTR_REGISTER) = &thread_id;
   while (true)
     asm volatile ("" : : "r" (thread_id_ptr));
@@ -67,9 +59,9 @@ void *thread_function(void *data) {
 }
 
 int main(int argc, char *argv[]) {
-  if (argc < 3) {
+  if (argc < 2) {
     fprintf(stderr,
-            "usage: linux_dumper_unittest_helper <pipe fd> <# of threads>\n");
+            "usage: linux_dumper_unittest_helper <pipe fd> <# of threads\n");
     return 1;
   }
   int pipefd = atoi(argv[1]);
@@ -78,13 +70,16 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "ERROR: number of threads is 0");
     return 1;
   }
-  google_breakpad::scoped_array<pthread_t> threads(new pthread_t[num_threads]);
+  pthread_t threads[num_threads];
   pthread_attr_t thread_attributes;
   pthread_attr_init(&thread_attributes);
   pthread_attr_setdetachstate(&thread_attributes, PTHREAD_CREATE_DETACHED);
   for (int i = 1; i < num_threads; i++) {
-    pthread_create(&threads[i], &thread_attributes, &thread_function, &pipefd);
+    pthread_create(&threads[i], &thread_attributes, &thread_function, NULL);
   }
-  thread_function(&pipefd);
+  // Signal parent that this process has started all threads.
+  uint8_t byte = 1;
+  write(pipefd, &byte, sizeof(byte));
+  thread_function(NULL);
   return 0;
 }

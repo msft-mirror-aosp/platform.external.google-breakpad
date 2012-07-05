@@ -45,7 +45,6 @@
 #include "common/linux/file_id.h"
 #include "common/linux/linux_libc_support.h"
 #include "common/tests/auto_tempdir.h"
-#include "common/using_std_string.h"
 #include "third_party/lss/linux_syscall_support.h"
 #include "google_breakpad/processor/minidump.h"
 
@@ -131,7 +130,7 @@ TEST(ExceptionHandlerTest, ChildCrash) {
   filename[len] = 0;
   close(fds[0]);
 
-  const string minidump_filename = temp_dir.path() + "/" + filename +
+  const std::string minidump_filename = temp_dir.path() + "/" + filename +
                                         ".dmp";
 
   struct stat st;
@@ -205,7 +204,7 @@ TEST(ExceptionHandlerTest, InstructionPointerMemory) {
   filename[len] = 0;
   close(fds[0]);
 
-  const string minidump_filename = temp_dir.path() + "/" + filename +
+  const std::string minidump_filename = temp_dir.path() + "/" + filename +
                                         ".dmp";
 
   struct stat st;
@@ -330,7 +329,7 @@ TEST(ExceptionHandlerTest, InstructionPointerMemoryMinBound) {
   filename[len] = 0;
   close(fds[0]);
 
-  const string minidump_filename = temp_dir.path() + "/" + filename +
+  const std::string minidump_filename = temp_dir.path() + "/" + filename +
                                         ".dmp";
 
   struct stat st;
@@ -455,7 +454,7 @@ TEST(ExceptionHandlerTest, InstructionPointerMemoryMaxBound) {
   filename[len] = 0;
   close(fds[0]);
 
-  const string minidump_filename = temp_dir.path() + "/" + filename +
+  const std::string minidump_filename = temp_dir.path() + "/" + filename +
                                         ".dmp";
 
   struct stat st;
@@ -556,7 +555,7 @@ TEST(ExceptionHandlerTest, InstructionPointerMemoryNullPointer) {
   filename[len] = 0;
   close(fds[0]);
 
-  const string minidump_filename = temp_dir.path() + "/" + filename +
+  const std::string minidump_filename = temp_dir.path() + "/" + filename +
                                         ".dmp";
 
   struct stat st;
@@ -670,14 +669,7 @@ CrashHandler(const void* crash_context, size_t crash_context_size,
              void* context) {
   const int fd = (intptr_t) context;
   int fds[2];
-  if (pipe(fds) == -1) {
-    // There doesn't seem to be any way to reliably handle
-    // this failure without the parent process hanging
-    // At least make sure that this process doesn't access
-    // unexpected file descriptors
-    fds[0] = -1;
-    fds[1] = -1;
-  }
+  pipe(fds);
   struct kernel_msghdr msg = {0};
   struct kernel_iovec iov;
   iov.iov_base = const_cast<void*>(crash_context);
@@ -744,7 +736,6 @@ TEST(ExceptionHandlerTest, ExternalDumper) {
   ASSERT_EQ(n, kCrashContextSize);
   ASSERT_EQ(msg.msg_controllen, kControlMsgSize);
   ASSERT_EQ(msg.msg_flags, 0);
-  ASSERT_EQ(close(fds[0]), 0);
 
   pid_t crashing_pid = -1;
   int signal_fd = -1;
@@ -768,12 +759,11 @@ TEST(ExceptionHandlerTest, ExternalDumper) {
   ASSERT_NE(signal_fd, -1);
 
   AutoTempDir temp_dir;
-  string templ = temp_dir.path() + "/exception-handler-unittest";
+  std::string templ = temp_dir.path() + "/exception-handler-unittest";
   ASSERT_TRUE(WriteMinidump(templ.c_str(), crashing_pid, context,
                             kCrashContextSize));
   static const char b = 0;
   HANDLE_EINTR(write(signal_fd, &b, 1));
-  ASSERT_EQ(close(signal_fd), 0);
 
   int status;
   ASSERT_NE(HANDLE_EINTR(waitpid(child, &status, 0)), -1);

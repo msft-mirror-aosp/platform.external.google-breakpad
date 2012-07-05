@@ -44,7 +44,6 @@
 #include <iostream>
 #include <fstream>
 
-#include "common/using_std_string.h"
 #include "google_breakpad/processor/code_module.h"
 #include "google_breakpad/processor/system_info.h"
 #include "processor/logging.h"
@@ -88,8 +87,8 @@ SymbolSupplier::SymbolResult SimpleSymbolSupplier::GetSymbolFile(
 
   if (s == FOUND) {
     std::ifstream in(symbol_file->c_str());
-    std::getline(in, *symbol_data, string::traits_type::to_char_type(
-                     string::traits_type::eof()));
+    std::getline(in, *symbol_data, std::string::traits_type::to_char_type(
+                     std::string::traits_type::eof()));
     in.close();
   }
   return s;
