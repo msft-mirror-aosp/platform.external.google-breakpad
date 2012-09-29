@@ -45,7 +45,7 @@
 #include "dynamic_images.h"
 #include "mach_vm_compat.h"
 
-#if !TARGET_OS_IPHONE && (MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_7)
+#if !TARGET_OS_IPHONE && (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_7)
   #define HAS_PPC_SUPPORT
 #endif
 #if defined(__arm__)
@@ -101,6 +101,11 @@ class MinidumpGenerator {
     exception_subcode_ = subcode;
     exception_thread_ = thread_name;
   }
+
+  // Specify the task context. If |task_context| is not NULL, it will be used
+  // to retrieve the context of the current thread, instead of using
+  // |thread_get_state|.
+  void SetTaskContext(ucontext_t *task_context);
 
   // Gather system information.  This should be call at least once before using
   // the MinidumpGenerator class.
@@ -198,7 +203,10 @@ class MinidumpGenerator {
   static int os_major_version_;
   static int os_minor_version_;
   static int os_build_number_;
-  
+
+  // Context of the task to dump.
+  ucontext_t *task_context_;
+
   // Information about dynamically loaded code
   DynamicImages *dynamic_images_;
 

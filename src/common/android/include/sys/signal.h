@@ -1,4 +1,4 @@
-// Copyright (c) 2009, Google Inc.
+// Copyright (c) 2012, Google Inc.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -27,31 +27,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Android runs a fairly new Linux kernel, so signal info is there,
-// but the NDK doesn't have the structs defined, so define
-// them here.
-// Adapted from platform-linux.cc in V8
+#ifndef GOOGLE_BREAKPAD_COMMON_ANDROID_INCLUDE_SYS_SIGNAL_H
+#define GOOGLE_BREAKPAD_COMMON_ANDROID_INCLUDE_SYS_SIGNAL_H
 
-#ifndef GOOGLE_BREAKPAD_CLIENT_LINUX_ANDROID_UCONTEXT_H_
-#define GOOGLE_BREAKPAD_CLIENT_LINUX_ANDROID_UCONTEXT_H_
-
-#include <android/api-level.h>
 #include <signal.h>
 
-// <signal.h> didn't include <asm/sigcontext.h> before API level 8.
-// It is used to define struct sigcontext properly.
-#if defined(__arm__) && __ANDROID_API__ < 8
-#include <asm/sigcontext.h>
-#endif
-
-typedef uint32_t __sigset_t;
-typedef struct sigcontext mcontext_t;
-typedef struct ucontext {
-  uint32_t uc_flags;
-  struct ucontext* uc_link;
-  stack_t uc_stack;
-  mcontext_t uc_mcontext;
-  __sigset_t uc_sigmask;
-} ucontext_t;
-
-#endif  // GOOGLE_BREAKPAD_CLIENT_LINUX_ANDROID_UCONTEXT_H_
+#endif  // GOOGLE_BREAKPAD_COMMON_ANDROID_INCLUDE_SYS_SIGNAL_H

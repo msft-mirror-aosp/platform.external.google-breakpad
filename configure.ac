@@ -40,6 +40,7 @@ AC_CANONICAL_HOST
 AM_INIT_AUTOMAKE(subdir-objects tar-ustar 1.11.1)
 AM_CONFIG_HEADER(src/config.h)
 
+AM_PROG_AS
 AC_PROG_CC
 AM_PROG_CC_C_O
 AC_PROG_CPP
@@ -54,11 +55,19 @@ AC_CHECK_HEADERS([a.out.h])
 
 # Only build Linux client libs when compiling for Linux
 case $host in
-     *-*-linux* | *-android* )
-        LINUX_HOST=true
-        ;;
+  *-*-linux* | *-android* )
+    LINUX_HOST=true
+    ;;
 esac
 AM_CONDITIONAL(LINUX_HOST, test x$LINUX_HOST = xtrue)
+
+# Only use Android support headers when compiling for Android
+case $host in
+  *-android*)
+    ANDROID_HOST=true
+    ;;
+esac
+AM_CONDITIONAL(ANDROID_HOST, test x$ANDROID_HOST = xtrue)
 
 AC_ARG_ENABLE(m32,
               AS_HELP_STRING([--enable-m32],
