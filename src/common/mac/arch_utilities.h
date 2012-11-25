@@ -1,4 +1,4 @@
-// Copyright (c) 2012 Google Inc.
+// Copyright (c) 2012, Google Inc.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -27,51 +27,21 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <stdio.h>
+// arch_utilities.h: Utilities for architecture introspection for Mac platform.
 
-#include "client/linux/handler/minidump_descriptor.h"
+#ifndef COMMON_MAC_ARCH_UTILITIES_H__
+#define COMMON_MAC_ARCH_UTILITIES_H__
 
-#include "common/linux/guid_creator.h"
+#include <mach-o/arch.h>
 
 namespace google_breakpad {
 
-MinidumpDescriptor::MinidumpDescriptor(const MinidumpDescriptor& descriptor)
-    : fd_(descriptor.fd_),
-      directory_(descriptor.directory_),
-      c_path_(NULL) {
-  // The copy constructor is not allowed to be called on a MinidumpDescriptor
-  // with a valid path_, as getting its c_path_ would require the heap which
-  // can cause problems in compromised environments.
-  assert(descriptor.path_.empty());
-}
-
-MinidumpDescriptor& MinidumpDescriptor::operator=(
-    const MinidumpDescriptor& descriptor) {
-  assert(descriptor.path_.empty());
-
-  fd_ = descriptor.fd_;
-  directory_ = descriptor.directory_;
-  path_.clear();
-  if (c_path_) {
-    // This descriptor already had a path set, so generate a new one.
-    c_path_ = NULL;
-    UpdatePath();
-  }
-  return *this;
-}
-
-void MinidumpDescriptor::UpdatePath() {
-  assert(fd_ == -1 && !directory_.empty());
-
-  GUID guid;
-  char guid_str[kGUIDStringLength + 1];
-  if (!CreateGUID(&guid) || !GUIDToString(&guid, guid_str, sizeof(guid_str))) {
-    assert(false);
-  }
-
-  path_.clear();
-  path_ = directory_ + "/" + guid_str + ".dmp";  
-  c_path_ = path_.c_str();
-}
+// Custom implementation of |NXGetArchInfoFromName| and
+// |NXGetArchInfoFromCpuType| that handle newer CPU on older OSes.
+const NXArchInfo* BreakpadGetArchInfoFromName(const char* arch_name);
+const NXArchInfo* BreakpadGetArchInfoFromCpuType(cpu_type_t cpu_type,
+                                                 cpu_subtype_t cpu_subtype);
 
 }  // namespace google_breakpad
+
+#endif  // COMMON_MAC_ARCH_UTILITIES_H__
