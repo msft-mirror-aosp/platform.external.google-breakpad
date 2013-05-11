@@ -1,4 +1,4 @@
-// Copyright (c) 2008, Google Inc.
+// Copyright (c) 2007, Google Inc.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -27,14 +27,19 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#import "GTMSenTestCase.h"
-#import "SimpleStringDictionary.h"
+#include "common/simple_string_dictionary.h"
 
-@interface SimpleStringDictionaryTest : GTMTestCase {
+namespace google_breakpad {
+
+namespace {
+
+// In C++98 (ISO 14882), section 9.5.1 says that a union cannot have a member
+// with a non-trivial ctor, copy ctor, dtor, or assignment operator. Use this
+// property to ensure that Entry remains POD.
+union Compile_Assert {
+  NonAllocatingMap<1, 1, 1>::Entry Compile_Assert__entry_must_be_pod;
+};
 
 }
 
-- (void)testKeyValueEntry;
-- (void)testSimpleStringDictionary;
-- (void)testSimpleStringDictionaryIterator;
-@end
+}  // namespace google_breakpad
