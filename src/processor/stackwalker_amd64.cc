@@ -102,10 +102,9 @@ StackwalkerAMD64::StackwalkerAMD64(const SystemInfo* system_info,
                   (sizeof(cfi_register_map_) / sizeof(cfi_register_map_[0]))) {
 }
 
-uint64_t StackFrameAMD64::ReturnAddress() const
-{
+uint64_t StackFrameAMD64::ReturnAddress() const {
   assert(context_validity & StackFrameAMD64::CONTEXT_VALID_RIP);
-  return context.rip;   
+  return context.rip;
 }
 
 StackFrame* StackwalkerAMD64::GetContextFrame() {
@@ -154,7 +153,8 @@ StackFrameAMD64* StackwalkerAMD64::GetCallerByStackScan(
   uint64_t last_rsp = last_frame->context.rsp;
   uint64_t caller_rip_address, caller_rip;
 
-  if (!ScanForReturnAddress(last_rsp, &caller_rip_address, &caller_rip)) {
+  if (!ScanForReturnAddress(last_rsp, &caller_rip_address, &caller_rip,
+                            frames.size() == 1 /* is_context_frame */)) {
     // No plausible return address was found.
     return NULL;
   }
@@ -197,7 +197,8 @@ StackFrameAMD64* StackwalkerAMD64::GetCallerByStackScan(
   return frame;
 }
 
-StackFrame* StackwalkerAMD64::GetCallerFrame(const CallStack* stack) {
+StackFrame* StackwalkerAMD64::GetCallerFrame(const CallStack* stack,
+                                             bool stack_scan_allowed) {
   if (!memory_ || !stack) {
     BPLOG(ERROR) << "Can't get caller frame without memory or stack";
     return NULL;
@@ -215,7 +216,7 @@ StackFrame* StackwalkerAMD64::GetCallerFrame(const CallStack* stack) {
 
   // If CFI failed, or there wasn't CFI available, fall back
   // to stack scanning.
-  if (!new_frame.get()) {
+  if (stack_scan_allowed && !new_frame.get()) {
     new_frame.reset(GetCallerByStackScan(frames));
   }
 

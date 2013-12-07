@@ -162,6 +162,7 @@ class Breakpad {
   void SetKeyValue(NSString *key, NSString *value);
   NSString *KeyValue(NSString *key);
   void RemoveKeyValue(NSString *key);
+  NSArray *CrashReportsToUpload();
   NSString *NextCrashReportToUpload();
   void UploadNextReport();
   void UploadData(NSData *data, NSString *name,
@@ -327,8 +328,11 @@ bool Breakpad::ExtractParameters(NSDictionary *parameters) {
   NSString *urlStr = [parameters objectForKey:@BREAKPAD_URL];
   NSString *vendor =
       [parameters objectForKey:@BREAKPAD_VENDOR];
-  NSString *dumpSubdirectory =
-      [parameters objectForKey:@BREAKPAD_DUMP_DIRECTORY];
+  // We check both parameters and the environment variable here.
+  char *envVarDumpSubdirectory = getenv(BREAKPAD_DUMP_DIRECTORY);
+  NSString *dumpSubdirectory = envVarDumpSubdirectory ?
+      [NSString stringWithUTF8String:envVarDumpSubdirectory] :
+          [parameters objectForKey:@BREAKPAD_DUMP_DIRECTORY];
 
   NSDictionary *serverParameters =
       [parameters objectForKey:@BREAKPAD_SERVER_PARAMETER_DICT];
@@ -437,7 +441,7 @@ void Breakpad::RemoveKeyValue(NSString *key) {
 }
 
 //=============================================================================
-NSString *Breakpad::NextCrashReportToUpload() {
+NSArray *Breakpad::CrashReportsToUpload() {
   NSString *directory = KeyValue(@BREAKPAD_DUMP_DIRECTORY);
   if (!directory)
     return nil;
@@ -445,7 +449,15 @@ NSString *Breakpad::NextCrashReportToUpload() {
       contentsOfDirectoryAtPath:directory error:nil];
   NSArray *configs = [dirContents filteredArrayUsingPredicate:[NSPredicate
       predicateWithFormat:@"self BEGINSWITH 'Config-'"]];
-  NSString *config = [configs lastObject];
+  return configs;
+}
+
+//=============================================================================
+NSString *Breakpad::NextCrashReportToUpload() {
+  NSString *directory = KeyValue(@BREAKPAD_DUMP_DIRECTORY);
+  if (!directory)
+    return nil;
+  NSString *config = [CrashReportsToUpload() lastObject];
   if (!config)
     return nil;
   return [NSString stringWithFormat:@"%@/%@", directory, config];
@@ -507,8 +519,7 @@ NSDictionary *Breakpad::GenerateReport(NSDictionary *server_parameters) {
 
   // Handle results.
   NSMutableDictionary *result = [NSMutableDictionary dictionary];
-  NSString *dumpFullPath = [dumpDirAsNSString stringByAppendingPathComponent:
-      [NSString stringWithUTF8String:dumpFilename.c_str()]];
+  NSString *dumpFullPath = [NSString stringWithUTF8String:dumpFilename.c_str()];
   [result setValue:dumpFullPath
             forKey:@BREAKPAD_OUTPUT_DUMP_FILE];
   [result setValue:[NSString stringWithUTF8String:config_file.GetFilePath()]
@@ -776,16 +787,16 @@ void BreakpadRemoveKeyValue(BreakpadRef ref, NSString *key) {
 }
 
 //=============================================================================
-bool BreakpadHasCrashReportToUpload(BreakpadRef ref) {
+int BreakpadGetCrashReportCount(BreakpadRef ref) {
   try {
     // Not called at exception time
     Breakpad *breakpad = (Breakpad *)ref;
 
     if (breakpad) {
-       return breakpad->NextCrashReportToUpload() != 0;
+       return [breakpad->CrashReportsToUpload() count];
     }
   } catch(...) {    // don't let exceptions leave this C API
-    fprintf(stderr, "BreakpadHasCrashReportToUpload() : error\n");
+    fprintf(stderr, "BreakpadGetCrashReportCount() : error\n");
   }
   return false;
 }

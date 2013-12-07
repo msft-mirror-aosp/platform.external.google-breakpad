@@ -50,6 +50,12 @@
 
 namespace google_breakpad {
 
+// Max reasonable size for a single x86 frame is 128 KB.  This value is used in
+// a heuristic for recovering of the EBP chain after a scan for return address.
+// This value is based on a stack frame size histogram built for a set of
+// popular third party libraries which suggests that 99.5% of all frames are
+// smaller than 128 KB.
+static const uint32_t kMaxReasonableGapBetweenFrames = 128 * 1024;
 
 const StackwalkerX86::CFIWalker::RegisterSet
 StackwalkerX86::cfi_register_map_[] = {
@@ -106,10 +112,9 @@ StackFrameX86::~StackFrameX86() {
   cfi_frame_info = NULL;
 }
 
-uint64_t StackFrameX86::ReturnAddress() const
-{
+uint64_t StackFrameX86::ReturnAddress() const {
   assert(context_validity & StackFrameX86::CONTEXT_VALID_EIP);
-  return context.eip;   
+  return context.eip;
 }
 
 StackFrame* StackwalkerX86::GetContextFrame() {
@@ -132,7 +137,8 @@ StackFrame* StackwalkerX86::GetContextFrame() {
 
 StackFrameX86* StackwalkerX86::GetCallerByWindowsFrameInfo(
     const vector<StackFrame*> &frames,
-    WindowsFrameInfo* last_frame_info) {
+    WindowsFrameInfo* last_frame_info,
+    bool stack_scan_allowed) {
   StackFrame::FrameTrust trust = StackFrame::FRAME_TRUST_NONE;
 
   StackFrameX86* last_frame = static_cast<StackFrameX86*>(frames.back());
@@ -211,14 +217,27 @@ StackFrameX86* StackwalkerX86::GetCallerByWindowsFrameInfo(
   dictionary[".cbLocals"] = last_frame_info->local_size;
 
   uint32_t raSearchStart = last_frame->context.esp +
-                            last_frame_callee_parameter_size +
-                            last_frame_info->local_size +
-                            last_frame_info->saved_register_size;
+                           last_frame_callee_parameter_size +
+                           last_frame_info->local_size +
+                           last_frame_info->saved_register_size;
 
   uint32_t raSearchStartOld = raSearchStart;
   uint32_t found = 0;  // dummy value
   // Scan up to three words above the calculated search value, in case
   // the stack was aligned to a quadword boundary.
+  //
+  // TODO(ivan.penkov): Consider cleaning up the scan for return address that
+  // follows.  The purpose of this scan is to adjust the .raSearchStart
+  // calculation (which is based on register %esp) in the cases where register
+  // %esp may have been aligned (up to a quadword).  There are two problems
+  // with this approach:
+  //  1) In practice, 64 byte boundary alignment is seen which clearly can not
+  //     be handled by a three word scan.
+  //  2) A search for a return address is "guesswork" by definition because
+  //     the results will be different depending on what is left on the stack
+  //     from previous executions.
+  // So, basically, the results from this scan should be ignored if other means
+  // for calculation of the value of .raSearchStart are available.
   if (ScanForReturnAddress(raSearchStart, &raSearchStart, &found, 3) &&
       last_frame->trust == StackFrame::FRAME_TRUST_CONTEXT &&
       last_frame->windows_frame_info != NULL &&
@@ -234,11 +253,6 @@ StackFrameX86* StackwalkerX86::GetCallerByWindowsFrameInfo(
     raSearchStart += 4;
     ScanForReturnAddress(raSearchStart, &raSearchStart, &found, 3);
   }
-
-  // The difference between raSearch and raSearchStart is unknown,
-  // but making them the same seems to work well in practice.
-  dictionary[".raSearchStart"] = raSearchStart;
-  dictionary[".raSearch"] = raSearchStart;
 
   dictionary[".cbParams"] = last_frame_info->parameter_size;
 
@@ -324,6 +338,27 @@ StackFrameX86* StackwalkerX86::GetCallerByWindowsFrameInfo(
     recover_ebp = false;
   }
 
+  // Check for alignment operators in the program string.  If alignment
+  // operators are found, then current %ebp must be valid and it is the only
+  // reliable data point that can be used for getting to the previous frame.
+  // E.g. the .raSearchStart calculation (above) is based on %esp and since
+  // %esp was aligned in the current frame (which is a lossy operation) the
+  // calculated value of .raSearchStart cannot be correct and should not be
+  // used.  Instead .raSearchStart must be calculated based on %ebp.
+  // The code that follows assumes that .raSearchStart is supposed to point
+  // at the saved return address (ebp + 4).
+  // For some more details on this topic, take a look at the following thread:
+  // https://groups.google.com/forum/#!topic/google-breakpad-dev/ZP1FA9B1JjM
+  if ((StackFrameX86::CONTEXT_VALID_EBP & last_frame->context_validity) != 0 &&
+      program_string.find('@') != string::npos) {
+    raSearchStart = last_frame->context.ebp + 4;
+  }
+
+  // The difference between raSearch and raSearchStart is unknown,
+  // but making them the same seems to work well in practice.
+  dictionary[".raSearchStart"] = raSearchStart;
+  dictionary[".raSearch"] = raSearchStart;
+
   // Now crank it out, making sure that the program string set at least the
   // two required variables.
   PostfixEvaluator<uint32_t> evaluator =
@@ -340,7 +375,9 @@ StackFrameX86* StackwalkerX86::GetCallerByWindowsFrameInfo(
     // frame pointer.
     uint32_t location_start = last_frame->context.esp;
     uint32_t location, eip;
-    if (!ScanForReturnAddress(location_start, &location, &eip)) {
+    if (!stack_scan_allowed
+        || !ScanForReturnAddress(location_start, &location, &eip,
+                                 frames.size() == 1 /* is_context_frame */)) {
       // if we can't find an instruction pointer even with stack scanning,
       // give up.
       return NULL;
@@ -382,7 +419,9 @@ StackFrameX86* StackwalkerX86::GetCallerByWindowsFrameInfo(
       // looking one 32-bit word above that location.
       uint32_t location_start = dictionary[".raSearchStart"] + 4;
       uint32_t location;
-      if (ScanForReturnAddress(location_start, &location, &eip)) {
+      if (stack_scan_allowed
+          && ScanForReturnAddress(location_start, &location, &eip,
+                                  frames.size() == 1 /* is_context_frame */)) {
         // This is a better return address that what program string
         // evaluation found.  Use it, and set %esp to the location above the
         // one where the return address was found.
@@ -490,7 +529,8 @@ StackFrameX86* StackwalkerX86::GetCallerByCFIFrameInfo(
 }
 
 StackFrameX86* StackwalkerX86::GetCallerByEBPAtBase(
-    const vector<StackFrame*> &frames) {
+    const vector<StackFrame*> &frames,
+    bool stack_scan_allowed) {
   StackFrame::FrameTrust trust;
   StackFrameX86* last_frame = static_cast<StackFrameX86*>(frames.back());
   uint32_t last_esp = last_frame->context.esp;
@@ -531,17 +571,30 @@ StackFrameX86* StackwalkerX86::GetCallerByEBPAtBase(
     // return address. This can happen if last_frame is executing code
     // for a module for which we don't have symbols, and that module
     // is compiled without a frame pointer.
-    if (!ScanForReturnAddress(last_esp, &caller_esp, &caller_eip)) {
+    if (!stack_scan_allowed
+        || !ScanForReturnAddress(last_esp, &caller_esp, &caller_eip,
+                                 frames.size() == 1 /* is_context_frame */)) {
       // if we can't find an instruction pointer even with stack scanning,
       // give up.
       return NULL;
     }
 
-    // ScanForReturnAddress found a reasonable return address. Advance
-    // %esp to the location above the one where the return address was
-    // found. Assume that %ebp is unchanged.
+    // ScanForReturnAddress found a reasonable return address. Advance %esp to
+    // the location immediately above the one where the return address was
+    // found.
     caller_esp += 4;
-    caller_ebp = last_ebp;
+    // Try to restore the %ebp chain.  The caller %ebp should be stored at a
+    // location immediately below the one where the return address was found.
+    // A valid caller %ebp must be greater than the address where it is stored
+    // and the gap between the two adjacent frames should be reasonable.
+    uint32_t restored_ebp_chain = caller_esp - 8;
+    if (!memory_->GetMemoryAtAddress(restored_ebp_chain, &caller_ebp) ||
+        caller_ebp <= restored_ebp_chain ||
+        caller_ebp - restored_ebp_chain > kMaxReasonableGapBetweenFrames) {
+      // The restored %ebp chain doesn't appear to be valid.
+      // Assume that %ebp is unchanged.
+      caller_ebp = last_ebp;
+    }
 
     trust = StackFrame::FRAME_TRUST_SCAN;
   }
@@ -562,7 +615,8 @@ StackFrameX86* StackwalkerX86::GetCallerByEBPAtBase(
   return frame;
 }
 
-StackFrame* StackwalkerX86::GetCallerFrame(const CallStack* stack) {
+StackFrame* StackwalkerX86::GetCallerFrame(const CallStack* stack,
+                                           bool stack_scan_allowed) {
   if (!memory_ || !stack) {
     BPLOG(ERROR) << "Can't get caller frame without memory or stack";
     return NULL;
@@ -576,7 +630,8 @@ StackFrame* StackwalkerX86::GetCallerFrame(const CallStack* stack) {
   WindowsFrameInfo* windows_frame_info
       = frame_symbolizer_->FindWindowsFrameInfo(last_frame);
   if (windows_frame_info)
-    new_frame.reset(GetCallerByWindowsFrameInfo(frames, windows_frame_info));
+    new_frame.reset(GetCallerByWindowsFrameInfo(frames, windows_frame_info,
+                                                stack_scan_allowed));
 
   // If the resolver has DWARF CFI information, use that.
   if (!new_frame.get()) {
@@ -588,7 +643,7 @@ StackFrame* StackwalkerX86::GetCallerFrame(const CallStack* stack) {
 
   // Otherwise, hope that the program was using a traditional frame structure.
   if (!new_frame.get())
-    new_frame.reset(GetCallerByEBPAtBase(frames));
+    new_frame.reset(GetCallerByEBPAtBase(frames, stack_scan_allowed));
 
   // If nothing worked, tell the caller.
   if (!new_frame.get())

@@ -166,14 +166,8 @@ StackFrameARM* StackwalkerARM::GetCallerByStackScan(
   uint32_t last_sp = last_frame->context.iregs[MD_CONTEXT_ARM_REG_SP];
   uint32_t caller_sp, caller_pc;
 
-  // When searching for the caller of the context frame,
-  // allow the scanner to look farther down the stack.
-  const int kRASearchWords = frames.size() == 1 ?
-    Stackwalker::kRASearchWords * 4 :
-    Stackwalker::kRASearchWords;
-
   if (!ScanForReturnAddress(last_sp, &caller_sp, &caller_pc,
-                            kRASearchWords)) {
+                            frames.size() == 1 /* is_context_frame */)) {
     // No plausible return address was found.
     return NULL;
   }
@@ -243,7 +237,8 @@ StackFrameARM* StackwalkerARM::GetCallerByFramePointer(
   return frame;
 }
 
-StackFrame* StackwalkerARM::GetCallerFrame(const CallStack* stack) {
+StackFrame* StackwalkerARM::GetCallerFrame(const CallStack* stack,
+                                           bool stack_scan_allowed) {
   if (!memory_ || !stack) {
     BPLOG(ERROR) << "Can't get caller frame without memory or stack";
     return NULL;
@@ -265,7 +260,7 @@ StackFrame* StackwalkerARM::GetCallerFrame(const CallStack* stack) {
     frame.reset(GetCallerByFramePointer(frames));
 
   // If everuthing failed, fall back to stack scanning.
-  if (!frame.get())
+  if (stack_scan_allowed && !frame.get())
     frame.reset(GetCallerByStackScan(frames));
 
   // If nothing worked, tell the caller.

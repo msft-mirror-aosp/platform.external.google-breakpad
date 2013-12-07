@@ -122,6 +122,12 @@ ProcessResult MinidumpProcessor::Process(
   if (module_list)
     process_state->modules_ = module_list->Copy();
 
+  MinidumpMemoryList *memory_list = dump->GetMemoryList();
+  if (memory_list) {
+    BPLOG(INFO) << "Found " << memory_list->region_count()
+                << " memory regions.";
+  }
+
   MinidumpThreadList *threads = dump->GetThreadList();
   if (!threads) {
     BPLOG(ERROR) << "Minidump " << dump->path() << " has no thread list";
@@ -208,7 +214,17 @@ ProcessResult MinidumpProcessor::Process(
       }
     }
 
+    // If the memory region for the stack cannot be read using the RVA stored
+    // in the memory descriptor inside MINIDUMP_THREAD, try to locate and use
+    // a memory region (containing the stack) from the minidump memory list.
     MinidumpMemoryRegion *thread_memory = thread->GetMemory();
+    if (!thread_memory && memory_list) {
+      uint64_t start_stack_memory_range = thread->GetStartOfStackMemoryRange();
+      if (start_stack_memory_range) {
+        thread_memory = memory_list->GetMemoryRegionForAddress(
+           start_stack_memory_range);
+      }
+    }
     if (!thread_memory) {
       BPLOG(ERROR) << "No memory region for " << thread_string;
     }
@@ -231,7 +247,8 @@ ProcessResult MinidumpProcessor::Process(
     scoped_ptr<CallStack> stack(new CallStack());
     if (stackwalker.get()) {
       if (!stackwalker->Walk(stack.get(),
-                             &process_state->modules_without_symbols_)) {
+                             &process_state->modules_without_symbols_,
+                             &process_state->modules_with_corrupt_symbols_)) {
         BPLOG(INFO) << "Stackwalker interrupt (missing symbols?) at "
                     << thread_string;
         interrupted = true;
@@ -488,6 +505,16 @@ bool MinidumpProcessor::GetCPUInfo(Minidump *dump, SystemInfo *info) {
       break;
     }
 
+    case MD_CPU_ARCHITECTURE_ARM64: {
+      info->cpu = "arm64";
+      break;
+    }
+
+    case MD_CPU_ARCHITECTURE_MIPS: {
+      info->cpu = "mips";
+      break;
+    }
+
     default: {
       // Assign the numeric architecture ID into the CPU string.
       char cpu_string[7];
@@ -646,7 +673,9 @@ string MinidumpProcessor::GetCrashReason(Minidump *dump, uint64_t *address) {
             default:
               // arm and ppc overlap
               if (raw_system_info->processor_architecture ==
-                  MD_CPU_ARCHITECTURE_ARM) {
+                  MD_CPU_ARCHITECTURE_ARM ||
+                  raw_system_info->processor_architecture ==
+                  MD_CPU_ARCHITECTURE_ARM64) {
                 switch (exception_flags) {
                   case MD_EXCEPTION_CODE_MAC_ARM_DA_ALIGN:
                     reason.append("EXC_ARM_DA_ALIGN");
@@ -686,7 +715,8 @@ string MinidumpProcessor::GetCrashReason(Minidump *dump, uint64_t *address) {
         case MD_EXCEPTION_MAC_BAD_INSTRUCTION:
           reason = "EXC_BAD_INSTRUCTION / ";
           switch (raw_system_info->processor_architecture) {
-            case MD_CPU_ARCHITECTURE_ARM: {
+            case MD_CPU_ARCHITECTURE_ARM:
+            case MD_CPU_ARCHITECTURE_ARM64: {
               switch (exception_flags) {
                 case MD_EXCEPTION_CODE_MAC_ARM_UNDEFINED:
                   reason.append("EXC_ARM_UNDEFINED");
@@ -865,7 +895,8 @@ string MinidumpProcessor::GetCrashReason(Minidump *dump, uint64_t *address) {
         case MD_EXCEPTION_MAC_BREAKPOINT:
           reason = "EXC_BREAKPOINT / ";
           switch (raw_system_info->processor_architecture) {
-            case MD_CPU_ARCHITECTURE_ARM: {
+            case MD_CPU_ARCHITECTURE_ARM:
+            case MD_CPU_ARCHITECTURE_ARM64: {
               switch (exception_flags) {
                 case MD_EXCEPTION_CODE_MAC_ARM_DA_ALIGN:
                   reason.append("EXC_ARM_DA_ALIGN");
