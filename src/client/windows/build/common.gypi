@@ -123,10 +123,10 @@
       # Python version.
       'python_ver%': '2.5',
 
-      # Set ARM-v7 compilation flags
-      'armv7%': 0,
+      # Determine ARM compilation flags.
+      'arm_version%': 7,
 
-      # Set Neon compilation flags (only meaningful if armv7==1).
+      # Set Neon compilation flags (only meaningful if arm_version==7).
       'arm_neon%': 1,
 
       # The system root for cross-compiles. Default: none.
@@ -148,7 +148,7 @@
     'fastbuild%': '<(fastbuild)',
     'linux_fpic%': '<(linux_fpic)',
     'python_ver%': '<(python_ver)',
-    'armv7%': '<(armv7)',
+    'arm_version%': '<(arm_version)',
     'arm_neon%': '<(arm_neon)',
     'sysroot%': '<(sysroot)',
     'disable_sse2%': '<(disable_sse2)',
@@ -254,7 +254,7 @@
     # Set Thumb compilation flags.
     'arm_thumb%': 0,
 
-    # Set ARM fpu compilation flags (only meaningful if armv7==1 and
+    # Set ARM fpu compilation flags (only meaningful if arm_version==7 and
     # arm_neon==0).
     'arm_fpu%': 'vfpv3',
 
@@ -980,7 +980,7 @@
                     '-Wa,-mimplicit-it=thumb',
                     ]
                   }],
-                  ['armv7==1', {
+                  ['arm_version==7', {
                     'cflags': [
                       '-march=armv7-a',
                       '-mtune=cortex-a8',
@@ -1174,7 +1174,9 @@
           '$(VSInstallDir)/VC/atlmfc/include',
         ],
         'msvs_cygwin_dirs': ['<(DEPTH)/third_party/cygwin'],
-        'msvs_disabled_warnings': [4100, 4127, 4396, 4503, 4512, 4819, 4995],
+        'msvs_disabled_warnings': [
+          4100, 4127, 4396, 4503, 4512, 4819, 4995, 4702
+        ],
         'msvs_settings': {
           'VCCLCompilerTool': {
             'MinimalRebuild': 'false',

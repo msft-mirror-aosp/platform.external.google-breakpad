@@ -64,14 +64,17 @@ endif
 # Specify include paths for ac macros
 ACLOCAL_AMFLAGS = -I m4
 
+# License file is called LICENSE not COPYING
+AUTOMAKE_OPTIONS = foreign
+
 ## Documentation
 docdir = $(prefix)/share/doc/$(PACKAGE)-$(VERSION)
 
 dist_doc_DATA = \
 	AUTHORS \
-	COPYING \
 	ChangeLog \
 	INSTALL \
+	LICENSE \
 	NEWS \
 	README
 
@@ -343,10 +346,14 @@ endif
 TESTS = $(check_PROGRAMS) $(check_SCRIPTS)
 
 if ANDROID_HOST
-# Wrapper script to run unit test programs on a connected Android device.
-TESTS_ENVIRONMENT = $(top_srcdir)/android/test-shell.sh
+# Since Autotools 1.2, tests are run through a special "test driver" script.
+# Unfortunately, it's not possible anymore to specify an alternative shell to
+# run them on connected devices, so use a slightly modified version of the
+# driver for Android.
+LOG_DRIVER = $(top_srcdir)/android/test-driver
 else
-TESTS_ENVIRONMENT =
+# The default Autotools test driver script.
+LOG_DRIVER = $(top_srcdir)/autotools/test-driver
 endif
 
 if LINUX_HOST

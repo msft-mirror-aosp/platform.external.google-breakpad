@@ -27,19 +27,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#define VERBOSE 0
-
-#if VERBOSE
-  static bool gDebugLog = true;
-#else
-  static bool gDebugLog = false;
-#endif
-
-#define DEBUGLOG if (gDebugLog) fprintf
 #define IGNORE_DEBUGGER "BREAKPAD_IGNORE_DEBUGGER"
 
 #import "client/ios/Breakpad.h"
 
+#include <assert.h>
 #import <Foundation/Foundation.h>
 #include <pthread.h>
 #include <sys/stat.h>
@@ -100,36 +92,32 @@ pthread_mutex_t gDictionaryMutex;
 // ProtectedMemoryLocker will unprotect this block after taking the lock.
 // Its destructor will first re-protect the memory then release the lock.
 class ProtectedMemoryLocker {
-public:
-  // allocator may be NULL, in which case no Protect() or Unprotect() calls
-  // will be made, but a lock will still be taken
+ public:
   ProtectedMemoryLocker(pthread_mutex_t *mutex,
                         ProtectedMemoryAllocator *allocator)
-  : mutex_(mutex), allocator_(allocator) {
+      : mutex_(mutex),
+        allocator_(allocator) {
     // Lock the mutex
-    assert(pthread_mutex_lock(mutex_) == 0);
+    __attribute__((unused)) int rv = pthread_mutex_lock(mutex_);
+    assert(rv == 0);
 
     // Unprotect the memory
-    if (allocator_ ) {
-      allocator_->Unprotect();
-    }
+    allocator_->Unprotect();
   }
 
   ~ProtectedMemoryLocker() {
     // First protect the memory
-    if (allocator_) {
-      allocator_->Protect();
-    }
+    allocator_->Protect();
 
     // Then unlock the mutex
-    assert(pthread_mutex_unlock(mutex_) == 0);
+    __attribute__((unused)) int rv = pthread_mutex_unlock(mutex_);
+    assert(rv == 0);
   };
 
-private:
-  //  Keep anybody from ever creating one of these things not on the stack.
-  ProtectedMemoryLocker() { }
+ private:
+  ProtectedMemoryLocker();
   ProtectedMemoryLocker(const ProtectedMemoryLocker&);
-  ProtectedMemoryLocker & operator=(ProtectedMemoryLocker&);
+  ProtectedMemoryLocker& operator=(const ProtectedMemoryLocker&);
 
   pthread_mutex_t           *mutex_;
   ProtectedMemoryAllocator  *allocator_;
@@ -164,7 +152,7 @@ class Breakpad {
   void RemoveKeyValue(NSString *key);
   NSArray *CrashReportsToUpload();
   NSString *NextCrashReportToUpload();
-  void UploadNextReport();
+  void UploadNextReport(NSDictionary *server_parameters);
   void UploadData(NSData *data, NSString *name,
                   NSDictionary *server_parameters);
   NSDictionary *GenerateReport(NSDictionary *server_parameters);
@@ -289,7 +277,6 @@ bool Breakpad::Initialize(NSDictionary *parameters) {
 
   // Check for debugger
   if (IsDebuggerActive()) {
-    DEBUGLOG(stderr, "Debugger is active:  Not installing handler\n");
     return true;
   }
 
@@ -368,17 +355,14 @@ bool Breakpad::ExtractParameters(NSDictionary *parameters) {
 
   // The product, version, and URL are required values.
   if (![product length]) {
-    DEBUGLOG(stderr, "Missing required product key.\n");
     return false;
   }
 
   if (![version length]) {
-    DEBUGLOG(stderr, "Missing required version key.\n");
     return false;
   }
 
   if (![urlStr length]) {
-    DEBUGLOG(stderr, "Missing required URL key.\n");
     return false;
   }
 
@@ -464,13 +448,18 @@ NSString *Breakpad::NextCrashReportToUpload() {
 }
 
 //=============================================================================
-void Breakpad::UploadNextReport() {
+void Breakpad::UploadNextReport(NSDictionary *server_parameters) {
   NSString *configFile = NextCrashReportToUpload();
   if (configFile) {
     Uploader *uploader = [[[Uploader alloc]
         initWithConfigFile:[configFile UTF8String]] autorelease];
-    if (uploader)
+    if (uploader) {
+      for (NSString *key in server_parameters) {
+        [uploader addServerParameter:[server_parameters objectForKey:key]
+                              forKey:key];
+      }
       [uploader report];
+    }
   }
 }
 
@@ -530,8 +519,6 @@ NSDictionary *Breakpad::GenerateReport(NSDictionary *server_parameters) {
 //=============================================================================
 bool Breakpad::HandleMinidump(const char *dump_dir,
                               const char *minidump_id) {
-  DEBUGLOG(stderr, "Breakpad: a minidump has been created.\n");
-
   config_file_.WriteFile(dump_dir,
                          config_params_,
                          dump_dir,
@@ -793,7 +780,7 @@ int BreakpadGetCrashReportCount(BreakpadRef ref) {
     Breakpad *breakpad = (Breakpad *)ref;
 
     if (breakpad) {
-       return [breakpad->CrashReportsToUpload() count];
+       return static_cast<int>([breakpad->CrashReportsToUpload() count]);
     }
   } catch(...) {    // don't let exceptions leave this C API
     fprintf(stderr, "BreakpadGetCrashReportCount() : error\n");
@@ -803,12 +790,18 @@ int BreakpadGetCrashReportCount(BreakpadRef ref) {
 
 //=============================================================================
 void BreakpadUploadNextReport(BreakpadRef ref) {
+  BreakpadUploadNextReportWithParameters(ref, nil);
+}
+
+//=============================================================================
+void BreakpadUploadNextReportWithParameters(BreakpadRef ref,
+                                            NSDictionary *server_parameters) {
   try {
     // Not called at exception time
     Breakpad *breakpad = (Breakpad *)ref;
 
     if (breakpad) {
-       breakpad->UploadNextReport();
+       breakpad->UploadNextReport(server_parameters);
     }
   } catch(...) {    // don't let exceptions leave this C API
     fprintf(stderr, "BreakpadUploadNextReport() : error\n");
