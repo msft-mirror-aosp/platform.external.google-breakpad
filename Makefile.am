@@ -463,6 +463,7 @@ src_tools_linux_dump_syms_dump_syms_SOURCES = \
 	src/common/dwarf/bytereader.cc \
 	src/common/dwarf/dwarf2diehandler.cc \
 	src/common/dwarf/dwarf2reader.cc \
+	src/common/linux/crc32.cc \
 	src/common/linux/dump_symbols.cc \
 	src/common/linux/elf_symbols_to_module.cc \
 	src/common/linux/elfutils.cc \
@@ -507,6 +508,7 @@ src_common_dumper_unittest_SOURCES = \
 	src/common/dwarf/dwarf2reader.cc \
 	src/common/dwarf/dwarf2reader_cfi_unittest.cc \
 	src/common/dwarf/dwarf2reader_die_unittest.cc \
+	src/common/linux/crc32.cc \
 	src/common/linux/dump_symbols.cc \
 	src/common/linux/dump_symbols_unittest.cc \
 	src/common/linux/elf_core_dump.cc \
@@ -1126,6 +1128,7 @@ EXTRA_DIST = \
 	src/client/windows/sender/crash_report_sender.vcproj \
 	src/common/convert_UTF.c \
 	src/common/convert_UTF.h \
+	src/common/linux/crc32.cc \
 	src/common/linux/dump_symbols.cc \
 	src/common/linux/dump_symbols.h \
 	src/common/linux/elf_symbols_to_module.cc \

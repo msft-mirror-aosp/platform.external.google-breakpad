@@ -378,12 +378,34 @@ typedef MDRawContextARM64 RawContextCPU;
 
 void CPUFillFromThreadInfo(MDRawContextARM64* out,
                            const google_breakpad::ThreadInfo& info) {
-  // TODO(rmcilroy): Implement for arm64.
+  out->context_flags = MD_CONTEXT_ARM64_FULL;
+
+  out->cpsr = static_cast<uint32_t>(info.regs.pstate);
+  for (int i = 0; i < MD_CONTEXT_ARM64_REG_SP; ++i)
+    out->iregs[i] = info.regs.regs[i];
+  out->iregs[MD_CONTEXT_ARM64_REG_SP] = info.regs.sp;
+  out->iregs[MD_CONTEXT_ARM64_REG_PC] = info.regs.pc;
+
+  out->float_save.fpsr = info.fpregs.fpsr;
+  out->float_save.fpcr = info.fpregs.fpcr;
+  my_memcpy(&out->float_save.regs, &info.fpregs.vregs,
+      MD_FLOATINGSAVEAREA_ARM64_FPR_COUNT * 16);
 }
 
 void CPUFillFromUContext(MDRawContextARM64* out, const ucontext* uc,
                          const struct fpsimd_context* fpregs) {
-  // TODO(rmcilroy): Implement for arm64.
+  out->context_flags = MD_CONTEXT_ARM64_FULL;
+
+  out->cpsr = static_cast<uint32_t>(uc->uc_mcontext.pstate);
+  for (int i = 0; i < MD_CONTEXT_ARM64_REG_SP; ++i)
+    out->iregs[i] = uc->uc_mcontext.regs[i];
+  out->iregs[MD_CONTEXT_ARM64_REG_SP] = uc->uc_mcontext.sp;
+  out->iregs[MD_CONTEXT_ARM64_REG_PC] = uc->uc_mcontext.pc;
+
+  out->float_save.fpsr = fpregs->fpsr;
+  out->float_save.fpcr = fpregs->fpcr;
+  my_memcpy(&out->float_save.regs, &fpregs->vregs,
+      MD_FLOATINGSAVEAREA_ARM64_FPR_COUNT * 16);
 }
 
 #elif defined(__mips__)
@@ -916,7 +938,9 @@ class MinidumpWriter {
 
   static bool ShouldIncludeMapping(const MappingInfo& mapping) {
     if (mapping.name[0] == 0 ||  // only want modules with filenames.
-        mapping.offset ||  // only want to include one mapping per shared lib.
+        // Only want to include one mapping per shared lib.
+        // Avoid filtering executable mappings.
+        (mapping.offset != 0 && !mapping.exec) ||
         mapping.size < 4096) {  // too small to get a signature for.
       return false;
     }
@@ -1007,7 +1031,8 @@ class MinidumpWriter {
 
     mod.base_of_image = mapping.start_addr;
     mod.size_of_image = mapping.size;
-    const size_t filepath_len = my_strlen(mapping.name);
+    const char* filepath_ptr = mapping.name;
+    size_t filepath_len = my_strlen(mapping.name);
 
     // Figure out file name from path
     const char* filename_ptr = mapping.name + filepath_len - 1;
@@ -1018,7 +1043,31 @@ class MinidumpWriter {
     }
     filename_ptr++;
 
-    const size_t filename_len = mapping.name + filepath_len - filename_ptr;
+    size_t filename_len = mapping.name + filepath_len - filename_ptr;
+
+    // If an executable is mapped from a non-zero offset, this is likely
+    // because the executable was loaded directly from inside an archive
+    // file. We try to find the name of the shared object (SONAME) by
+    // looking in the file for ELF sections.
+
+    char soname[NAME_MAX];
+    char pathname[NAME_MAX];
+    if (mapping.exec && mapping.offset != 0 &&
+        LinuxDumper::ElfFileSoName(mapping, soname, sizeof(soname))) {
+      filename_ptr = soname;
+      filename_len = my_strlen(soname);
+
+      if (filepath_len + filename_len + 1 < NAME_MAX) {
+        // It doesn't have a real pathname, but tools such as stackwalk
+        // extract the basename, so simulating a pathname is helpful.
+        my_memcpy(pathname, filepath_ptr, filepath_len);
+        pathname[filepath_len] = '/';
+        my_memcpy(pathname + filepath_len + 1, filename_ptr, filename_len);
+        pathname[filepath_len + filename_len + 1] = '\0';
+        filepath_ptr = pathname;
+        filepath_len = filepath_len + filename_len + 1;
+      }
+    }
 
     uint8_t cv_buf[MDCVInfoPDB70_minsize + NAME_MAX];
     uint8_t* cv_ptr = cv_buf;
@@ -1048,7 +1097,7 @@ class MinidumpWriter {
     mod.cv_record = cv.location();
 
     MDLocationDescriptor ld;
-    if (!minidump_writer_.WriteString(mapping.name, filepath_len, &ld))
+    if (!minidump_writer_.WriteString(filepath_ptr, filepath_len, &ld))
       return false;
     mod.module_name_rva = ld.rva;
     return true;
@@ -1328,7 +1377,7 @@ class MinidumpWriter {
       bool found;
     } cpu_info_table[] = {
       { "processor", -1, false },
-#if !defined(__mips__)
+#if defined(__i386__) || defined(__x86_64__)
       { "model", 0, false },
       { "stepping",  0, false },
       { "cpu family", 0, false },
@@ -1402,7 +1451,7 @@ class MinidumpWriter {
     cpu_info_table[0].value++;
 
     sys_info->number_of_processors = cpu_info_table[0].value;
-#if !defined(__mips__)
+#if defined(__i386__) || defined(__x86_64__)
     sys_info->processor_level      = cpu_info_table[3].value;
     sys_info->processor_revision   = cpu_info_table[1].value << 8 |
                                      cpu_info_table[2].value;
@@ -1414,7 +1463,7 @@ class MinidumpWriter {
     }
     return true;
   }
-#elif defined(__arm__)
+#elif defined(__arm__) || defined(__aarch64__)
   bool WriteCPUInformation(MDRawSystemInfo* sys_info) {
     // The CPUID value is broken up in several entries in /proc/cpuinfo.
     // This table is used to rebuild it from the entries.
@@ -1436,6 +1485,7 @@ class MinidumpWriter {
       const char* tag;
       uint32_t hwcaps;
     } cpu_features_entries[] = {
+#if defined(__arm__)
       { "swp",  MD_CPU_ARM_ELF_HWCAP_SWP },
       { "half", MD_CPU_ARM_ELF_HWCAP_HALF },
       { "thumb", MD_CPU_ARM_ELF_HWCAP_THUMB },
@@ -1456,10 +1506,18 @@ class MinidumpWriter {
       { "idiva", MD_CPU_ARM_ELF_HWCAP_IDIVA },
       { "idivt", MD_CPU_ARM_ELF_HWCAP_IDIVT },
       { "idiv", MD_CPU_ARM_ELF_HWCAP_IDIVA | MD_CPU_ARM_ELF_HWCAP_IDIVT },
+#elif defined(__aarch64__)
+      // No hwcaps on aarch64.
+#endif
     };
 
     // processor_architecture should always be set, do this first
-    sys_info->processor_architecture = MD_CPU_ARCHITECTURE_ARM;
+    sys_info->processor_architecture =
+#if defined(__aarch64__)
+        MD_CPU_ARCHITECTURE_ARM64;
+#else
+        MD_CPU_ARCHITECTURE_ARM;
+#endif
 
     // /proc/cpuinfo is not readable under various sandboxed environments
     // (e.g. Android services with the android:isolatedProcess attribute)
@@ -1543,13 +1601,14 @@ class MinidumpWriter {
           sys_info->cpu.arm_cpu_info.cpuid |=
               static_cast<uint32_t>(result);
         }
+#if defined(__arm__)
         // Get the architecture version from the "Processor" field.
         // Note that it is also available in the "CPU architecture" field,
         // however, some existing kernels are misconfigured and will report
         // invalid values here (e.g. 6, while the CPU is ARMv7-A based).
         // The "Processor" field doesn't have this issue.
         if (!my_strcmp(field, "Processor")) {
-          unsigned value_len;
+          size_t value_len;
           const char* value = reader->GetValueAndLen(&value_len);
           // Expected format: <text> (v<level><endian>)
           // Where <text> is some text like "ARMv7 Processor rev 2"
@@ -1568,9 +1627,23 @@ class MinidumpWriter {
             sys_info->processor_level = static_cast<uint16_t>(arch_level);
           }
         }
+#elif defined(__aarch64__)
+        // The aarch64 architecture does not provide the architecture level
+        // in the Processor field, so we instead check the "CPU architecture"
+        // field.
+        if (!my_strcmp(field, "CPU architecture")) {
+          uintptr_t arch_level = 0;
+          const char* value = reader->GetValue();
+          const char* p = value;
+          p = my_read_decimal_ptr(&arch_level, value);
+          if (p == value)
+            continue;
+          sys_info->processor_level = static_cast<uint16_t>(arch_level);
+        }
+#endif
         // Rebuild the ELF hwcaps from the 'Features' field.
         if (!my_strcmp(field, "Features")) {
-          unsigned value_len;
+          size_t value_len;
           const char* value = reader->GetValueAndLen(&value_len);
 
           // Parse each space-separated tag.
@@ -1604,11 +1677,6 @@ class MinidumpWriter {
     }
 
     return true;
-  }
-#elif defined(__aarch64__)
-  bool WriteCPUInformation(MDRawSystemInfo* sys_info) {
-    // TODO(rmcilroy): Implement for arm64.
-    return false;
   }
 #else
 #  error "Unsupported CPU"
@@ -1716,23 +1784,6 @@ class MinidumpWriter {
       my_strlcat(buf, *cur_info, sizeof(buf));
       space_left -= info_len;
     }
-
-#ifdef __ANDROID__
-    // On Android, try to get the build fingerprint and append it.
-    // Fail gracefully because there is no guarantee that the system
-    // property will always be available or accessible.
-    char fingerprint[PROP_VALUE_MAX];
-    int fingerprint_len = __system_property_get("ro.build.fingerprint",
-                                                fingerprint);
-    // System property values shall always be zero-terminated.
-    // Be paranoid and don't trust the system.
-    if (fingerprint_len > 0 && fingerprint_len < PROP_VALUE_MAX) {
-      const char* separator = " ";
-      if (!first_item)
-        my_strlcat(buf, separator, sizeof(buf));
-      my_strlcat(buf, fingerprint, sizeof(buf));
-    }
-#endif
 
     MDLocationDescriptor location;
     if (!minidump_writer_.WriteString(buf, 0, &location))
