@@ -266,6 +266,8 @@ src_libbreakpad_a_SOURCES = \
 	src/processor/static_map.h \
 	src/processor/static_range_map-inl.h \
 	src/processor/static_range_map.h \
+	src/processor/symbolic_constants_win.cc \
+	src/processor/symbolic_constants_win.h \
 	src/processor/tokenize.cc \
 	src/processor/tokenize.h
 
@@ -733,6 +735,7 @@ src_processor_exploitability_unittest_LDADD = \
 	src/processor/stackwalker_ppc64.o \
 	src/processor/stackwalker_sparc.o \
 	src/processor/stackwalker_x86.o \
+	src/processor/symbolic_constants_win.o \
 	src/processor/tokenize.o \
 	src/third_party/libdisasm/libdisasm.a \
 	$(PTHREAD_CFLAGS) $(PTHREAD_LIBS)
@@ -867,6 +870,7 @@ src_processor_minidump_processor_unittest_LDADD = \
 	src/processor/stackwalker_ppc64.o \
 	src/processor/stackwalker_sparc.o \
 	src/processor/stackwalker_x86.o \
+	src/processor/symbolic_constants_win.o \
 	src/processor/tokenize.o \
 	src/third_party/libdisasm/libdisasm.a \
 	$(PTHREAD_CFLAGS) $(PTHREAD_LIBS)
@@ -1212,6 +1216,7 @@ src_processor_minidump_stackwalk_LDADD = \
 	src/processor/stackwalker_ppc64.o \
 	src/processor/stackwalker_sparc.o \
 	src/processor/stackwalker_x86.o \
+	src/processor/symbolic_constants_win.o \
 	src/processor/tokenize.o \
 	src/third_party/libdisasm/libdisasm.a
 

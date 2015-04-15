@@ -1,4 +1,4 @@
-// Copyright (c) 2010 Google Inc.
+// Copyright (c) 2015 Google Inc.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -27,32 +27,24 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef COMMON_LINUX_EINTR_WRAPPER_H_
-#define COMMON_LINUX_EINTR_WRAPPER_H_
-
-#include <errno.h>
-
-// This provides a wrapper around system calls which may be interrupted by a
-// signal and return EINTR. See man 7 signal.
+// ntstatus_reason_win.h: Windows NTSTATUS code to string.
 //
+// Provides a means to convert NTSTATUS codes to strings.
+//
+// Author: Ben Wagner
 
-#define HANDLE_EINTR(x) ({ \
-  __typeof__(x) eintr_wrapper_result; \
-  do { \
-    eintr_wrapper_result = (x); \
-  } while (eintr_wrapper_result == -1 && errno == EINTR); \
-  eintr_wrapper_result; \
-})
+#ifndef GOOGLE_BREAKPAD_PROCESSOR_SYMBOLIC_CONSTANTS_WIN_H_
+#define GOOGLE_BREAKPAD_PROCESSOR_SYMBOLIC_CONSTANTS_WIN_H_
 
-#define IGNORE_EINTR(x) ({ \
-  __typeof__(x) eintr_wrapper_result; \
-  do { \
-    eintr_wrapper_result = (x); \
-    if (eintr_wrapper_result == -1 && errno == EINTR) { \
-      eintr_wrapper_result = 0; \
-    } \
-  } while (0); \
-  eintr_wrapper_result; \
-})
+#include <string>
 
-#endif  // COMMON_LINUX_EINTR_WRAPPER_H_
+#include "google_breakpad/common/breakpad_types.h"
+
+namespace google_breakpad {
+
+/* Converts a NTSTATUS code to a reason string. */
+std::string NTStatusToString(uint32_t ntstatus);
+
+}  // namespace google_breakpad
+
+#endif  // GOOGLE_BREAKPAD_PROCESSOR_SYMBOLIC_CONSTANTS_WIN_H_
