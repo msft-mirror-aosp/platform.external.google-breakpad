@@ -628,10 +628,6 @@ LTLIBOBJS
 LIBOBJS
 SELFTEST_FALSE
 SELFTEST_TRUE
-DISABLE_MD2CORE_FALSE
-DISABLE_MD2CORE_TRUE
-DISABLE_CORE2MD_FALSE
-DISABLE_CORE2MD_TRUE
 DISABLE_TOOLS_FALSE
 DISABLE_TOOLS_TRUE
 DISABLE_PROCESSOR_FALSE
@@ -764,8 +760,6 @@ enable_m32
 enable_largefile
 enable_processor
 enable_tools
-enable_core2md
-enable_md2core
 enable_selftest
 '
       ac_precious_vars='build_alias
@@ -1413,8 +1407,6 @@ Optional Features:
   --disable-largefile     omit support for large files
   --disable-processor     Don't build processor library (default is no)
   --disable-tools         Don't build tool binaries (default is no)
-  --disable-core2md       Don't build core2md binaries (default is no)
-  --disable-md2core       Don't build md2core binaries (default is no)
   --enable-selftest       Run extra tests with "make check" (may conflict with
                           optimizations) (default is no)
 
@@ -6560,58 +6552,6 @@ else
 fi
 
 
-# Check whether --enable-core2md was given.
-if test "${enable_core2md+set}" = set; then :
-  enableval=$enable_core2md; case "${enableval}" in
-                 yes)
-                   disable_core2md=false
-                   ;;
-                 no)
-                   disable_core2md=true
-                   ;;
-                 *)
-                   as_fn_error $? "bad value ${enableval} for --disable-core2md" "$LINENO" 5
-                   ;;
-               esac
-else
-  disable_core2md=false
-fi
-
- if test x$disable_core2md = xtrue; then
-  DISABLE_CORE2MD_TRUE=
-  DISABLE_CORE2MD_FALSE='#'
-else
-  DISABLE_CORE2MD_TRUE='#'
-  DISABLE_CORE2MD_FALSE=
-fi
-
-
-# Check whether --enable-md2core was given.
-if test "${enable_md2core+set}" = set; then :
-  enableval=$enable_md2core; case "${enableval}" in
-                 yes)
-                   disable_md2core=false
-                   ;;
-                 no)
-                   disable_md2core=true
-                   ;;
-                 *)
-                   as_fn_error $? "bad value ${enableval} for --disable-md2core" "$LINENO" 5
-                   ;;
-               esac
-else
-  disable_md2core=false
-fi
-
- if test x$disable_md2core = xtrue; then
-  DISABLE_MD2CORE_TRUE=
-  DISABLE_MD2CORE_FALSE='#'
-else
-  DISABLE_MD2CORE_TRUE='#'
-  DISABLE_MD2CORE_FALSE=
-fi
-
-
 if test x$LINUX_HOST = xfalse -a x$disable_processor = xtrue -a x$disable_tools = xtrue; then
    as_fn_error $? "--disable-processor and --disable-tools were specified, and not building for Linux. Nothing to build!" "$LINENO" 5
 fi
@@ -6811,14 +6751,6 @@ Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${DISABLE_TOOLS_TRUE}" && test -z "${DISABLE_TOOLS_FALSE}"; then
   as_fn_error $? "conditional \"DISABLE_TOOLS\" was never defined.
-Usually this means the macro was only invoked conditionally." "$LINENO" 5
-fi
-if test -z "${DISABLE_CORE2MD_TRUE}" && test -z "${DISABLE_CORE2MD_FALSE}"; then
-  as_fn_error $? "conditional \"DISABLE_CORE2MD\" was never defined.
-Usually this means the macro was only invoked conditionally." "$LINENO" 5
-fi
-if test -z "${DISABLE_MD2CORE_TRUE}" && test -z "${DISABLE_MD2CORE_FALSE}"; then
-  as_fn_error $? "conditional \"DISABLE_MD2CORE\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${SELFTEST_TRUE}" && test -z "${SELFTEST_FALSE}"; then
