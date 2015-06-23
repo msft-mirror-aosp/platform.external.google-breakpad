@@ -233,6 +233,7 @@ TEST(MinidumpWriterTest, MappingInfo) {
 // Test that mapping info can be specified, and that it overrides
 // existing mappings that are wholly contained within the specified
 // range.
+#ifdef ENABLE_FLAKY_TESTS
 TEST(MinidumpWriterTest, MappingInfoContained) {
   int fds[2];
   ASSERT_NE(-1, pipe(fds));
@@ -334,6 +335,7 @@ TEST(MinidumpWriterTest, MappingInfoContained) {
 
   close(fds[1]);
 }
+#endif
 
 TEST(MinidumpWriterTest, DeletedBinary) {
   const string kNumberOfThreadsArgument = "1";
