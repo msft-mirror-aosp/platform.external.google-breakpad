@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium OS Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium OS Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -163,8 +163,11 @@ class LinuxDumper {
   // without any slashes.
   void BuildProcPath(char* path, pid_t pid, const char* node) const;
 
-  // Generate a File ID from the .text section of a mapped entry
-  bool ElfFileIdentifierForMapping(unsigned int mapping_id,
+  // Generate a File ID from the .text section of a mapped entry.
+  // If not a member, mapping_id is ignored.
+  bool ElfFileIdentifierForMapping(const MappingInfo& mapping,
+                                   bool member,
+                                   unsigned int mapping_id,
                                    uint8_t identifier[sizeof(MDGUID)]);
 
   // Utility method to find the location of where the kernel has
@@ -217,7 +220,7 @@ class LinuxDumper {
   // For programs that don't end with ' (deleted)', this is a no-op.
   // This assumes |path| is a buffer with length NAME_MAX.
   // Returns true if |path| is modified.
-  bool HandleDeletedFileInMapping(char* path);
+  bool HandleDeletedFileInMapping(char* path) const;
 
   bool LoadCoreFile();
   void CopyFromCore(void* dest, pid_t child, const void* src,
