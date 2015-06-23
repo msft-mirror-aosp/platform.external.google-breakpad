@@ -202,6 +202,11 @@ int BreakpadGetCrashReportCount(BreakpadRef ref);
 // Upload next report to the server.
 void BreakpadUploadNextReport(BreakpadRef ref);
 
+// Upload next report to the server.
+// |server_parameters| is additional server parameters to send.
+void BreakpadUploadNextReportWithParameters(BreakpadRef ref,
+                                            NSDictionary *server_parameters);
+
 // Upload a file to the server. |data| is the content of the file to sent.
 // |server_parameters| is additional server parameters to send.
 void BreakpadUploadData(BreakpadRef ref, NSData *data, NSString *name,
