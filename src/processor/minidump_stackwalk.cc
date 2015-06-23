@@ -72,6 +72,8 @@ using google_breakpad::StackFrameSPARC;
 using google_breakpad::StackFrameX86;
 using google_breakpad::StackFrameAMD64;
 using google_breakpad::StackFrameARM;
+using google_breakpad::StackFrameARM64;
+using google_breakpad::StackFrameMIPS;
 
 // Separator character for machine readable output.
 static const char kOutputSeparator = '|';
@@ -271,6 +273,200 @@ static void PrintStack(const CallStack *stack, const string &cpu) {
         sequence = PrintRegister("lr", frame_arm->context.iregs[14], sequence);
       if (frame_arm->context_validity & StackFrameARM::CONTEXT_VALID_PC)
         sequence = PrintRegister("pc", frame_arm->context.iregs[15], sequence);
+    } else if (cpu == "arm64") {
+      const StackFrameARM64 *frame_arm64 =
+        reinterpret_cast<const StackFrameARM64*>(frame);
+
+      if (frame_arm64->context_validity & StackFrameARM64::CONTEXT_VALID_X0) {
+        sequence =
+            PrintRegister64("x0", frame_arm64->context.iregs[0], sequence);
+      }
+      if (frame_arm64->context_validity & StackFrameARM64::CONTEXT_VALID_X1) {
+        sequence =
+            PrintRegister64("x1", frame_arm64->context.iregs[1], sequence);
+      }
+      if (frame_arm64->context_validity & StackFrameARM64::CONTEXT_VALID_X2) {
+        sequence =
+            PrintRegister64("x2", frame_arm64->context.iregs[2], sequence);
+      }
+      if (frame_arm64->context_validity & StackFrameARM64::CONTEXT_VALID_X3) {
+        sequence =
+            PrintRegister64("x3", frame_arm64->context.iregs[3], sequence);
+      }
+      if (frame_arm64->context_validity & StackFrameARM64::CONTEXT_VALID_X4) {
+        sequence =
+            PrintRegister64("x4", frame_arm64->context.iregs[4], sequence);
+      }
+      if (frame_arm64->context_validity & StackFrameARM64::CONTEXT_VALID_X5) {
+        sequence =
+            PrintRegister64("x5", frame_arm64->context.iregs[5], sequence);
+      }
+      if (frame_arm64->context_validity & StackFrameARM64::CONTEXT_VALID_X6) {
+        sequence =
+            PrintRegister64("x6", frame_arm64->context.iregs[6], sequence);
+      }
+      if (frame_arm64->context_validity & StackFrameARM64::CONTEXT_VALID_X7) {
+        sequence =
+            PrintRegister64("x7", frame_arm64->context.iregs[7], sequence);
+      }
+      if (frame_arm64->context_validity & StackFrameARM64::CONTEXT_VALID_X8) {
+        sequence =
+            PrintRegister64("x8", frame_arm64->context.iregs[8], sequence);
+      }
+      if (frame_arm64->context_validity & StackFrameARM64::CONTEXT_VALID_X9) {
+        sequence =
+            PrintRegister64("x9", frame_arm64->context.iregs[9], sequence);
+      }
+      if (frame_arm64->context_validity & StackFrameARM64::CONTEXT_VALID_X10) {
+        sequence =
+            PrintRegister64("x10", frame_arm64->context.iregs[10], sequence);
+      }
+      if (frame_arm64->context_validity & StackFrameARM64::CONTEXT_VALID_X11) {
+        sequence =
+            PrintRegister64("x11", frame_arm64->context.iregs[11], sequence);
+      }
+      if (frame_arm64->context_validity & StackFrameARM64::CONTEXT_VALID_X12) {
+        sequence =
+            PrintRegister64("x12", frame_arm64->context.iregs[12], sequence);
+      }
+      if (frame_arm64->context_validity & StackFrameARM64::CONTEXT_VALID_X13) {
+        sequence =
+            PrintRegister64("x13", frame_arm64->context.iregs[13], sequence);
+      }
+      if (frame_arm64->context_validity & StackFrameARM64::CONTEXT_VALID_X14) {
+        sequence =
+            PrintRegister64("x14", frame_arm64->context.iregs[14], sequence);
+      }
+      if (frame_arm64->context_validity & StackFrameARM64::CONTEXT_VALID_X15) {
+        sequence =
+            PrintRegister64("x15", frame_arm64->context.iregs[15], sequence);
+      }
+      if (frame_arm64->context_validity & StackFrameARM64::CONTEXT_VALID_X16) {
+        sequence =
+            PrintRegister64("x16", frame_arm64->context.iregs[16], sequence);
+      }
+      if (frame_arm64->context_validity & StackFrameARM64::CONTEXT_VALID_X17) {
+        sequence =
+            PrintRegister64("x17", frame_arm64->context.iregs[17], sequence);
+      }
+      if (frame_arm64->context_validity & StackFrameARM64::CONTEXT_VALID_X18) {
+        sequence =
+            PrintRegister64("x18", frame_arm64->context.iregs[18], sequence);
+      }
+      if (frame_arm64->context_validity & StackFrameARM64::CONTEXT_VALID_X19) {
+        sequence =
+            PrintRegister64("x19", frame_arm64->context.iregs[19], sequence);
+      }
+      if (frame_arm64->context_validity & StackFrameARM64::CONTEXT_VALID_X20) {
+        sequence =
+            PrintRegister64("x20", frame_arm64->context.iregs[20], sequence);
+      }
+      if (frame_arm64->context_validity & StackFrameARM64::CONTEXT_VALID_X21) {
+        sequence =
+            PrintRegister64("x21", frame_arm64->context.iregs[21], sequence);
+      }
+      if (frame_arm64->context_validity & StackFrameARM64::CONTEXT_VALID_X22) {
+        sequence =
+            PrintRegister64("x22", frame_arm64->context.iregs[22], sequence);
+      }
+      if (frame_arm64->context_validity & StackFrameARM64::CONTEXT_VALID_X23) {
+        sequence =
+            PrintRegister64("x23", frame_arm64->context.iregs[23], sequence);
+      }
+      if (frame_arm64->context_validity & StackFrameARM64::CONTEXT_VALID_X24) {
+        sequence =
+            PrintRegister64("x24", frame_arm64->context.iregs[24], sequence);
+      }
+      if (frame_arm64->context_validity & StackFrameARM64::CONTEXT_VALID_X25) {
+        sequence =
+            PrintRegister64("x25", frame_arm64->context.iregs[25], sequence);
+      }
+      if (frame_arm64->context_validity & StackFrameARM64::CONTEXT_VALID_X26) {
+        sequence =
+            PrintRegister64("x26", frame_arm64->context.iregs[26], sequence);
+      }
+      if (frame_arm64->context_validity & StackFrameARM64::CONTEXT_VALID_X27) {
+        sequence =
+            PrintRegister64("x27", frame_arm64->context.iregs[27], sequence);
+      }
+      if (frame_arm64->context_validity & StackFrameARM64::CONTEXT_VALID_X28) {
+        sequence =
+            PrintRegister64("x28", frame_arm64->context.iregs[28], sequence);
+      }
+
+      // Registers with a dedicated or conventional purpose.
+      if (frame_arm64->context_validity & StackFrameARM64::CONTEXT_VALID_FP) {
+        sequence =
+            PrintRegister64("fp", frame_arm64->context.iregs[29], sequence);
+      }
+      if (frame_arm64->context_validity & StackFrameARM64::CONTEXT_VALID_LR) {
+        sequence =
+            PrintRegister64("lr", frame_arm64->context.iregs[30], sequence);
+      }
+      if (frame_arm64->context_validity & StackFrameARM64::CONTEXT_VALID_SP) {
+        sequence =
+            PrintRegister64("sp", frame_arm64->context.iregs[31], sequence);
+      }
+      if (frame_arm64->context_validity & StackFrameARM64::CONTEXT_VALID_PC) {
+        sequence =
+            PrintRegister64("pc", frame_arm64->context.iregs[32], sequence);
+      }
+    } else if (cpu == "mips") {
+      const StackFrameMIPS* frame_mips =
+        reinterpret_cast<const StackFrameMIPS*>(frame);
+
+      if (frame_mips->context_validity & StackFrameMIPS::CONTEXT_VALID_GP)
+        sequence = PrintRegister64("gp",
+                     frame_mips->context.iregs[MD_CONTEXT_MIPS_REG_GP],
+                     sequence);
+      if (frame_mips->context_validity & StackFrameMIPS::CONTEXT_VALID_SP)
+        sequence = PrintRegister64("sp",
+                     frame_mips->context.iregs[MD_CONTEXT_MIPS_REG_SP],
+                     sequence);
+      if (frame_mips->context_validity & StackFrameMIPS::CONTEXT_VALID_FP)
+        sequence = PrintRegister64("fp",
+                     frame_mips->context.iregs[MD_CONTEXT_MIPS_REG_FP],
+                     sequence);
+      if (frame_mips->context_validity & StackFrameMIPS::CONTEXT_VALID_RA)
+        sequence = PrintRegister64("ra",
+                     frame_mips->context.iregs[MD_CONTEXT_MIPS_REG_RA],
+                     sequence);
+      if (frame_mips->context_validity & StackFrameMIPS::CONTEXT_VALID_PC)
+        sequence = PrintRegister64("pc", frame_mips->context.epc, sequence);
+
+      // Save registers s0-s7
+      if (frame_mips->context_validity & StackFrameMIPS::CONTEXT_VALID_S0)
+        sequence = PrintRegister64("s0",
+                     frame_mips->context.iregs[MD_CONTEXT_MIPS_REG_S0],
+                     sequence);
+      if (frame_mips->context_validity & StackFrameMIPS::CONTEXT_VALID_S1)
+        sequence = PrintRegister64("s1",
+                     frame_mips->context.iregs[MD_CONTEXT_MIPS_REG_S1],
+                     sequence);
+      if (frame_mips->context_validity & StackFrameMIPS::CONTEXT_VALID_S2)
+        sequence = PrintRegister64("s2",
+                     frame_mips->context.iregs[MD_CONTEXT_MIPS_REG_S2],
+                     sequence);
+      if (frame_mips->context_validity & StackFrameMIPS::CONTEXT_VALID_S3)
+        sequence = PrintRegister64("s3",
+                     frame_mips->context.iregs[MD_CONTEXT_MIPS_REG_S3],
+                     sequence);
+      if (frame_mips->context_validity & StackFrameMIPS::CONTEXT_VALID_S4)
+        sequence = PrintRegister64("s4",
+                     frame_mips->context.iregs[MD_CONTEXT_MIPS_REG_S4],
+                     sequence);
+      if (frame_mips->context_validity & StackFrameMIPS::CONTEXT_VALID_S5)
+        sequence = PrintRegister64("s5",
+                     frame_mips->context.iregs[MD_CONTEXT_MIPS_REG_S5],
+                     sequence);
+      if (frame_mips->context_validity & StackFrameMIPS::CONTEXT_VALID_S6)
+        sequence = PrintRegister64("s6",
+                     frame_mips->context.iregs[MD_CONTEXT_MIPS_REG_S6],
+                     sequence);
+      if (frame_mips->context_validity & StackFrameMIPS::CONTEXT_VALID_S7)
+        sequence = PrintRegister64("s7",
+                     frame_mips->context.iregs[MD_CONTEXT_MIPS_REG_S7],
+                     sequence);
     }
     printf("\n    Found by: %s\n", frame->trust_description().c_str());
   }
@@ -358,10 +554,15 @@ static bool ContainsModule(
 static void PrintModule(
     const CodeModule *module,
     const vector<const CodeModule*> *modules_without_symbols,
+    const vector<const CodeModule*> *modules_with_corrupt_symbols,
     uint64_t main_address) {
-  string missing_symbols;
+  string symbol_issues;
   if (ContainsModule(modules_without_symbols, module)) {
-    missing_symbols = "  (WARNING: No symbols, " +
+    symbol_issues = "  (WARNING: No symbols, " +
+        PathnameStripper::File(module->debug_file()) + ", " +
+        module->debug_identifier() + ")";
+  } else if (ContainsModule(modules_with_corrupt_symbols, module)) {
+    symbol_issues = "  (WARNING: Corrupt symbols, " +
         PathnameStripper::File(module->debug_file()) + ", " +
         module->debug_identifier() + ")";
   }
@@ -371,7 +572,7 @@ static void PrintModule(
          PathnameStripper::File(module->code_file()).c_str(),
          module->version().empty() ? "???" : module->version().c_str(),
          main_address != 0 && base_address == main_address ? "  (main)" : "",
-         missing_symbols.c_str());
+         symbol_issues.c_str());
 }
 
 // PrintModules prints the list of all loaded |modules| to stdout.
@@ -379,7 +580,8 @@ static void PrintModule(
 // confirmed to be missing their symbols during the stack walk.
 static void PrintModules(
     const CodeModules *modules,
-    const vector<const CodeModule*> *modules_without_symbols) {
+    const vector<const CodeModule*> *modules_without_symbols,
+    const vector<const CodeModule*> *modules_with_corrupt_symbols) {
   if (!modules)
     return;
 
@@ -397,7 +599,8 @@ static void PrintModules(
        module_sequence < module_count;
        ++module_sequence) {
     const CodeModule *module = modules->GetModuleAtSequence(module_sequence);
-    PrintModule(module, modules_without_symbols, main_address);
+    PrintModule(module, modules_without_symbols, modules_with_corrupt_symbols,
+                main_address);
   }
 }
 
@@ -490,7 +693,8 @@ static void PrintProcessState(const ProcessState& process_state) {
   }
 
   PrintModules(process_state.modules(),
-               process_state.modules_without_symbols());
+               process_state.modules_without_symbols(),
+               process_state.modules_with_corrupt_symbols());
 }
 
 static void PrintProcessStateMachineReadable(const ProcessState& process_state)

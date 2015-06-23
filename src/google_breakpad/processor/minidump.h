@@ -187,6 +187,8 @@ class MinidumpContext : public MinidumpStream {
   // NULL.
   const MDRawContextAMD64* GetContextAMD64() const;
   const MDRawContextARM*   GetContextARM() const;
+  const MDRawContextARM64* GetContextARM64() const;
+  const MDRawContextMIPS*  GetContextMIPS() const;
   const MDRawContextPPC*   GetContextPPC() const;
   const MDRawContextPPC64* GetContextPPC64() const;
   const MDRawContextSPARC* GetContextSPARC() const;
@@ -209,6 +211,8 @@ class MinidumpContext : public MinidumpStream {
     // so variables can NOT be named as sparc
     MDRawContextSPARC* ctx_sparc;
     MDRawContextARM*   arm;
+    MDRawContextARM64* arm64;
+    MDRawContextMIPS*  ctx_mips;
   } context_;
 
   // Store this separately because of the weirdo AMD64 context
@@ -325,6 +329,11 @@ class MinidumpThread : public MinidumpObject {
 
   // Print a human-readable representation of the object to stdout.
   void Print();
+
+  // Returns the start address of the thread stack memory region.  Returns 0 if
+  // MinidumpThread is invalid.  Note that this method can be called even when
+  // the thread memory cannot be read and GetMemory returns NULL.
+  virtual uint64_t GetStartOfStackMemoryRange() const;
 
  protected:
   explicit MinidumpThread(Minidump* minidump);
@@ -477,7 +486,7 @@ class MinidumpModule : public MinidumpObject,
   // True after a successful Read.  This is different from valid_, which is
   // not set true until ReadAuxiliaryData also completes successfully.
   // module_valid_ is only used by ReadAuxiliaryData and the functions it
-  // calls to determine whether the object is ready for auxiliary data to 
+  // calls to determine whether the object is ready for auxiliary data to
   // be read.
   bool              module_valid_;
 
@@ -586,13 +595,14 @@ class MinidumpMemoryList : public MinidumpStream {
 
   // Random access to memory regions.  Returns the region encompassing
   // the address identified by address.
-  MinidumpMemoryRegion* GetMemoryRegionForAddress(uint64_t address);
+  virtual MinidumpMemoryRegion* GetMemoryRegionForAddress(uint64_t address);
 
   // Print a human-readable representation of the object to stdout.
   void Print();
 
  private:
   friend class Minidump;
+  friend class MockMinidumpMemoryList;
 
   typedef vector<MDMemoryDescriptor>   MemoryDescriptors;
   typedef vector<MinidumpMemoryRegion> MemoryRegions;
@@ -776,6 +786,13 @@ class MinidumpMiscInfo : public MinidumpStream {
   bool Read(uint32_t expected_size_);
 
   MDRawMiscInfo misc_info_;
+
+  // Populated by Read.  Contains the converted strings from the corresponding
+  // UTF-16 fields in misc_info_
+  string standard_name_;
+  string daylight_name_;
+  string build_string_;
+  string dbg_bld_str_;
 };
 
 
@@ -821,7 +838,7 @@ class MinidumpMemoryInfo : public MinidumpObject {
   uint64_t GetBase() const { return valid_ ? memory_info_.base_address : 0; }
 
   // The size, in bytes, of the memory region.
-  uint32_t GetSize() const { return valid_ ? memory_info_.region_size : 0; }
+  uint64_t GetSize() const { return valid_ ? memory_info_.region_size : 0; }
 
   // Return true if the memory protection allows execution.
   bool IsExecutable() const;
@@ -932,7 +949,7 @@ class Minidump {
   // parameter).
   virtual MinidumpThreadList* GetThreadList();
   MinidumpModuleList* GetModuleList();
-  MinidumpMemoryList* GetMemoryList();
+  virtual MinidumpMemoryList* GetMemoryList();
   MinidumpException* GetException();
   MinidumpAssertion* GetAssertion();
   virtual MinidumpSystemInfo* GetSystemInfo();
