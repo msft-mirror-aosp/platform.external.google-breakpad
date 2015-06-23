@@ -1,4 +1,11 @@
-// Copyright (c) 2009, Google Inc.
+// Copyright (c) 2011 The Chromium OS Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+//
+// This file is a patched version from Google Breakpad revision 875 to
+// support core dump to minidump conversion.  Original copyright follows.
+//
+// Copyright (c) 2010, Google Inc.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -61,6 +68,12 @@ bool WriteMinidump(const char* filename, pid_t crashing_process,
 bool WriteMinidump(const char* filename, pid_t crashing_process,
                    const void* blob, size_t blob_size,
                    const MappingList& mappings);
+
+// Write a minidump to the filesystem.  Same as above, but uses the given
+// core file and procfs directory to generate the minidump post mortem.
+bool WriteMinidumpFromCore(const char* filename,
+                           const char* core_path,
+                           const char* procfs_override);
 
 }  // namespace google_breakpad
 

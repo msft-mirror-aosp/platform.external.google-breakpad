@@ -4,8 +4,8 @@
 //
 // Provide helper function and definitions to simplify reading core files.
 
-#ifndef _TOOLS_LINUX_CORE2MD_CORE_READER_H
-#define _TOOLS_LINUX_CORE2MD_CORE_READER_H
+#ifndef CLIENT_LINUX_MINIDUMP_WRITER_CORE_READER_H_
+#define CLIENT_LINUX_MINIDUMP_WRITER_CORE_READER_H_
 
 #include <sys/types.h>  // for off_t
 
@@ -53,4 +53,4 @@ bool MmapAndValidateCoreFile(const char* filepath,
                              void** bytes,
                              off_t* size);
 
-#endif  // _TOOLS_LINUX_CORE2MD_CORE_READER_H
+#endif  // CLIENT_LINUX_MINIDUMP_WRITER_CORE_READER_H_

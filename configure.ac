@@ -114,6 +114,24 @@ AC_ARG_ENABLE(tools,
               [disable_tools=false])
 AM_CONDITIONAL(DISABLE_TOOLS, test x$disable_tools = xtrue)
 
+AC_ARG_ENABLE(core2md,
+              AS_HELP_STRING([--disable-core2md],
+                             [Don't build core2md binaries]
+                             [(default is no)]),
+              [case "${enableval}" in
+                 yes)
+                   disable_core2md=false
+                   ;;
+                 no)
+                   disable_core2md=true
+                   ;;
+                 *)
+                   AC_MSG_ERROR(bad value ${enableval} for --disable-core2md)
+                   ;;
+               esac],
+              [disable_core2md=false])
+AM_CONDITIONAL(DISABLE_CORE2MD, test x$disable_core2md = xtrue)
+
 AC_ARG_ENABLE(md2core,
               AS_HELP_STRING([--disable-md2core],
                              [Don't build md2core binaries]

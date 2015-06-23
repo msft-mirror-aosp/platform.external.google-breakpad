@@ -10,7 +10,7 @@
 
 #include <map>
 
-#include "tools/linux/core2md/minidump_writer.h"
+#include "client/linux/minidump_writer/minidump_writer.h"
 
 static int ShowUsage(const char* argv0) {
   fprintf(stderr, "Usage: %s <core file> <procfs dir> <output>\n", argv0);

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "client/linux/minidump_writer/core_reader.h"
+
 #include <elf.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -11,7 +13,6 @@
 #include <cstdio>
 
 #include "common/linux/mmapped_range.h"
-#include "tools/linux/core2md/core_reader.h"
 
 bool MmapAndValidateCoreFile(const char* filepath,
                              void** bytes,
