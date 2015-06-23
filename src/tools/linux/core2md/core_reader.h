@@ -16,7 +16,7 @@
   #define Shdr      Elf64_Shdr
   #define Nhdr      Elf64_Nhdr
   #define auxv_t    Elf64_auxv_t
-  #define WordUp(_a) (((_a) + 7) & ~7)
+  #define ElfWordSize (sizeof(Elf64_Word))
   typedef u_int64_t AddressType;
 #else
   #define ELF_CLASS ELFCLASS32
@@ -25,9 +25,11 @@
   #define Shdr      Elf32_Shdr
   #define Nhdr      Elf32_Nhdr
   #define auxv_t    Elf32_auxv_t
-  #define WordUp(_a) (((_a) + 3) & ~3)
+  #define ElfWordSize (sizeof(Elf32_Word))
   typedef u_int32_t AddressType;
 #endif
+
+#define WordUp(_a) (((_a) + ElfWordSize - 1) & ~(ElfWordSize-1))
 
 #if defined(__x86_64__)
   #define ELF_ARCH  EM_X86_64
