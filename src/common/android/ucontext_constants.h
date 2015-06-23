@@ -49,11 +49,11 @@
 
 #define  UCONTEXT_SIGMASK_OFFSET     40
 
-#define  MCONTEXT_GREGS_OFFSET       56
-#define  MCONTEXT_SP_OFFSET          304
-#define  MCONTEXT_PC_OFFSET          312
-#define  MCONTEXT_PSTATE_OFFSET      320
-#define  MCONTEXT_EXTENSION_OFFSET   336
+#define  MCONTEXT_GREGS_OFFSET       184
+#define  MCONTEXT_SP_OFFSET          432
+#define  MCONTEXT_PC_OFFSET          440
+#define  MCONTEXT_PSTATE_OFFSET      448
+#define  MCONTEXT_EXTENSION_OFFSET   464
 
 #define  FPSIMD_MAGIC                0x46508001
 
@@ -66,9 +66,6 @@
 
 #define  REGISTER_SIZE               8
 #define  SIMD_REGISTER_SIZE          16
-
-#define  _NSIG                       64
-#define  __NR_rt_sigprocmask         135
 
 #elif defined(__i386__)
 
@@ -105,6 +102,32 @@
 #define  MCONTEXT_FPREGS_OFFSET    296
 #define  MCONTEXT_FPC_CSR          556
 #define  UCONTEXT_SIGMASK_OFFSET   616
+
+#elif defined(__x86_64__)
+
+#define MCONTEXT_GREGS_OFFSET     40
+#define UCONTEXT_SIGMASK_OFFSET   296
+
+#define MCONTEXT_GREGS_R8    40
+#define MCONTEXT_GREGS_R9    48
+#define MCONTEXT_GREGS_R10   56
+#define MCONTEXT_GREGS_R11   64
+#define MCONTEXT_GREGS_R12   72
+#define MCONTEXT_GREGS_R13   80
+#define MCONTEXT_GREGS_R14   88
+#define MCONTEXT_GREGS_R15   96
+#define MCONTEXT_GREGS_RDI   104
+#define MCONTEXT_GREGS_RSI   112
+#define MCONTEXT_GREGS_RBP   120
+#define MCONTEXT_GREGS_RBX   128
+#define MCONTEXT_GREGS_RDX   136
+#define MCONTEXT_GREGS_RAX   144
+#define MCONTEXT_GREGS_RCX   152
+#define MCONTEXT_GREGS_RSP   160
+#define MCONTEXT_GREGS_RIP   168
+#define MCONTEXT_FPREGS_PTR  224
+#define MCONTEXT_FPREGS_MEM  448
+#define FPREGS_OFFSET_MXCSR  24
 
 #else
 #error "This header has not been ported for your CPU"

@@ -1,5 +1,5 @@
-MODULE windows x86_64 72E103A85CB249078B76B2E7C06257B11 dump_syms_regtest64.pdb
-INFO CODE_ID 532B4F161A000 dump_syms_regtest64.exe
+MODULE windows x86_64 72E103A85CB249078B76B2E7C06257B13 dump_syms_regtest64.pdb
+INFO CODE_ID 5357F5C01A000 dump_syms_regtest64.exe
 FILE 1 d:\src\breakpad\src\tools\windows\dump_syms\testdata\dump_syms_regtest64.cc
 FILE 2 f:\dd\vctools\crt\crtw32\misc\amd64\amdsecgs.asm
 FILE 3 f:\dd\ExternalAPIs\Windows\WinBlue\sdk\inc\ksamd64.inc
@@ -4095,6 +4095,8 @@ b928 15 118 9988
 b93d 15 124 9988
 b952 15 130 9988
 b967 15 136 9988
+PUBLIC b97c 0 RtlUnwindEx
+PUBLIC b982 0 IsProcessorFeaturePresent
 FUNC b990 1e 0 __tmainCRTStartup$filt$0
 b990 1e 267 9116
 FUNC b9ae 19 0 `type_info::_Type_info_dtor'::`1'::fin$0

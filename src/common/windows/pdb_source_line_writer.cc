@@ -37,6 +37,7 @@
 #include <stdio.h>
 
 #include <limits>
+#include <set>
 
 #include "common/windows/dia_util.h"
 #include "common/windows/guid_string.h"
@@ -54,9 +55,12 @@
  *
  */
 typedef unsigned char UBYTE;
+
+#if !defined(_WIN64)
 #define UNW_FLAG_EHANDLER  0x01
 #define UNW_FLAG_UHANDLER  0x02
 #define UNW_FLAG_CHAININFO 0x04
+#endif
 
 union UnwindCode {
   struct {
@@ -74,7 +78,7 @@ enum UnwindOperationCodes {
   UWOP_SET_FPREG,       /* no info, FP = RSP + UNWIND_INFO.FPRegOffset*16 */
   UWOP_SAVE_NONVOL,     /* info == register number, offset in next slot */
   UWOP_SAVE_NONVOL_FAR, /* info == register number, offset in next 2 slots */
-  //XXX: these are missing from MSDN!
+  // XXX: these are missing from MSDN!
   // See: http://www.osronline.com/ddkx/kmarch/64bitamd_4rs7.htm
   UWOP_SAVE_XMM,
   UWOP_SAVE_XMM_FAR,
@@ -125,8 +129,19 @@ PDBSourceLineWriter::PDBSourceLineWriter() : output_(NULL) {
 PDBSourceLineWriter::~PDBSourceLineWriter() {
 }
 
+bool PDBSourceLineWriter::SetCodeFile(const wstring &exe_file) {
+  if (code_file_.empty()) {
+    code_file_ = exe_file;
+    return true;
+  }
+  // Setting a different code file path is an error.  It is success only if the
+  // file paths are the same.
+  return exe_file == code_file_;
+}
+
 bool PDBSourceLineWriter::Open(const wstring &file, FileFormat format) {
   Close();
+  code_file_.clear();
 
   if (FAILED(CoInitialize(NULL))) {
     fprintf(stderr, "CoInitialize failed\n");
@@ -140,6 +155,7 @@ bool PDBSourceLineWriter::Open(const wstring &file, FileFormat format) {
     StringFromGUID2(CLSID_DiaSource, classid, kGuidSize);
     // vc80 uses bce36434-2c24-499e-bf49-8bd99b0eeb68.
     // vc90 uses 4C41678E-887B-4365-A09E-925D28DB33C2.
+    // vc100 uses B86AE24D-BF2F-4AC9-B5A2-34B14E4CE11D.
     fprintf(stderr, "CoCreateInstance CLSID_DiaSource %S failed "
             "(msdia*.dll unregistered?)\n", classid);
     return false;
@@ -162,7 +178,8 @@ bool PDBSourceLineWriter::Open(const wstring &file, FileFormat format) {
     case ANY_FILE:
       if (FAILED(data_source->loadDataFromPdb(file.c_str()))) {
         if (FAILED(data_source->loadDataForExe(file.c_str(), NULL, NULL))) {
-          fprintf(stderr, "loadDataForPdb and loadDataFromExe failed for %ws\n", file.c_str());
+          fprintf(stderr, "loadDataForPdb and loadDataFromExe failed for %ws\n",
+                  file.c_str());
           return false;
         }
         code_file_ = file;
@@ -327,47 +344,101 @@ bool PDBSourceLineWriter::PrintSourceFiles() {
 }
 
 bool PDBSourceLineWriter::PrintFunctions() {
-  CComPtr<IDiaEnumSymbolsByAddr> symbols;
-  if (FAILED(session_->getSymbolsByAddr(&symbols))) {
-    fprintf(stderr, "failed to get symbol enumerator\n");
+  ULONG count = 0;
+  DWORD rva = 0;
+  CComPtr<IDiaSymbol> global;
+  HRESULT hr;
+
+  if (FAILED(session_->get_globalScope(&global))) {
+    fprintf(stderr, "get_globalScope failed\n");
     return false;
   }
 
-  CComPtr<IDiaSymbol> symbol;
-  if (FAILED(symbols->symbolByAddr(1, 0, &symbol))) {
-    fprintf(stderr, "failed to enumerate symbols\n");
-    return false;
+  CComPtr<IDiaEnumSymbols> symbols = NULL;
+
+  // Find all function symbols first.
+  std::set<DWORD> rvas;
+  hr = global->findChildren(SymTagFunction, NULL, nsNone, &symbols);
+
+  if (SUCCEEDED(hr)) {
+    CComPtr<IDiaSymbol> symbol = NULL;
+
+    while (SUCCEEDED(symbols->Next(1, &symbol, &count)) && count == 1) {
+      if (SUCCEEDED(symbol->get_relativeVirtualAddress(&rva))) {
+        // To maintain existing behavior of one symbol per address, place the
+        // rva onto a set here to uniquify them.
+        rvas.insert(rva);
+      } else {
+        fprintf(stderr, "get_relativeVirtualAddress failed on the symbol\n");
+        return false;
+      }
+
+      symbol.Release();
+    }
+
+    symbols.Release();
   }
 
-  DWORD rva_last = 0;
-  if (FAILED(symbol->get_relativeVirtualAddress(&rva_last))) {
-    fprintf(stderr, "failed to get symbol rva\n");
-    return false;
+  // Find all public symbols.  Store public symbols that are not also private
+  // symbols for later.
+  std::set<DWORD> public_only_rvas;
+  hr = global->findChildren(SymTagPublicSymbol, NULL, nsNone, &symbols);
+
+  if (SUCCEEDED(hr)) {
+    CComPtr<IDiaSymbol> symbol = NULL;
+
+    while (SUCCEEDED(symbols->Next(1, &symbol, &count)) && count == 1) {
+      if (SUCCEEDED(symbol->get_relativeVirtualAddress(&rva))) {
+        if (rvas.count(rva) == 0) {
+          rvas.insert(rva); // Keep symbols in rva order.
+          public_only_rvas.insert(rva);
+        }
+      } else {
+        fprintf(stderr, "get_relativeVirtualAddress failed on the symbol\n");
+        return false;
+      }
+
+      symbol.Release();
+    }
+
+    symbols.Release();
   }
 
-  ULONG count;
-  do {
-    DWORD tag;
-    if (FAILED(symbol->get_symTag(&tag))) {
-      fprintf(stderr, "failed to get symbol tag\n");
+  std::set<DWORD>::iterator it;
+
+  // For each rva, dump the first symbol DIA knows about at the address.
+  for (it = rvas.begin(); it != rvas.end(); ++it) {
+    CComPtr<IDiaSymbol> symbol = NULL;
+    // If the symbol is not in the public list, look for SymTagFunction. This is
+    // a workaround to a bug where DIA will hang if searching for a private
+    // symbol at an address where only a public symbol exists.
+    // See http://connect.microsoft.com/VisualStudio/feedback/details/722366
+    if (public_only_rvas.count(*it) == 0) {
+      if (SUCCEEDED(session_->findSymbolByRVA(*it, SymTagFunction, &symbol))) {
+        // Sometimes findSymbolByRVA returns S_OK, but NULL.
+        if (symbol) {
+          if (!PrintFunction(symbol, symbol))
+            return false;
+          symbol.Release();
+        }
+      } else {
+        fprintf(stderr, "findSymbolByRVA SymTagFunction failed\n");
+        return false;
+      }
+    } else if (SUCCEEDED(session_->findSymbolByRVA(*it,
+                                                   SymTagPublicSymbol,
+                                                   &symbol))) {
+      // Sometimes findSymbolByRVA returns S_OK, but NULL.
+      if (symbol) {
+        if (!PrintCodePublicSymbol(symbol))
+          return false;
+        symbol.Release();
+      }
+    } else {
+      fprintf(stderr, "findSymbolByRVA SymTagPublicSymbol failed\n");
       return false;
     }
-
-    // For a given function, DIA seems to give either a symbol with
-    // SymTagFunction or SymTagPublicSymbol, but not both.  This means
-    // that PDBSourceLineWriter will output either a FUNC or PUBLIC line,
-    // but not both.
-    if (tag == SymTagFunction) {
-      if (!PrintFunction(symbol, symbol)) {
-        return false;
-      }
-    } else if (tag == SymTagPublicSymbol) {
-      if (!PrintCodePublicSymbol(symbol)) {
-        return false;
-      }
-    }
-    symbol.Release();
-  } while (SUCCEEDED(symbols->Next(1, &symbol, &count)) && count == 1);
+  }
 
   // When building with PGO, the compiler can split functions into
   // "hot" and "cold" blocks, and move the "cold" blocks out to separate
@@ -376,12 +447,6 @@ bool PDBSourceLineWriter::PrintFunctions() {
   // that are children of them. We can then find the lexical parents
   // of those blocks and print out an extra FUNC line for blocks
   // that are not contained in their parent functions.
-  CComPtr<IDiaSymbol> global;
-  if (FAILED(session_->get_globalScope(&global))) {
-    fprintf(stderr, "get_globalScope failed\n");
-    return false;
-  }
-
   CComPtr<IDiaEnumSymbols> compilands;
   if (FAILED(global->findChildren(SymTagCompiland, NULL,
                                   nsNone, &compilands))) {
@@ -427,6 +492,7 @@ bool PDBSourceLineWriter::PrintFunctions() {
     compiland.Release();
   }
 
+  global.Release();
   return true;
 }
 
@@ -641,7 +707,7 @@ bool PDBSourceLineWriter::PrintFrameDataUsingEXE() {
                      unwind_rva,
                      &img->LastRvaSection));
 
-    DWORD stack_size = 8; // minimal stack size is 8 for RIP
+    DWORD stack_size = 8;  // minimal stack size is 8 for RIP
     DWORD rip_offset = 8;
     do {
       for (UBYTE c = 0; c < unwind_info->count_of_codes; c++) {
@@ -674,12 +740,12 @@ bool PDBSourceLineWriter::PrintFrameDataUsingEXE() {
             break;
           case UWOP_SAVE_NONVOL:
           case UWOP_SAVE_XMM128: {
-            c++; //skip slot with offset
+            c++;  // skip slot with offset
             break;
           }
           case UWOP_SAVE_NONVOL_FAR:
           case UWOP_SAVE_XMM128_FAR: {
-            c += 2; //skip 2 slots with offset
+            c += 2;  // skip 2 slots with offset
             break;
           }
           case UWOP_PUSH_MACHFRAME: {
@@ -832,7 +898,7 @@ bool PDBSourceLineWriter::FindPEFile() {
   CComBSTR symbols_file;
   if (SUCCEEDED(global->get_symbolsFileName(&symbols_file))) {
     wstring file(symbols_file);
-    
+
     // Look for an EXE or DLL file.
     const wchar_t *extensions[] = { L"exe", L"dll" };
     for (int i = 0; i < sizeof(extensions) / sizeof(extensions[0]); i++) {
@@ -1064,7 +1130,7 @@ bool PDBSourceLineWriter::WriteMap(FILE *map_file) {
   // This is not a critical piece of the symbol file.
   PrintPEInfo();
   ret = ret &&
-      PrintSourceFiles() && 
+      PrintSourceFiles() &&
       PrintFunctions() &&
       PrintFrameData();
 
@@ -1206,8 +1272,7 @@ bool PDBSourceLineWriter::GetPEInfo(PEModuleInfo *info) {
   if (opt->Magic == IMAGE_NT_OPTIONAL_HDR64_MAGIC) {
     // 64-bit PE file.
     SizeOfImage = opt->SizeOfImage;
-  }
-  else {
+  } else {
     // 32-bit PE file.
     SizeOfImage = img->FileHeader->OptionalHeader.SizeOfImage;
   }

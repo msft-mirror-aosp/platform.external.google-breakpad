@@ -27,39 +27,36 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef CLIENT_LINUX_CRASH_GENERATION_CRASH_GENERATION_CLIENT_H_
-#define CLIENT_LINUX_CRASH_GENERATION_CRASH_GENERATION_CLIENT_H_
+// Include this file to use unordered_map and unordered_set.  If tr1
+// or C++11 is not available, you can switch to using hash_set and
+// hash_map by defining BP_USE_HASH_SET.
 
-#include "common/basictypes.h"
+#ifndef COMMON_UNORDERED_H_
+#define COMMON_UNORDERED_H_
 
-#include <stddef.h>
+#if defined(BP_USE_HASH_SET)
+#include <hash_map>
+#include <hash_set>
 
-namespace google_breakpad {
+// For hash<string>.
+#include "util/hash/hash.h"
 
-// CrashGenerationClient is an interface for implementing out-of-process crash
-// dumping.  The default implementation, accessed via the TryCreate() factory,
-// works in conjunction with the CrashGenerationServer to generate a minidump
-// via a remote process.
-class CrashGenerationClient {
- public:
-  CrashGenerationClient() {}
-  virtual ~CrashGenerationClient() {}
+template <class T, class U, class H = __gnu_cxx::hash<T> >
+struct unordered_map : public hash_map<T, U, H> {};
+template <class T, class H = __gnu_cxx::hash<T> >
+struct unordered_set : public hash_set<T, H> {};
 
-  // Request the crash server to generate a dump.  |blob| is an opaque
-  // CrashContext pointer from exception_handler.h.
-  // Returns true if the dump was successful; false otherwise.
-  virtual bool RequestDump(const void* blob, size_t blob_size) = 0;
+#elif defined(_LIBCPP_VERSION)  // c++11
+#include <unordered_map>
+#include <unordered_set>
+using std::unordered_map;
+using std::unordered_set;
 
-  // Returns a new CrashGenerationClient if |server_fd| is valid and
-  // connects to a CrashGenerationServer.  Otherwise, return NULL.
-  // The returned CrashGenerationClient* is owned by the caller of
-  // this function.
-  static CrashGenerationClient* TryCreate(int server_fd);
+#else  // Fallback to tr1::unordered
+#include <tr1/unordered_map>
+#include <tr1/unordered_set>
+using std::tr1::unordered_map;
+using std::tr1::unordered_set;
+#endif
 
- private:
-  DISALLOW_COPY_AND_ASSIGN(CrashGenerationClient);
-};
-
-}  // namespace google_breakpad
-
-#endif  // CLIENT_LINUX_CRASH_GENERATION_CRASH_GENERATION_CLIENT_H_
+#endif  // COMMON_UNORDERED_H_

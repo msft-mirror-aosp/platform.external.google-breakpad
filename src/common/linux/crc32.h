@@ -1,4 +1,4 @@
-// Copyright (c) 2010 Google Inc.
+// Copyright 2014 Google Inc.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -27,39 +27,27 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef CLIENT_LINUX_CRASH_GENERATION_CRASH_GENERATION_CLIENT_H_
-#define CLIENT_LINUX_CRASH_GENERATION_CRASH_GENERATION_CLIENT_H_
+#ifndef COMMON_LINUX_CRC32_H_
+#define COMMON_LINUX_CRC32_H_
 
-#include "common/basictypes.h"
+#include <stdint.h>
 
-#include <stddef.h>
+#include <string>
 
 namespace google_breakpad {
 
-// CrashGenerationClient is an interface for implementing out-of-process crash
-// dumping.  The default implementation, accessed via the TryCreate() factory,
-// works in conjunction with the CrashGenerationServer to generate a minidump
-// via a remote process.
-class CrashGenerationClient {
- public:
-  CrashGenerationClient() {}
-  virtual ~CrashGenerationClient() {}
+// Updates a CRC32 checksum with |len| bytes from |buf|. |initial| holds the
+// checksum result from the previous update; for the first call, it should be 0.
+uint32_t UpdateCrc32(uint32_t initial, const void* buf, size_t len);
 
-  // Request the crash server to generate a dump.  |blob| is an opaque
-  // CrashContext pointer from exception_handler.h.
-  // Returns true if the dump was successful; false otherwise.
-  virtual bool RequestDump(const void* blob, size_t blob_size) = 0;
-
-  // Returns a new CrashGenerationClient if |server_fd| is valid and
-  // connects to a CrashGenerationServer.  Otherwise, return NULL.
-  // The returned CrashGenerationClient* is owned by the caller of
-  // this function.
-  static CrashGenerationClient* TryCreate(int server_fd);
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(CrashGenerationClient);
-};
+// Computes a CRC32 checksum using |len| bytes from |buf|.
+inline uint32_t ComputeCrc32(const void* buf, size_t len) {
+  return UpdateCrc32(0, buf, len);
+}
+inline uint32_t ComputeCrc32(const std::string& str) {
+  return ComputeCrc32(str.c_str(), str.size());
+}
 
 }  // namespace google_breakpad
 
-#endif  // CLIENT_LINUX_CRASH_GENERATION_CRASH_GENERATION_CLIENT_H_
+#endif  // COMMON_LINUX_CRC32_H_

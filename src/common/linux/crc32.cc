@@ -1,4 +1,4 @@
-// Copyright (c) 2010 Google Inc.
+// Copyright 2014 Google Inc.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -27,39 +27,44 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef CLIENT_LINUX_CRASH_GENERATION_CRASH_GENERATION_CLIENT_H_
-#define CLIENT_LINUX_CRASH_GENERATION_CRASH_GENERATION_CLIENT_H_
-
-#include "common/basictypes.h"
-
-#include <stddef.h>
+#include "common/linux/crc32.h"
 
 namespace google_breakpad {
 
-// CrashGenerationClient is an interface for implementing out-of-process crash
-// dumping.  The default implementation, accessed via the TryCreate() factory,
-// works in conjunction with the CrashGenerationServer to generate a minidump
-// via a remote process.
-class CrashGenerationClient {
- public:
-  CrashGenerationClient() {}
-  virtual ~CrashGenerationClient() {}
+// This implementation is based on the sample implementation in RFC 1952.
 
-  // Request the crash server to generate a dump.  |blob| is an opaque
-  // CrashContext pointer from exception_handler.h.
-  // Returns true if the dump was successful; false otherwise.
-  virtual bool RequestDump(const void* blob, size_t blob_size) = 0;
+// CRC32 polynomial, in reversed form.
+// See RFC 1952, or http://en.wikipedia.org/wiki/Cyclic_redundancy_check
+static const uint32_t kCrc32Polynomial = 0xEDB88320;
+static uint32_t kCrc32Table[256] = { 0 };
 
-  // Returns a new CrashGenerationClient if |server_fd| is valid and
-  // connects to a CrashGenerationServer.  Otherwise, return NULL.
-  // The returned CrashGenerationClient* is owned by the caller of
-  // this function.
-  static CrashGenerationClient* TryCreate(int server_fd);
+#define arraysize(f) (sizeof(f) / sizeof(*f))
 
- private:
-  DISALLOW_COPY_AND_ASSIGN(CrashGenerationClient);
-};
+static void EnsureCrc32TableInited() {
+  if (kCrc32Table[arraysize(kCrc32Table) - 1])
+    return;  // already inited
+  for (uint32_t i = 0; i < arraysize(kCrc32Table); ++i) {
+    uint32_t c = i;
+    for (size_t j = 0; j < 8; ++j) {
+      if (c & 1) {
+        c = kCrc32Polynomial ^ (c >> 1);
+      } else {
+        c >>= 1;
+      }
+    }
+    kCrc32Table[i] = c;
+  }
+}
+
+uint32_t UpdateCrc32(uint32_t start, const void* buf, size_t len) {
+  EnsureCrc32TableInited();
+
+  uint32_t c = start ^ 0xFFFFFFFF;
+  const uint8_t* u = static_cast<const uint8_t*>(buf);
+  for (size_t i = 0; i < len; ++i) {
+    c = kCrc32Table[(c ^ u[i]) & 0xFF] ^ (c >> 8);
+  }
+  return c ^ 0xFFFFFFFF;
+}
 
 }  // namespace google_breakpad
-
-#endif  // CLIENT_LINUX_CRASH_GENERATION_CRASH_GENERATION_CLIENT_H_

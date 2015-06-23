@@ -1,5 +1,4 @@
-# Copyright (c) 2010, Google Inc.
-# All rights reserved.
+# Copyright 2013 Google Inc. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
@@ -28,44 +27,20 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 {
-  'conditions': [
-    [ 'OS=="linux"', {
-      'target_defaults': {
-        'cflags!': [
-          '-Wall',
-          '-Werror',
-        ],
-      },
-    }],
-    [ 'OS=="win"', {
-      'target_defaults': {
-        'defines': [
-          '_CRT_SECURE_NO_DEPRECATE',
-          '_CRT_NONSTDC_NO_WARNINGS',
-          '_CRT_NONSTDC_NO_DEPRECATE',
-        ],
-        'msvs_disabled_warnings': [4800],
-        'msvs_settings': {
-          'VCCLCompilerTool': {
-            'WarnAsError': 'false',
-            'Detect64BitPortabilityProblems': 'false',
-          },
-        },
-      },
-    }],
-    [ 'OS=="mac"', {
-      'target_defaults': {
-        'xcode_settings': {
-          'GCC_TREAT_WARNINGS_AS_ERRORS': 'NO',
-          'WARNING_CFLAGS!': ['-Wall'],
-        },
-      },
-    }],
+  'includes': [
+    '../../../build/common.gypi',
+  ],
+  'targets': [
+    {
+      'target_name': 'ms_symbol_server_converter',
+      'type': 'static_library',
+      'msvs_guid': '1463C4CD-23FC-4DE9-BFDE-283338200157',
+      'sources': [
+        'ms_symbol_server_converter.cc',
+      ],
+      'dependencies': [
+        '../../../common/windows/common_windows.gyp:common_windows_lib',
+      ],
+    },
   ],
 }
-
-# Local Variables:
-# tab-width:2
-# indent-tabs-mode:nil
-# End:
-# vim: set expandtab tabstop=2 shiftwidth=2:
