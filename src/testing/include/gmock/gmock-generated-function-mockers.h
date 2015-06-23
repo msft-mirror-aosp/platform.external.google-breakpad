@@ -71,7 +71,7 @@ class FunctionMocker<R()> : public
   }
 
   R Invoke() {
-    return InvokeWith(ArgumentTuple());
+    return this->InvokeWith(ArgumentTuple());
   }
 };
 
@@ -88,7 +88,7 @@ class FunctionMocker<R(A1)> : public
   }
 
   R Invoke(A1 a1) {
-    return InvokeWith(ArgumentTuple(a1));
+    return this->InvokeWith(ArgumentTuple(a1));
   }
 };
 
@@ -105,7 +105,7 @@ class FunctionMocker<R(A1, A2)> : public
   }
 
   R Invoke(A1 a1, A2 a2) {
-    return InvokeWith(ArgumentTuple(a1, a2));
+    return this->InvokeWith(ArgumentTuple(a1, a2));
   }
 };
 
@@ -123,7 +123,7 @@ class FunctionMocker<R(A1, A2, A3)> : public
   }
 
   R Invoke(A1 a1, A2 a2, A3 a3) {
-    return InvokeWith(ArgumentTuple(a1, a2, a3));
+    return this->InvokeWith(ArgumentTuple(a1, a2, a3));
   }
 };
 
@@ -141,7 +141,7 @@ class FunctionMocker<R(A1, A2, A3, A4)> : public
   }
 
   R Invoke(A1 a1, A2 a2, A3 a3, A4 a4) {
-    return InvokeWith(ArgumentTuple(a1, a2, a3, a4));
+    return this->InvokeWith(ArgumentTuple(a1, a2, a3, a4));
   }
 };
 
@@ -161,7 +161,7 @@ class FunctionMocker<R(A1, A2, A3, A4, A5)> : public
   }
 
   R Invoke(A1 a1, A2 a2, A3 a3, A4 a4, A5 a5) {
-    return InvokeWith(ArgumentTuple(a1, a2, a3, a4, a5));
+    return this->InvokeWith(ArgumentTuple(a1, a2, a3, a4, a5));
   }
 };
 
@@ -182,7 +182,7 @@ class FunctionMocker<R(A1, A2, A3, A4, A5, A6)> : public
   }
 
   R Invoke(A1 a1, A2 a2, A3 a3, A4 a4, A5 a5, A6 a6) {
-    return InvokeWith(ArgumentTuple(a1, a2, a3, a4, a5, a6));
+    return this->InvokeWith(ArgumentTuple(a1, a2, a3, a4, a5, a6));
   }
 };
 
@@ -203,7 +203,7 @@ class FunctionMocker<R(A1, A2, A3, A4, A5, A6, A7)> : public
   }
 
   R Invoke(A1 a1, A2 a2, A3 a3, A4 a4, A5 a5, A6 a6, A7 a7) {
-    return InvokeWith(ArgumentTuple(a1, a2, a3, a4, a5, a6, a7));
+    return this->InvokeWith(ArgumentTuple(a1, a2, a3, a4, a5, a6, a7));
   }
 };
 
@@ -224,7 +224,7 @@ class FunctionMocker<R(A1, A2, A3, A4, A5, A6, A7, A8)> : public
   }
 
   R Invoke(A1 a1, A2 a2, A3 a3, A4 a4, A5 a5, A6 a6, A7 a7, A8 a8) {
-    return InvokeWith(ArgumentTuple(a1, a2, a3, a4, a5, a6, a7, a8));
+    return this->InvokeWith(ArgumentTuple(a1, a2, a3, a4, a5, a6, a7, a8));
   }
 };
 
@@ -246,7 +246,7 @@ class FunctionMocker<R(A1, A2, A3, A4, A5, A6, A7, A8, A9)> : public
   }
 
   R Invoke(A1 a1, A2 a2, A3 a3, A4 a4, A5 a5, A6 a6, A7 a7, A8 a8, A9 a9) {
-    return InvokeWith(ArgumentTuple(a1, a2, a3, a4, a5, a6, a7, a8, a9));
+    return this->InvokeWith(ArgumentTuple(a1, a2, a3, a4, a5, a6, a7, a8, a9));
   }
 };
 
@@ -270,7 +270,8 @@ class FunctionMocker<R(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10)> : public
 
   R Invoke(A1 a1, A2 a2, A3 a3, A4 a4, A5 a5, A6 a6, A7 a7, A8 a8, A9 a9,
       A10 a10) {
-    return InvokeWith(ArgumentTuple(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10));
+    return
+      this->InvokeWith(ArgumentTuple(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10));
   }
 };
 
