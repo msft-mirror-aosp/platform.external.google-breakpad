@@ -281,7 +281,6 @@ TEST(MinidumpWriterTest, MappingInfoContained) {
   close(fds[1]);
 }
 
-#if 0 // Disabled; see: http://crosbug.com/25355
 TEST(MinidumpWriterTest, DeletedBinary) {
   static const int kNumberOfThreadsInHelperProgram = 1;
   char kNumberOfThreadsArgument[2];
@@ -388,4 +387,3 @@ TEST(MinidumpWriterTest, DeletedBinary) {
   module_identifier += "0";
   EXPECT_EQ(module_identifier, module->debug_identifier());
 }
-#endif
