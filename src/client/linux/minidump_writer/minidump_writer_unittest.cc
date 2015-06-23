@@ -42,6 +42,7 @@
 #include "client/linux/minidump_writer/minidump_writer.h"
 #include "common/linux/eintr_wrapper.h"
 #include "common/linux/file_id.h"
+#include "common/linux/safe_readlink.h"
 #include "common/tests/auto_tempdir.h"
 #include "google_breakpad/processor/minidump.h"
 
@@ -286,19 +287,11 @@ TEST(MinidumpWriterTest, DeletedBinary) {
   sprintf(kNumberOfThreadsArgument, "%d", kNumberOfThreadsInHelperProgram);
 
   // Locate helper binary next to the current binary.
-  char self_path[PATH_MAX + 1];
-  ssize_t self_path_len = readlink("/proc/self/exe", self_path,
-      sizeof(self_path) - 1);
-  if (self_path_len < 0) {
-    FAIL() << "readlink failed: " << strerror(errno);
-    exit(1);
-  } else if (self_path_len == sizeof(self_path) - 1) {
-    /* If path max is reached assume it's been truncated, in which case we
-     *  want to bail with an error because we can't determine directory. */
-    FAIL() << "readlink failed: self path too large";
+  char self_path[PATH_MAX];
+  if (!SafeReadLink("/proc/self/exe", self_path)) {
+    FAIL() << "readlink failed";
     exit(1);
   }
-  self_path[self_path_len] = '\0';  // null-terminate path
   string helper_path(self_path);
   size_t pos = helper_path.rfind('/');
   if (pos == string::npos) {

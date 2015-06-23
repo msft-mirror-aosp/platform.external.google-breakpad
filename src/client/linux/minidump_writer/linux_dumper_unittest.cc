@@ -43,6 +43,7 @@
 #include "client/linux/minidump_writer/linux_dumper.h"
 #include "common/linux/eintr_wrapper.h"
 #include "common/linux/file_id.h"
+#include "common/linux/safe_readlink.h"
 #include "common/memory.h"
 
 using std::string;
@@ -53,12 +54,10 @@ typedef testing::Test LinuxDumperTest;
 
 string GetHelperBinary() {
   // Locate helper binary next to the current binary.
-  char self_path[PATH_MAX + 1];
-  ssize_t self_path_len = readlink("/proc/self/exe", self_path,
-      sizeof(self_path) - 1);
-  if (self_path_len < 0 || self_path_len == sizeof(self_path) - 1)
+  char self_path[PATH_MAX];
+  if (!SafeReadLink("/proc/self/exe", self_path)) {
     return "";
-  self_path[self_path_len] = '\0';  // null-terminate path
+  }
   string helper_path(self_path);
   size_t pos = helper_path.rfind('/');
   if (pos == string::npos) {
@@ -386,10 +385,7 @@ TEST(LinuxDumperTest, FileIDsMatch) {
   // FileID::ElfFileIdentifier and LinuxDumper::ElfFileIdentifierForMapping
   // and ensure that we get the same result from both.
   char exe_name[PATH_MAX];
-  ssize_t len = readlink("/proc/self/exe", exe_name, PATH_MAX - 1);
-  ASSERT_NE(len, -1);
-  ASSERT_NE(len, PATH_MAX - 1);
-  exe_name[len] = '\0';
+  ASSERT_TRUE(SafeReadLink("/proc/self/exe", exe_name));
 
   int fds[2];
   ASSERT_NE(-1, pipe(fds));

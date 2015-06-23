@@ -45,7 +45,11 @@ extern "C" {
 
 #include <Foundation/Foundation.h>
 
-#include <client/mac/Framework/BreakpadDefines.h>
+#include <client/apple/Framework/BreakpadDefines.h>
+
+// The keys in the dictionary returned by |BreakpadGenerateReport|.
+#define BREAKPAD_OUTPUT_DUMP_FILE   "BreakpadDumpFile"
+#define BREAKPAD_OUTPUT_CONFIG_FILE "BreakpadConfigFile"
 
 // Optional user-defined function to decide if we should handle this crash or
 // forward it along.
@@ -200,6 +204,13 @@ void BreakpadUploadNextReport(BreakpadRef ref);
 // |server_parameters| is additional server parameters to send.
 void BreakpadUploadData(BreakpadRef ref, NSData *data, NSString *name,
                         NSDictionary *server_parameters);
+
+// Generate a breakpad minidump and configuration file in the dump directory.
+// The report will be available for uploading. The paths of the created files
+// are returned in the dictionary. |server_parameters| is additional server
+// parameters to add in the config file.
+NSDictionary *BreakpadGenerateReport(BreakpadRef ref,
+                                     NSDictionary *server_parameters);
 
 #ifdef __cplusplus
 }
