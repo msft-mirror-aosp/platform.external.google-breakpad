@@ -1,4 +1,4 @@
-// Copyright (c) 2012 Google Inc.
+// Copyright 2012, Google Inc.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -27,51 +27,35 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <stdio.h>
+#ifndef CLIENT_WINDOWS_UNITTESTS_EXCEPTION_HANDLER_TEST_H_
+#define CLIENT_WINDOWS_UNITTESTS_EXCEPTION_HANDLER_TEST_H_
 
-#include "client/linux/handler/minidump_descriptor.h"
+namespace testing {
 
-#include "common/linux/guid_creator.h"
+// By default, GTest (on Windows) installs a SEH filter (and a handler) before
+// starting to run all the tests in order to avoid test interruptions is some
+// of the tests are crashing.  Unfortunately, this functionality prevents the
+// execution to reach the UnhandledExceptionFilter installed by Google-Breakpad
+// ExceptionHandler so in order to test the Google-Breakpad exception handling
+// code the exception handling done by GTest must be disabled.
+// Usage:
+//
+//  google_breakpad::ExceptionHandler exc(...);
+//
+//  // Disable GTest SEH handler
+//  testing::DisableExceptionHandlerInScope disable_exception_handler;
+//  ...
+//  ASSERT_DEATH( ... some crash ...);
+//
+class DisableExceptionHandlerInScope {
+ public:
+  DisableExceptionHandlerInScope();
+  ~DisableExceptionHandlerInScope();
 
-namespace google_breakpad {
+ private:
+  bool catch_exceptions_;
+};
 
-MinidumpDescriptor::MinidumpDescriptor(const MinidumpDescriptor& descriptor)
-    : fd_(descriptor.fd_),
-      directory_(descriptor.directory_),
-      c_path_(NULL) {
-  // The copy constructor is not allowed to be called on a MinidumpDescriptor
-  // with a valid path_, as getting its c_path_ would require the heap which
-  // can cause problems in compromised environments.
-  assert(descriptor.path_.empty());
-}
+}  // namespace testing
 
-MinidumpDescriptor& MinidumpDescriptor::operator=(
-    const MinidumpDescriptor& descriptor) {
-  assert(descriptor.path_.empty());
-
-  fd_ = descriptor.fd_;
-  directory_ = descriptor.directory_;
-  path_.clear();
-  if (c_path_) {
-    // This descriptor already had a path set, so generate a new one.
-    c_path_ = NULL;
-    UpdatePath();
-  }
-  return *this;
-}
-
-void MinidumpDescriptor::UpdatePath() {
-  assert(fd_ == -1 && !directory_.empty());
-
-  GUID guid;
-  char guid_str[kGUIDStringLength + 1];
-  if (!CreateGUID(&guid) || !GUIDToString(&guid, guid_str, sizeof(guid_str))) {
-    assert(false);
-  }
-
-  path_.clear();
-  path_ = directory_ + "/" + guid_str + ".dmp";  
-  c_path_ = path_.c_str();
-}
-
-}  // namespace google_breakpad
+#endif  // CLIENT_WINDOWS_UNITTESTS_EXCEPTION_HANDLER_TEST_H_
