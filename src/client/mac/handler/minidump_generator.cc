@@ -31,7 +31,6 @@
 #include <cstdio>
 
 #include <mach/host_info.h>
-#include <mach/mach_vm.h>
 #include <mach/vm_statistics.h>
 #include <mach-o/dyld.h>
 #include <mach-o/loader.h>
@@ -136,14 +135,19 @@ void MinidumpGenerator::GatherSystemInformation() {
   CFURLCreateDataAndPropertiesFromResource(NULL, sys_vers, &data, NULL, NULL,
                                            &error);
 
-  if (!data)
+  if (!data) {
+    CFRelease(sys_vers);
     return;
+  }
 
   CFDictionaryRef list = static_cast<CFDictionaryRef>
     (CFPropertyListCreateFromXMLData(NULL, data, kCFPropertyListImmutable,
                                      NULL));
-  if (!list)
+  if (!list) {
+    CFRelease(sys_vers);
+    CFRelease(data);
     return;
+  }
 
   CFStringRef build_version = static_cast<CFStringRef>
     (CFDictionaryGetValue(list, CFSTR("ProductBuildVersion")));
@@ -1378,19 +1382,11 @@ bool MinidumpGenerator::WriteMiscInfoStream(MDRawDirectory *misc_info_stream) {
   int mib[4] = { CTL_KERN, KERN_PROC, KERN_PROC_PID,
                  static_cast<int>(info_ptr->process_id) };
   u_int mibsize = static_cast<u_int>(sizeof(mib) / sizeof(mib[0]));
-  size_t size;
-  if (!sysctl(mib, mibsize, NULL, &size, NULL, 0)) {
-    mach_vm_address_t addr;
-    if (mach_vm_allocate(mach_task_self(),
-                         &addr,
-                         size,
-                         true) == KERN_SUCCESS) {
-      struct kinfo_proc *proc = (struct kinfo_proc *)addr;
-      if (!sysctl(mib, mibsize, proc, &size, NULL, 0))
-        info_ptr->process_create_time =
-            static_cast<u_int32_t>(proc->kp_proc.p_starttime.tv_sec);
-      mach_vm_deallocate(mach_task_self(), addr, size);
-    }
+  struct kinfo_proc proc;
+  size_t size = sizeof(proc);
+  if (sysctl(mib, mibsize, &proc, &size, NULL, 0) == 0) {
+    info_ptr->process_create_time =
+        static_cast<u_int32_t>(proc.kp_proc.p_starttime.tv_sec);
   }
 
   // Speed
