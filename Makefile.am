@@ -33,6 +33,16 @@
 # This allows #includes to be relative to src/
 AM_CPPFLAGS = -I$(top_srcdir)/src
 
+if GCC
+# These are good warnings to be treated as errors
+AM_CXXFLAGS = \
+	-Werror=non-virtual-dtor \
+	-Werror=vla \
+	-Werror=unused-variable \
+	-Werror=missing-braces \
+	-Werror=overloaded-virtual
+endif
+
 # Specify include paths for ac macros
 ACLOCAL_AMFLAGS = -I m4
 
@@ -65,15 +75,14 @@ lib_LIBRARIES += src/client/linux/libbreakpad_client.a
 src_client_linux_libbreakpad_client_a_SOURCES = \
 	src/client/linux/crash_generation/crash_generation_client.cc \
 	src/client/linux/handler/exception_handler.cc \
+	src/client/linux/log/log.cc \
 	src/client/linux/minidump_writer/linux_dumper.cc \
-	src/client/linux/minidump_writer/linux_core_dumper.cc \
 	src/client/linux/minidump_writer/linux_ptrace_dumper.cc \
 	src/client/linux/minidump_writer/minidump_writer.cc \
 	src/client/minidump_file_writer.cc \
 	src/common/convert_UTF.c \
 	src/common/md5.cc \
 	src/common/string_conversion.cc \
-	src/common/linux/elf_core_dump.cc \
 	src/common/linux/file_id.cc \
 	src/common/linux/guid_creator.cc \
 	src/common/linux/memory_mapped_file.cc \
@@ -304,6 +313,7 @@ src_client_linux_linux_client_unittest_SOURCES = \
 	src/client/linux/minidump_writer/linux_core_dumper_unittest.cc \
 	src/client/linux/minidump_writer/linux_ptrace_dumper_unittest.cc \
 	src/client/linux/minidump_writer/minidump_writer_unittest.cc \
+	src/client/linux/minidump_writer/minidump_writer_unittest_utils.cc \
 	src/common/linux/linux_libc_support_unittest.cc \
 	src/common/linux/tests/crash_generator.cc \
 	src/common/memory_unittest.cc \
@@ -324,6 +334,7 @@ src_client_linux_linux_client_unittest_CPPFLAGS = \
 	-I$(top_srcdir)/src/testing
 src_client_linux_linux_client_unittest_LDADD = \
 	src/client/linux/handler/exception_handler.o \
+	src/client/linux/log/log.o \
 	src/client/linux/crash_generation/crash_generation_client.o \
 	src/client/linux/minidump_writer/linux_dumper.o \
 	src/client/linux/minidump_writer/linux_core_dumper.o \
@@ -367,12 +378,12 @@ src_tools_linux_dump_syms_dump_syms_SOURCES = \
 src_tools_linux_symupload_minidump_upload_SOURCES = \
 	src/common/linux/http_upload.cc \
 	src/tools/linux/symupload/minidump_upload.cc
-src_tools_linux_symupload_minidump_upload_LDFLAGS = -ldl
+src_tools_linux_symupload_minidump_upload_LDADD = -ldl
 
 src_tools_linux_symupload_sym_upload_SOURCES = \
 	src/common/linux/http_upload.cc \
 	src/tools/linux/symupload/sym_upload.cc
-src_tools_linux_symupload_sym_upload_LDFLAGS = -ldl
+src_tools_linux_symupload_sym_upload_LDADD = -ldl
 
 src_common_dumper_unittest_SOURCES = \
 	src/common/byte_cursor_unittest.cc \
@@ -430,7 +441,9 @@ endif
 
 if !DISABLE_CORE2MD
 src_tools_linux_core2md_core2md_SOURCES = \
-	src/tools/linux/core2md/core2md.cc
+	src/tools/linux/core2md/core2md.cc \
+	src/client/linux/minidump_writer/linux_core_dumper.cc \
+	src/common/linux/elf_core_dump.cc
 src_tools_linux_core2md_core2md_LDADD = \
 	src/client/linux/libbreakpad_client.a
 endif !DISABLE_CORE2MD

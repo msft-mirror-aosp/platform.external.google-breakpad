@@ -1,4 +1,4 @@
-// Copyright (c) 2010, Google Inc.
+// Copyright (c) 2012, Google Inc.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -27,22 +27,23 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// The Android NDK doesn't have link.h. Fortunately, the only thing
-// that Breakpad uses from it is the ElfW macro, so define it here.
+// minidump_writer_unittest_utils.h:
+// Shared routines used by unittests under client/linux/minidump_writer.
 
-#ifndef GOOGLE_BREAKPAD_CLIENT_LINUX_ANDROID_LINK_H_
-#define GOOGLE_BREAKPAD_CLIENT_LINUX_ANDROID_LINK_H_
+#ifndef CLIENT_LINUX_MINIDUMP_WRITER_MINIDUMP_WRITER_UNITTEST_UTILS_H_
+#define CLIENT_LINUX_MINIDUMP_WRITER_MINIDUMP_WRITER_UNITTEST_UTILS_H_
 
-// TODO(zhenghao): exec_elf.h conflicts with linux/elf.h.
-// But we still need ELFSIZE.
-//#include <sys/exec_elf.h>
-#include <machine/exec.h>
-#define ELFSIZE ARCH_ELFSIZE
+#include <string>
 
-#ifndef ElfW
-#define ElfW(type)	_ElfW (Elf, ELFSIZE, type)
-#define _ElfW(e,w,t)	_ElfW_1 (e, w, _##t)
-#define _ElfW_1(e,w,t)	e##w##t
-#endif
+#include "common/using_std_string.h"
 
-#endif  // GOOGLE_BREAKPAD_CLIENT_LINUX_ANDROID_LINK_H_
+namespace google_breakpad {
+
+// Returns the full path to linux_dumper_unittest_helper.  The full path is
+// discovered either by using the environment variable "bindir" or by using
+// the location of the main module of the currently running process.
+string GetHelperBinary();
+
+}  // namespace google_breakpad
+
+#endif  // CLIENT_LINUX_MINIDUMP_WRITER_MINIDUMP_WRITER_UNITTEST_UTILS_H_

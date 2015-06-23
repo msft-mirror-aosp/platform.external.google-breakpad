@@ -46,26 +46,27 @@
 #include "client/linux/minidump_writer/minidump_writer.h"
 #include "client/minidump_file_writer-inl.h"
 
+#include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
 #if !defined(__ANDROID__)
 #include <link.h>
 #endif
 #include <stdio.h>
-#include <unistd.h>
-#include <ctype.h>
+#if defined(__ANDROID__)
+#include <sys/system_properties.h>
+#endif
 #if !defined(__ANDROID__)
 #include <sys/ucontext.h>
 #include <sys/user.h>
 #endif
 #include <sys/utsname.h>
+#include <unistd.h>
 
 #include <algorithm>
 
 #include "client/minidump_file_writer.h"
 #include "google_breakpad/common/minidump_format.h"
-#include "google_breakpad/common/minidump_cpu_amd64.h"
-#include "google_breakpad/common/minidump_cpu_x86.h"
 
 #if defined(__ANDROID__)
 #include "client/linux/android_link.h"
@@ -74,10 +75,11 @@
 #include "client/linux/handler/exception_handler.h"
 #include "client/linux/minidump_writer/line_reader.h"
 #include "client/linux/minidump_writer/linux_dumper.h"
-#include "client/linux/minidump_writer/linux_core_dumper.h"
 #include "client/linux/minidump_writer/linux_ptrace_dumper.h"
 #include "client/linux/minidump_writer/minidump_extension_linux.h"
+#include "client/minidump_file_writer.h"
 #include "common/linux/linux_libc_support.h"
+#include "google_breakpad/common/minidump_format.h"
 #include "third_party/lss/linux_syscall_support.h"
 
 // Minidump defines register structures which are different from the raw
@@ -1247,7 +1249,11 @@ class MinidumpWriter {
   }
 
   bool WriteOSInformation(MDRawSystemInfo* sys_info) {
+#if defined(__ANDROID__)
+    sys_info->platform_id = MD_OS_ANDROID;
+#else
     sys_info->platform_id = MD_OS_LINUX;
+#endif
 
     struct utsname uts;
     if (uname(&uts))
@@ -1283,6 +1289,23 @@ class MinidumpWriter {
       strcat(buf, *cur_info);
       space_left -= info_len;
     }
+
+#ifdef __ANDROID__
+    // On Android, try to get the build fingerprint and append it.
+    // Fail gracefully because there is no guarantee that the system
+    // property will always be available or accessible.
+    char fingerprint[PROP_VALUE_MAX];
+    int fingerprint_len = __system_property_get("ro.build.fingerprint",
+                                                fingerprint);
+    // System property values shall always be zero-terminated.
+    // Be paranoid and don't trust the system.
+    if (fingerprint_len > 0 && fingerprint_len < PROP_VALUE_MAX) {
+      const char* separator = " ";
+      if (!first_item)
+        strlcat(buf, separator, buf_len);
+      strlcat(buf, fingerprint, buf_len);
+    }
+#endif
 
     MDLocationDescriptor location;
     if (!minidump_writer_.WriteString(buf, 0, &location))
@@ -1338,12 +1361,10 @@ bool WriteMinidump(const char* filename, pid_t crashing_process,
   return writer.Dump();
 }
 
-bool WriteMinidumpFromCore(const char* filename,
-                           const char* core_path,
-                           const char* procfs_override) {
-  MappingList mappings;
-  LinuxCoreDumper dumper(0, core_path, procfs_override);
-  MinidumpWriter writer(filename, NULL, mappings, &dumper);
+bool WriteMinidump(const char* filename,
+                   const MappingList& mappings,
+                   LinuxDumper* dumper) {
+  MinidumpWriter writer(filename, NULL, mappings, dumper);
   if (!writer.Init())
     return false;
   return writer.Dump();
