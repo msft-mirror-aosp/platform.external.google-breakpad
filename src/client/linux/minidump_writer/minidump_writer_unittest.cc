@@ -287,6 +287,8 @@ TEST(MinidumpWriterTest, MappingInfoContained) {
   close(fds[1]);
 }
 
+/* TODO(mkrebs): re-enable this test once http://crosbug.com/22852 is fixed. */
+#if 0
 TEST(MinidumpWriterTest, DeletedBinary) {
   static const int kNumberOfThreadsInHelperProgram = 1;
   char kNumberOfThreadsArgument[2];
@@ -394,3 +396,4 @@ TEST(MinidumpWriterTest, DeletedBinary) {
 
   unlink(templ);
 }
+#endif
