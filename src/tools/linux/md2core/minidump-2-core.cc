@@ -47,8 +47,8 @@
 #include <vector>
 
 #include "common/linux/memory_mapped_file.h"
+#include "common/scoped_ptr.h"
 #include "google_breakpad/common/minidump_format.h"
-#include "processor/scoped_ptr.h"
 #include "third_party/lss/linux_syscall_support.h"
 #include "tools/linux/md2core/minidump_memory_range.h"
 
@@ -500,9 +500,9 @@ ParseMaps(CrashedProcess* crashinfo, const MinidumpMemoryRange& range) {
     fputs("MD_LINUX_MAPS:\n", stderr);
     fwrite(range.data(), range.length(), 1, stderr);
   }
-  for (const u_int8_t* ptr = range.data();
+  for (const uint8_t* ptr = range.data();
        ptr < range.data() + range.length();) {
-    const u_int8_t* eol = (u_int8_t*)memchr(ptr, '\n',
+    const uint8_t* eol = (uint8_t*)memchr(ptr, '\n',
                                        range.data() + range.length() - ptr);
     std::string line((const char*)ptr,
                      eol ? eol - ptr : range.data() + range.length() - ptr);

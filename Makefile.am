@@ -46,12 +46,13 @@ endif
 if GCC
 # These are good warnings to be treated as errors
 AM_CXXFLAGS += \
-	-Werror=non-virtual-dtor \
-	-Werror=vla \
-	-Werror=unused-variable \
 	-Werror=missing-braces \
+	-Werror=non-virtual-dtor \
 	-Werror=overloaded-virtual \
-	-Werror=sign-compare
+	-Werror=reorder \
+	-Werror=sign-compare \
+	-Werror=unused-variable \
+	-Werror=vla
 endif
 
 if LINUX_HOST
@@ -177,7 +178,6 @@ src_libbreakpad_a_SOURCES = \
 	src/processor/process_state.cc \
 	src/processor/range_map-inl.h \
 	src/processor/range_map.h \
-	src/processor/scoped_ptr.h \
 	src/processor/simple_serializer-inl.h \
 	src/processor/simple_serializer.h \
 	src/processor/simple_symbol_supplier.cc \
@@ -193,6 +193,8 @@ src_libbreakpad_a_SOURCES = \
 	src/processor/stackwalker_arm.h \
 	src/processor/stackwalker_ppc.cc \
 	src/processor/stackwalker_ppc.h \
+	src/processor/stackwalker_ppc64.cc \
+	src/processor/stackwalker_ppc64.h \
 	src/processor/stackwalker_sparc.cc \
 	src/processor/stackwalker_sparc.h \
 	src/processor/stackwalker_x86.cc \
@@ -632,6 +634,7 @@ src_processor_exploitability_unittest_LDADD = \
 	src/processor/stackwalker_amd64.o \
 	src/processor/stackwalker_arm.o \
 	src/processor/stackwalker_ppc.o \
+	src/processor/stackwalker_ppc64.o \
 	src/processor/stackwalker_sparc.o \
 	src/processor/stackwalker_x86.o \
 	src/processor/tokenize.o \
@@ -720,6 +723,7 @@ src_processor_minidump_processor_unittest_LDADD = \
 	src/processor/stackwalker_amd64.o \
 	src/processor/stackwalker_arm.o \
 	src/processor/stackwalker_ppc.o \
+	src/processor/stackwalker_ppc64.o \
 	src/processor/stackwalker_sparc.o \
 	src/processor/stackwalker_x86.o \
 	src/processor/tokenize.o \
@@ -844,6 +848,7 @@ src_processor_stackwalker_selftest_LDADD = \
 	src/processor/stackwalker_amd64.o \
 	src/processor/stackwalker_arm.o \
 	src/processor/stackwalker_ppc.o \
+	src/processor/stackwalker_ppc64.o \
 	src/processor/stackwalker_sparc.o \
 	src/processor/stackwalker_x86.o \
 	src/processor/tokenize.o \
@@ -964,6 +969,7 @@ src_processor_minidump_stackwalk_LDADD = \
 	src/processor/stackwalker_amd64.o \
 	src/processor/stackwalker_arm.o \
 	src/processor/stackwalker_ppc.o \
+	src/processor/stackwalker_ppc64.o \
 	src/processor/stackwalker_sparc.o \
 	src/processor/stackwalker_x86.o \
 	src/processor/tokenize.o \
@@ -1052,6 +1058,7 @@ EXTRA_DIST = \
 	src/common/mac/string_utilities.h \
 	src/common/md5.cc \
 	src/common/md5.h \
+	src/common/scoped_ptr.h \
 	src/common/solaris/dump_symbols.cc \
 	src/common/solaris/dump_symbols.h \
 	src/common/solaris/file_id.cc \

@@ -76,12 +76,13 @@ host_triplet = @host@
 
 # These are good warnings to be treated as errors
 @GCC_TRUE@am__append_2 = \
-@GCC_TRUE@	-Werror=non-virtual-dtor \
-@GCC_TRUE@	-Werror=vla \
-@GCC_TRUE@	-Werror=unused-variable \
 @GCC_TRUE@	-Werror=missing-braces \
+@GCC_TRUE@	-Werror=non-virtual-dtor \
 @GCC_TRUE@	-Werror=overloaded-virtual \
-@GCC_TRUE@	-Werror=sign-compare
+@GCC_TRUE@	-Werror=reorder \
+@GCC_TRUE@	-Werror=sign-compare \
+@GCC_TRUE@	-Werror=unused-variable \
+@GCC_TRUE@	-Werror=vla
 
 
 # Build as PIC on Linux, for linux_client_unittest_shlib
@@ -309,7 +310,7 @@ am__src_libbreakpad_a_SOURCES_DIST =  \
 	src/processor/postfix_evaluator-inl.h \
 	src/processor/postfix_evaluator.h \
 	src/processor/process_state.cc src/processor/range_map-inl.h \
-	src/processor/range_map.h src/processor/scoped_ptr.h \
+	src/processor/range_map.h \
 	src/processor/simple_serializer-inl.h \
 	src/processor/simple_serializer.h \
 	src/processor/simple_symbol_supplier.cc \
@@ -325,6 +326,8 @@ am__src_libbreakpad_a_SOURCES_DIST =  \
 	src/processor/stackwalker_arm.h \
 	src/processor/stackwalker_ppc.cc \
 	src/processor/stackwalker_ppc.h \
+	src/processor/stackwalker_ppc64.cc \
+	src/processor/stackwalker_ppc64.h \
 	src/processor/stackwalker_sparc.cc \
 	src/processor/stackwalker_sparc.h \
 	src/processor/stackwalker_x86.cc \
@@ -362,6 +365,7 @@ am__src_libbreakpad_a_SOURCES_DIST =  \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_amd64.$(OBJEXT) \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_arm.$(OBJEXT) \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_ppc.$(OBJEXT) \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_ppc64.$(OBJEXT) \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_sparc.$(OBJEXT) \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_x86.$(OBJEXT) \
 @DISABLE_PROCESSOR_FALSE@	src/processor/tokenize.$(OBJEXT)
@@ -729,6 +733,7 @@ src_processor_exploitability_unittest_OBJECTS =  \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_amd64.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_arm.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_ppc.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_ppc64.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_sparc.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_x86.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/tokenize.o \
@@ -806,6 +811,7 @@ src_processor_minidump_processor_unittest_OBJECTS =  \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_amd64.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_arm.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_ppc.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_ppc64.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_sparc.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_x86.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/tokenize.o \
@@ -838,6 +844,7 @@ src_processor_minidump_stackwalk_OBJECTS =  \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_amd64.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_arm.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_ppc.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_ppc64.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_sparc.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_x86.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/tokenize.o \
@@ -948,6 +955,7 @@ src_processor_stackwalker_selftest_OBJECTS =  \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_amd64.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_arm.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_ppc.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_ppc64.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_sparc.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_x86.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/tokenize.o \
@@ -1445,7 +1453,6 @@ lib_LIBRARIES = $(am__append_5) $(am__append_7)
 @DISABLE_PROCESSOR_FALSE@	src/processor/process_state.cc \
 @DISABLE_PROCESSOR_FALSE@	src/processor/range_map-inl.h \
 @DISABLE_PROCESSOR_FALSE@	src/processor/range_map.h \
-@DISABLE_PROCESSOR_FALSE@	src/processor/scoped_ptr.h \
 @DISABLE_PROCESSOR_FALSE@	src/processor/simple_serializer-inl.h \
 @DISABLE_PROCESSOR_FALSE@	src/processor/simple_serializer.h \
 @DISABLE_PROCESSOR_FALSE@	src/processor/simple_symbol_supplier.cc \
@@ -1461,6 +1468,8 @@ lib_LIBRARIES = $(am__append_5) $(am__append_7)
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_arm.h \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_ppc.cc \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_ppc.h \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_ppc64.cc \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_ppc64.h \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_sparc.cc \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_sparc.h \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_x86.cc \
@@ -1804,6 +1813,7 @@ TESTS = $(check_PROGRAMS) $(check_SCRIPTS)
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_amd64.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_arm.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_ppc.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_ppc64.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_sparc.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_x86.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/tokenize.o \
@@ -1900,6 +1910,7 @@ TESTS = $(check_PROGRAMS) $(check_SCRIPTS)
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_amd64.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_arm.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_ppc.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_ppc64.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_sparc.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_x86.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/tokenize.o \
@@ -2038,6 +2049,7 @@ TESTS = $(check_PROGRAMS) $(check_SCRIPTS)
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_amd64.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_arm.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_ppc.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_ppc64.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_sparc.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_x86.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/tokenize.o \
@@ -2165,6 +2177,7 @@ TESTS = $(check_PROGRAMS) $(check_SCRIPTS)
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_amd64.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_arm.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_ppc.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_ppc64.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_sparc.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_x86.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/tokenize.o \
@@ -2246,6 +2259,7 @@ EXTRA_DIST = \
 	src/common/mac/string_utilities.h \
 	src/common/md5.cc \
 	src/common/md5.h \
+	src/common/scoped_ptr.h \
 	src/common/solaris/dump_symbols.cc \
 	src/common/solaris/dump_symbols.h \
 	src/common/solaris/file_id.cc \
@@ -2564,6 +2578,9 @@ src/processor/stackwalker_arm.$(OBJEXT):  \
 	src/processor/$(am__dirstamp) \
 	src/processor/$(DEPDIR)/$(am__dirstamp)
 src/processor/stackwalker_ppc.$(OBJEXT):  \
+	src/processor/$(am__dirstamp) \
+	src/processor/$(DEPDIR)/$(am__dirstamp)
+src/processor/stackwalker_ppc64.$(OBJEXT):  \
 	src/processor/$(am__dirstamp) \
 	src/processor/$(DEPDIR)/$(am__dirstamp)
 src/processor/stackwalker_sparc.$(OBJEXT):  \
@@ -3498,6 +3515,7 @@ mostlyclean-compile:
 	-rm -f src/processor/stackwalker_amd64.$(OBJEXT)
 	-rm -f src/processor/stackwalker_arm.$(OBJEXT)
 	-rm -f src/processor/stackwalker_ppc.$(OBJEXT)
+	-rm -f src/processor/stackwalker_ppc64.$(OBJEXT)
 	-rm -f src/processor/stackwalker_selftest.$(OBJEXT)
 	-rm -f src/processor/stackwalker_sparc.$(OBJEXT)
 	-rm -f src/processor/stackwalker_x86.$(OBJEXT)
@@ -3732,6 +3750,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/processor/$(DEPDIR)/stackwalker_amd64.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/processor/$(DEPDIR)/stackwalker_arm.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/processor/$(DEPDIR)/stackwalker_ppc.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/processor/$(DEPDIR)/stackwalker_ppc64.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/processor/$(DEPDIR)/stackwalker_selftest.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/processor/$(DEPDIR)/stackwalker_sparc.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/processor/$(DEPDIR)/stackwalker_x86.Po@am__quote@

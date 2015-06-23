@@ -46,11 +46,11 @@
 #include "common/linux/file_id.h"
 #include "common/linux/ignore_ret.h"
 #include "common/linux/safe_readlink.h"
+#include "common/scoped_ptr.h"
 #include "common/tests/auto_tempdir.h"
 #include "common/tests/file_utils.h"
 #include "common/using_std_string.h"
 #include "google_breakpad/processor/minidump.h"
-#include "processor/scoped_ptr.h"
 
 using namespace google_breakpad;
 
@@ -131,9 +131,9 @@ TEST(MinidumpWriterTest, MappingInfo) {
 
   // These are defined here so the parent can use them to check the
   // data from the minidump afterwards.
-  const u_int32_t memory_size = sysconf(_SC_PAGESIZE);
+  const uint32_t memory_size = sysconf(_SC_PAGESIZE);
   const char* kMemoryName = "a fake module";
-  const u_int8_t kModuleGUID[sizeof(MDGUID)] = {
+  const uint8_t kModuleGUID[sizeof(MDGUID)] = {
     0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
     0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF
   };
@@ -199,7 +199,7 @@ TEST(MinidumpWriterTest, MappingInfo) {
   // Read the minidump. Load the module list, and ensure that
   // the mmap'ed |memory| is listed with the given module name
   // and debug ID.
-  Minidump minidump(templ.c_str());
+  Minidump minidump(templ);
   ASSERT_TRUE(minidump.Read());
 
   MinidumpModuleList* module_list = minidump.GetModuleList();
@@ -213,7 +213,7 @@ TEST(MinidumpWriterTest, MappingInfo) {
   EXPECT_EQ(kMemoryName, module->code_file());
   EXPECT_EQ(module_identifier, module->debug_identifier());
 
-  u_int32_t len;
+  uint32_t len;
   // These streams are expected to be there
   EXPECT_TRUE(minidump.SeekToStreamType(MD_THREAD_LIST_STREAM, &len));
   EXPECT_TRUE(minidump.SeekToStreamType(MD_MEMORY_LIST_STREAM, &len));
@@ -241,7 +241,7 @@ TEST(MinidumpWriterTest, MappingInfoContained) {
   // data from the minidump afterwards.
   const int32_t memory_size = sysconf(_SC_PAGESIZE);
   const char* kMemoryName = "a fake module";
-  const u_int8_t kModuleGUID[sizeof(MDGUID)] = {
+  const uint8_t kModuleGUID[sizeof(MDGUID)] = {
     0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
     0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF
   };
@@ -318,7 +318,7 @@ TEST(MinidumpWriterTest, MappingInfoContained) {
   // Read the minidump. Load the module list, and ensure that
   // the mmap'ed |memory| is listed with the given module name
   // and debug ID.
-  Minidump minidump(dumpfile.c_str());
+  Minidump minidump(dumpfile);
   ASSERT_TRUE(minidump.Read());
 
   MinidumpModuleList* module_list = minidump.GetModuleList();
@@ -400,7 +400,7 @@ TEST(MinidumpWriterTest, DeletedBinary) {
   ASSERT_EQ(0, stat(templ.c_str(), &st));
   ASSERT_GT(st.st_size, 0);
 
-  Minidump minidump(templ.c_str());
+  Minidump minidump(templ);
   ASSERT_TRUE(minidump.Read());
 
   // Check that the main module filename is correct.
@@ -435,15 +435,15 @@ TEST(MinidumpWriterTest, AdditionalMemory) {
 
   // These are defined here so the parent can use them to check the
   // data from the minidump afterwards.
-  const u_int32_t kMemorySize = sysconf(_SC_PAGESIZE);
+  const uint32_t kMemorySize = sysconf(_SC_PAGESIZE);
 
   // Get some heap memory.
-  u_int8_t* memory = new u_int8_t[kMemorySize];
+  uint8_t* memory = new uint8_t[kMemorySize];
   const uintptr_t kMemoryAddress = reinterpret_cast<uintptr_t>(memory);
   ASSERT_TRUE(memory);
 
   // Stick some data into the memory so the contents can be verified.
-  for (u_int32_t i = 0; i < kMemorySize; ++i) {
+  for (uint32_t i = 0; i < kMemorySize; ++i) {
     memory[i] = i % 255;
   }
 
@@ -481,7 +481,7 @@ TEST(MinidumpWriterTest, AdditionalMemory) {
                             mappings, memory_list));
 
   // Read the minidump. Ensure that the memory region is present
-  Minidump minidump(templ.c_str());
+  Minidump minidump(templ);
   ASSERT_TRUE(minidump.Read());
 
   MinidumpMemoryList* dump_memory_list = minidump.GetMemoryList();
@@ -551,7 +551,7 @@ TEST(MinidumpWriterTest, InvalidStackPointer) {
   ASSERT_TRUE(WriteMinidump(templ.c_str(), child, &context, sizeof(context)));
 
   // Read the minidump. Ensure that the memory region is present
-  Minidump minidump(templ.c_str());
+  Minidump minidump(templ);
   ASSERT_TRUE(minidump.Read());
 
   // TODO(ted.mielczarek,mkrebs): Enable this part of the test once
@@ -652,7 +652,7 @@ TEST(MinidumpWriterTest, MinidumpSizeLimit) {
     ASSERT_GT(st.st_size, 0);
     normal_file_size = st.st_size;
 
-    Minidump minidump(normal_dump.c_str());
+    Minidump minidump(normal_dump);
     ASSERT_TRUE(minidump.Read());
     MinidumpThreadList* dump_thread_list = minidump.GetThreadList();
     ASSERT_TRUE(dump_thread_list);
@@ -689,9 +689,22 @@ TEST(MinidumpWriterTest, MinidumpSizeLimit) {
 
   // Third, write a minidump with a size limit small enough to be triggered.
   {
-    // Set size limit to the normal file size minus some arbitrary amount --
-    // enough to make the limiting code kick in.
-    const off_t minidump_size_limit = normal_file_size - 64*1024;
+    // Set size limit to some arbitrary amount, such that the limiting code
+    // will kick in.  The equation used to set this value was determined by
+    // simply reversing the size-limit logic a little bit in order to pick a
+    // size we know will trigger it.  The definition of
+    // kLimitAverageThreadStackLength here was copied from class
+    // MinidumpWriter in minidump_writer.cc.
+    static const unsigned kLimitAverageThreadStackLength = 8 * 1024;
+    off_t minidump_size_limit = kNumberOfThreadsInHelperProgram *
+        kLimitAverageThreadStackLength;
+    // If, in reality, each of the threads' stack is *smaller* than
+    // kLimitAverageThreadStackLength, the normal file size could very well be
+    // smaller than the arbitrary limit that was just set.  In that case,
+    // either of these numbers should trigger the size-limiting code, but we
+    // might as well pick the smallest.
+    if (normal_file_size < minidump_size_limit)
+      minidump_size_limit = normal_file_size;
 
     string limit_dump = temp_dir.path() +
         "/minidump-writer-unittest-limit.dmp";
@@ -701,10 +714,12 @@ TEST(MinidumpWriterTest, MinidumpSizeLimit) {
     struct stat st;
     ASSERT_EQ(0, stat(limit_dump.c_str(), &st));
     ASSERT_GT(st.st_size, 0);
-    // Make sure the file size is at least smaller than the original.
+    // Make sure the file size is at least smaller than the original.  If this
+    // fails because it's the same size, then the size-limit logic didn't kick
+    // in like it was supposed to.
     EXPECT_LT(st.st_size, normal_file_size);
 
-    Minidump minidump(limit_dump.c_str());
+    Minidump minidump(limit_dump);
     ASSERT_TRUE(minidump.Read());
     MinidumpThreadList* dump_thread_list = minidump.GetThreadList();
     ASSERT_TRUE(dump_thread_list);
@@ -721,6 +736,12 @@ TEST(MinidumpWriterTest, MinidumpSizeLimit) {
     // Make sure stack size shrunk by at least 1KB per extra thread.  The
     // definition of kLimitBaseThreadCount here was copied from class
     // MinidumpWriter in minidump_writer.cc.
+    // Note: The 1KB is arbitrary, and assumes that the thread stacks are big
+    // enough to shrink by that much.  For example, if each thread stack was
+    // originally only 2KB, the current size-limit logic wouldn't actually
+    // shrink them because that's the size to which it tries to shrink.  If
+    // you fail this part of the test due to something like that, the test
+    // logic should probably be improved to account for your situation.
     const unsigned kLimitBaseThreadCount = 20;
     const unsigned kMinPerExtraThreadStackReduction = 1024;
     const int min_expected_reduction = (kNumberOfThreadsInHelperProgram -
