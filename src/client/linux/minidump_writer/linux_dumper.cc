@@ -680,7 +680,7 @@ void LinuxDumper::CopyFromCore(void* dest, pid_t child, const void* src,
         reinterpret_cast<const char*>(
             core_.GetObject(program->p_offset + offset_in_segment, length));
 
-    if (segment_bytes < src_bytes &&
+    if (segment_bytes <= src_bytes &&
         offset_in_segment < program->p_filesz &&
         mapped_memory != NULL) {
       memcpy(dest, mapped_memory, length);
