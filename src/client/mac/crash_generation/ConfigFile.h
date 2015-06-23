@@ -1,4 +1,4 @@
-// Copyright (c) 2010, Google Inc.
+// Copyright (c) 2011, Google Inc.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -26,48 +26,58 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//
+// Utility class that can persist a SimpleStringDictionary to disk.
 
-// UDPNetwork implements NetworkInterface using UDP sockets.
+#import <Foundation/Foundation.h>
 
-#ifndef _GOOGLE_BREAKPAD_PROCESSOR_UDP_NETWORK_H_
-#define _GOOGLE_BREAKPAD_PROCESSOR_UDP_NETWORK_H_
-
-#include <sys/socket.h>
-
-#include <string>
-
-#include "processor/network_interface.h"
+#import "common/mac/SimpleStringDictionary.h"
 
 namespace google_breakpad {
 
-class UDPNetwork : public NetworkInterface {
+BOOL EnsureDirectoryPathExists(NSString *dirPath);
+
+//=============================================================================
+class ConfigFile {
  public:
-  // Initialize a UDP Network socket at this address and port.
-  // address can be empty to indicate that any local address is acceptable.
-  UDPNetwork(const std::string address,
-             unsigned short port,
-             bool ip4only = false)
-    : server_(address),
-      port_(port),
-      ip4only_(ip4only),
-      socket_(-1) {};
+  ConfigFile() {
+    config_file_ = -1;
+    config_file_path_[0] = 0;
+    has_created_file_ = false;
+  };
 
-  ~UDPNetwork();
+  ~ConfigFile() {
+  };
 
-  virtual bool Init(bool listen);
-  virtual bool Send(const char *data, size_t length);
-  virtual bool WaitToReceive(int timeout);
-  virtual bool Receive(char *buffer, size_t buffer_size, ssize_t &received);
+  void WriteFile(const char* directory,
+                 const SimpleStringDictionary *configurationParameters,
+                 const char *dump_dir,
+                 const char *minidump_id);
 
-  unsigned short port() { return port_; }
+  const char *GetFilePath() { return config_file_path_; }
+
+  void Unlink() {
+    if (config_file_ != -1)
+      unlink(config_file_path_);
+
+    config_file_ = -1;
+  }
 
  private:
-  std::string server_;
-  unsigned short port_;
-  bool ip4only_;
-  struct sockaddr_storage address_;
-  int socket_;
+  BOOL WriteData(const void *data, size_t length);
+
+  BOOL AppendConfigData(const char *key,
+                        const void *data,
+                        size_t length);
+
+  BOOL AppendConfigString(const char *key,
+                          const char *value);
+
+  BOOL AppendCrashTimeParameters(const char *processStartTimeString);
+
+  int   config_file_;                    // descriptor for config file
+  char  config_file_path_[PATH_MAX];     // Path to configuration file
+  bool  has_created_file_;
 };
 
-}  // namespace google_breakpad
-#endif  // GOOGLE_BREAKPAD_PROCESSOR_UDP_NETWORK_H_
+} // namespace google_breakpad

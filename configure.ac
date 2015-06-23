@@ -49,6 +49,7 @@ AC_PROG_RANLIB
 AC_HEADER_STDC
 m4_include(m4/ax_pthread.m4)
 AX_PTHREAD
+AC_CHECK_HEADERS([a.out.h])
 
 # Only build Linux client libs when compiling for Linux
 case $host in
@@ -95,18 +96,27 @@ AC_ARG_ENABLE(processor,
               [disable_processor=false])
 AM_CONDITIONAL(DISABLE_PROCESSOR, test x$disable_processor = xtrue)
 
-if test x$LINUX_HOST = xfalse -a x$disable_processor = xtrue; then
-   AC_MSG_ERROR([--disable-processor was specified, and not building for Linux. Nothing to build!])
-fi
+AC_ARG_ENABLE(tools,
+              AS_HELP_STRING([--disable-tools],
+                             [Don't build tool binaries]
+                             [(default is no)]),
+              [case "${enableval}" in
+                 yes)
+                   disable_tools=false
+                   ;;
+                 no)
+                   disable_tools=true
+                   ;;
+                 *)
+                   AC_MSG_ERROR(bad value ${enableval} for --disable-tools)
+                   ;;
+               esac],
+              [disable_tools=false])
+AM_CONDITIONAL(DISABLE_TOOLS, test x$disable_tools = xtrue)
 
-AC_CHECK_MEMBER(struct sockaddr.sa_len,
-                [AC_DEFINE([GET_SA_LEN(X)],[(((struct sockaddr*)&(X))->sa_len)],
-                           [actual length of specific struct sockaddr])],
-                [AC_DEFINE([GET_SA_LEN(X)],
-                           [(((struct sockaddr*)&(X))->sa_family == AF_INET  ? sizeof(struct sockaddr_in) : \
-                            ((struct sockaddr*)&(X))->sa_family == AF_INET6 ? sizeof(struct sockaddr_in6) : sizeof(struct sockaddr))],
-                           [actual length of specific struct sockaddr])],
-                [#include <sys/socket.h>])
+if test x$LINUX_HOST = xfalse -a x$disable_processor = xtrue -a x$disable_tools = xtrue; then
+   AC_MSG_ERROR([--disable-processor and --disable-tools were specified, and not building for Linux. Nothing to build!])
+fi
 
 AC_ARG_ENABLE(selftest,
               AS_HELP_STRING([--enable-selftest],

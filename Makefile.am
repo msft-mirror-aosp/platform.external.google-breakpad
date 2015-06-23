@@ -73,7 +73,7 @@ src_client_linux_libbreakpad_client_a_SOURCES = \
 	src/common/string_conversion.cc \
 	src/common/linux/file_id.cc \
 	src/common/linux/guid_creator.cc
-endif
+endif LINUX_HOST
 
 if !DISABLE_PROCESSOR
 src_libbreakpad_a_SOURCES = \
@@ -89,7 +89,6 @@ src_libbreakpad_a_SOURCES = \
 	src/google_breakpad/processor/memory_region.h \
 	src/google_breakpad/processor/minidump.h \
 	src/google_breakpad/processor/minidump_processor.h \
-	src/google-breakpad/processor/network_source_line_resolver.h \
 	src/google_breakpad/processor/process_state.h \
 	src/google_breakpad/processor/source_line_resolver_base.h \
 	src/google_breakpad/processor/source_line_resolver_interface.h \
@@ -129,10 +128,8 @@ src_libbreakpad_a_SOURCES = \
 	src/processor/module_comparer.cc \
 	src/processor/module_comparer.h \
 	src/processor/module_factory.h \
-	src/processor/network_interface.h \
-	src/processor/network_source_line_resolver.cc \
-	src/processor/network_source_line_server.cc \
-	src/processor/network_source_line_server.h \
+	src/processor/module_serializer.cc \
+	src/processor/module_serializer.h \
 	src/processor/pathname_stripper.cc \
 	src/processor/pathname_stripper.h \
 	src/processor/postfix_evaluator-inl.h \
@@ -170,9 +167,7 @@ src_libbreakpad_a_SOURCES = \
 	src/processor/static_range_map-inl.h \
 	src/processor/static_range_map.h \
 	src/processor/tokenize.cc \
-	src/processor/tokenize.h \
-	src/processor/udp_network.cc \
-	src/processor/udp_network.h
+	src/processor/tokenize.h
 
 src_libbreakpad_a_LIBADD = src/third_party/libdisasm/libdisasm.a
 
@@ -207,14 +202,22 @@ src_third_party_libdisasm_libdisasm_a_SOURCES = \
 ## Programs
 bin_PROGRAMS += \
 	src/processor/minidump_dump \
-	src/processor/minidump_stackwalk \
-	src/processor/source_daemon
+	src/processor/minidump_stackwalk
 endif !DISABLE_PROCESSOR
 
 if LINUX_HOST
 bin_PROGRAMS += \
 	src/client/linux/linux_dumper_unittest_helper
+
+if !DISABLE_TOOLS
+bin_PROGRAMS += \
+	src/tools/linux/dump_syms/dump_syms \
+	src/tools/linux/md2core/minidump-2-core \
+	src/tools/linux/symupload/minidump_upload \
+	src/tools/linux/symupload/sym_upload
 endif
+endif LINUX_HOST
+
 
 ## Tests
 if !DISABLE_PROCESSOR
@@ -231,9 +234,6 @@ check_PROGRAMS += \
 	src/processor/map_serializers_unittest \
 	src/processor/minidump_processor_unittest \
 	src/processor/minidump_unittest \
-	src/processor/network_source_line_resolver_unittest \
-	src/processor/network_source_line_resolver_server_unittest \
-	src/processor/network_source_line_server_unittest \
 	src/processor/static_address_map_unittest \
 	src/processor/static_contained_range_map_unittest \
 	src/processor/static_map_unittest \
@@ -250,7 +250,12 @@ endif
 if LINUX_HOST
 check_PROGRAMS += \
 	src/client/linux/linux_client_unittest
+
+if !DISABLE_TOOLS
+check_PROGRAMS += \
+	src/common/dumper_unittest
 endif
+endif LINUX_HOST
 
 if !DISABLE_PROCESSOR
 if SELFTEST
@@ -310,7 +315,79 @@ src_client_linux_linux_client_unittest_LDADD = \
 	src/common/string_conversion.o
 
 src_client_linux_linux_client_unittest_DEPENDENCIES = src/client/linux/linux_dumper_unittest_helper src/client/linux/libbreakpad_client.a src/libbreakpad.a
+
+if !DISABLE_TOOLS
+src_tools_linux_dump_syms_dump_syms_SOURCES = \
+	src/common/dwarf_cfi_to_module.cc \
+	src/common/dwarf_cu_to_module.cc \
+	src/common/dwarf_line_to_module.cc \
+	src/common/language.cc \
+	src/common/module.cc \
+	src/common/stabs_reader.cc \
+	src/common/stabs_to_module.cc \
+	src/common/dwarf/bytereader.cc \
+	src/common/dwarf/dwarf2diehandler.cc \
+	src/common/dwarf/dwarf2reader.cc \
+	src/common/linux/dump_symbols.cc \
+	src/common/linux/elf_symbols_to_module.cc \
+	src/common/linux/file_id.cc \
+	src/tools/linux/dump_syms/dump_syms.cc
+
+src_tools_linux_md2core_minidump_2_core_SOURCES = \
+	src/tools/linux/md2core/minidump-2-core.cc
+
+src_tools_linux_symupload_minidump_upload_SOURCES = \
+	src/common/linux/http_upload.cc \
+	src/tools/linux/symupload/minidump_upload.cc
+src_tools_linux_symupload_minidump_upload_LDFLAGS = -ldl
+
+src_tools_linux_symupload_sym_upload_SOURCES = \
+	src/common/linux/http_upload.cc \
+	src/tools/linux/symupload/sym_upload.cc
+src_tools_linux_symupload_sym_upload_LDFLAGS = -ldl
+
+src_common_dumper_unittest_SOURCES = \
+	src/common/byte_cursor_unittest.cc \
+	src/common/dwarf_cfi_to_module.cc \
+	src/common/dwarf_cfi_to_module_unittest.cc \
+	src/common/dwarf_cu_to_module.cc \
+	src/common/dwarf_cu_to_module_unittest.cc \
+	src/common/dwarf_line_to_module.cc \
+	src/common/dwarf_line_to_module_unittest.cc \
+	src/common/language.cc \
+	src/common/module.cc \
+	src/common/module_unittest.cc \
+	src/common/stabs_reader.cc \
+	src/common/stabs_reader_unittest.cc \
+	src/common/stabs_to_module.cc \
+	src/common/stabs_to_module_unittest.cc \
+	src/common/test_assembler.cc \
+	src/common/dwarf/bytereader.cc \
+	src/common/dwarf/bytereader_unittest.cc \
+	src/common/dwarf/cfi_assembler.cc \
+	src/common/dwarf/dwarf2diehandler.cc \
+	src/common/dwarf/dwarf2diehandler_unittest.cc \
+	src/common/dwarf/dwarf2reader.cc \
+	src/common/dwarf/dwarf2reader_cfi_unittest.cc \
+	src/common/linux/dump_symbols.cc \
+	src/common/linux/dump_symbols_unittest.cc \
+	src/common/linux/elf_symbols_to_module.cc \
+	src/common/linux/elf_symbols_to_module_unittest.cc \
+	src/common/linux/synth_elf.cc \
+	src/common/linux/synth_elf_unittest.cc \
+	src/common/linux/file_id.cc \
+	src/common/linux/file_id_unittest.cc \
+	src/testing/gtest/src/gtest-all.cc \
+	src/testing/gtest/src/gtest_main.cc \
+	src/testing/src/gmock-all.cc
+src_common_dumper_unittest_CPPFLAGS = \
+	-I$(top_srcdir)/src \
+	-I$(top_srcdir)/src/testing/include \
+	-I$(top_srcdir)/src/testing/gtest/include \
+	-I$(top_srcdir)/src/testing/gtest \
+	-I$(top_srcdir)/src/testing
 endif
+endif LINUX_HOST
 
 if !DISABLE_PROCESSOR
 src_processor_address_map_unittest_SOURCES = \
@@ -507,82 +584,6 @@ src_processor_minidump_unittest_LDADD = \
 	src/processor/logging.o \
 	src/processor/minidump.o \
 	src/processor/pathname_stripper.o
-
-src_processor_network_source_line_resolver_unittest_SOURCES = \
-	src/processor/network_source_line_resolver_unittest.cc \
-	src/testing/gtest/src/gtest-all.cc \
-	src/testing/src/gmock-all.cc
-src_processor_network_source_line_resolver_unittest_CPPFLAGS = \
-	-I$(top_srcdir)/src \
-	-I$(top_srcdir)/src/testing/include \
-	-I$(top_srcdir)/src/testing/gtest/include \
-	-I$(top_srcdir)/src/testing/gtest \
-	-I$(top_srcdir)/src/testing
-src_processor_network_source_line_resolver_unittest_LDADD = \
-	src/processor/basic_code_modules.o \
-	src/processor/binarystream.o \
-	src/processor/cfi_frame_info.o \
-	src/processor/logging.o \
-	src/processor/network_source_line_resolver.o \
-	src/processor/pathname_stripper.o \
-	src/processor/tokenize.o \
-	src/processor/udp_network.o
-
-src_processor_network_source_line_resolver_server_unittest_SOURCES = \
-	src/processor/network_source_line_resolver_server_unittest.cc \
-	src/testing/gtest/src/gtest-all.cc \
-	src/testing/src/gmock-all.cc
-src_processor_network_source_line_resolver_server_unittest_CPPFLAGS = \
-	-I$(top_srcdir)/src \
-	-I$(top_srcdir)/src/testing/include \
-	-I$(top_srcdir)/src/testing/gtest/include \
-	-I$(top_srcdir)/src/testing/gtest \
-	-I$(top_srcdir)/src/testing
-src_processor_network_source_line_resolver_server_unittest_LDADD = \
-	src/processor/basic_code_modules.o \
-	src/processor/basic_source_line_resolver.o \
-	src/processor/binarystream.o \
-	src/processor/call_stack.o \
-	src/processor/cfi_frame_info.o \
-	src/processor/disassembler_x86.o \
-	src/processor/exploitability.o \
-	src/processor/exploitability_win.o \
-	src/processor/logging.o \
-	src/processor/minidump_processor.o \
-	src/processor/minidump.o \
-	src/processor/network_source_line_resolver.o \
-	src/processor/network_source_line_server.o \
-	src/processor/pathname_stripper.o \
-	src/processor/process_state.o \
-	src/processor/simple_symbol_supplier.o \
-	src/processor/source_line_resolver_base.o \
-	src/processor/stackwalker.o \
-	src/processor/stackwalker_amd64.o \
-	src/processor/stackwalker_arm.o \
-	src/processor/stackwalker_ppc.o \
-	src/processor/stackwalker_sparc.o \
-	src/processor/stackwalker_x86.o \
-	src/processor/tokenize.o \
-	src/processor/udp_network.o \
-	src/third_party/libdisasm/libdisasm.a
-
-src_processor_network_source_line_server_unittest_SOURCES = \
-	src/processor/network_source_line_server_unittest.cc \
-	src/testing/gtest/src/gtest-all.cc \
-	src/testing/src/gmock-all.cc
-src_processor_network_source_line_server_unittest_CPPFLAGS = \
-	-I$(top_srcdir)/src \
-	-I$(top_srcdir)/src/testing/include \
-	-I$(top_srcdir)/src/testing/gtest/include \
-	-I$(top_srcdir)/src/testing/gtest \
-	-I$(top_srcdir)/src/testing
-src_processor_network_source_line_server_unittest_LDADD = \
-	src/processor/binarystream.o \
-	src/processor/cfi_frame_info.o \
-	src/processor/logging.o \
-	src/processor/network_source_line_server.o \
-	src/processor/pathname_stripper.o \
-	src/processor/udp_network.o
 
 src_processor_static_address_map_unittest_SOURCES = \
 	src/processor/static_address_map_unittest.cc \
@@ -781,7 +782,6 @@ src_processor_minidump_stackwalk_LDADD = \
 	src/processor/minidump_processor.o \
 	src/processor/pathname_stripper.o \
 	src/processor/process_state.o \
-	src/processor/network_source_line_resolver.o \
 	src/processor/simple_symbol_supplier.o \
 	src/processor/source_line_resolver_base.o \
 	src/processor/stackwalker.o \
@@ -791,23 +791,8 @@ src_processor_minidump_stackwalk_LDADD = \
 	src/processor/stackwalker_sparc.o \
 	src/processor/stackwalker_x86.o \
 	src/processor/tokenize.o \
-	src/processor/udp_network.o \
 	src/third_party/libdisasm/libdisasm.a
 
-src_processor_source_daemon_SOURCES = \
-	src/processor/source_daemon.cc
-src_processor_source_daemon_LDADD = \
-	src/processor/basic_code_modules.o \
-	src/processor/basic_source_line_resolver.o \
-	src/processor/binarystream.o \
-	src/processor/cfi_frame_info.o \
-	src/processor/logging.o \
-	src/processor/network_source_line_server.o \
-	src/processor/pathname_stripper.o \
-	src/processor/simple_symbol_supplier.o \
-	src/processor/source_line_resolver_base.o \
-	src/processor/tokenize.o \
-	src/processor/udp_network.o
 endif !DISABLE_PROCESSOR
 
 ## Additional files to be included in a source distribution
@@ -863,6 +848,8 @@ EXTRA_DIST = \
 	src/common/convert_UTF.h \
 	src/common/linux/dump_symbols.cc \
 	src/common/linux/dump_symbols.h \
+	src/common/linux/elf_symbols_to_module.cc \
+	src/common/linux/elf_symbols_to_module.h \
 	src/common/linux/file_id.cc \
 	src/common/linux/file_id.h \
 	src/common/linux/guid_creator.cc \

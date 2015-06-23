@@ -33,6 +33,7 @@
 #define CLIENT_MAC_GENERATOR_MINIDUMP_GENERATOR_H__
 
 #include <mach/mach.h>
+#include <TargetConditionals.h>
 
 #include <string>
 
@@ -43,33 +44,22 @@
 
 #include "dynamic_images.h"
 
+#if !TARGET_OS_IPHONE && (MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_7)
+  #define HAS_PPC_SUPPORT
+#endif
+#if defined(__arm__)
+  #define HAS_ARM_SUPPORT
+#elif defined(__i386__) || defined(__x86_64__)
+  #define HAS_X86_SUPPORT
+#endif
+
 namespace google_breakpad {
 
 using std::string;
 
-#if TARGET_CPU_X86_64 || TARGET_CPU_PPC64
-#define TOP_OF_THREAD0_STACK 0x00007fff5fbff000
-#else
-#define TOP_OF_THREAD0_STACK 0xbffff000
-#endif
-
-#if TARGET_CPU_X86_64
-typedef x86_thread_state64_t breakpad_thread_state_t;
-typedef MDRawContextAMD64 MinidumpContext;
-#elif TARGET_CPU_X86
-typedef  i386_thread_state_t breakpad_thread_state_t;
-typedef MDRawContextX86 MinidumpContext;
-#elif TARGET_CPU_PPC64
-typedef ppc_thread_state64_t breakpad_thread_state_t;
-typedef MDRawContextPPC64 MinidumpContext;
-#elif TARGET_CPU_PPC
-typedef ppc_thread_state_t breakpad_thread_state_t;
-typedef MDRawContextPPC MinidumpContext;
-#endif
-
 // Use the REGISTER_FROM_THREADSTATE to access a register name from the
 // breakpad_thread_state_t structure.
-#if __DARWIN_UNIX03 || TARGET_CPU_X86_64 || TARGET_CPU_PPC64
+#if __DARWIN_UNIX03 || TARGET_CPU_X86_64 || TARGET_CPU_PPC64 || TARGET_CPU_ARM
 // In The 10.5 SDK Headers Apple prepended __ to the variable names in the
 // i386_thread_state_t structure.  There's no good way to tell what version of
 // the SDK we're compiling against so we just toggle on the same preprocessor
@@ -129,6 +119,8 @@ class MinidumpGenerator {
 
   // Helpers
   u_int64_t CurrentPCForStack(breakpad_thread_state_data_t state);
+  bool GetThreadState(thread_act_t target_thread, thread_state_t state,
+                      mach_msg_type_number_t *count);
   bool WriteStackFromStartAddress(mach_vm_address_t start_addr,
                                   MDMemoryDescriptor *stack_location);
   bool WriteStack(breakpad_thread_state_data_t state,
@@ -136,13 +128,44 @@ class MinidumpGenerator {
   bool WriteContext(breakpad_thread_state_data_t state,
                     MDLocationDescriptor *register_location);
   bool WriteThreadStream(mach_port_t thread_id, MDRawThread *thread);
-  bool WriteCVRecord(MDRawModule *module, int cpu_type, 
-                     const char *module_path);
+  bool WriteCVRecord(MDRawModule *module, int cpu_type,
+                     const char *module_path, bool in_memory);
   bool WriteModuleStream(unsigned int index, MDRawModule *module);
-
   size_t CalculateStackSize(mach_vm_address_t start_addr);
-
   int  FindExecutableModule();
+
+  // Per-CPU implementations of these methods
+#ifdef HAS_ARM_SUPPORT
+  bool WriteStackARM(breakpad_thread_state_data_t state,
+                     MDMemoryDescriptor *stack_location);
+  bool WriteContextARM(breakpad_thread_state_data_t state,
+                       MDLocationDescriptor *register_location);
+  u_int64_t CurrentPCForStackARM(breakpad_thread_state_data_t state);
+#endif
+#ifdef HAS_PPC_SUPPORT
+  bool WriteStackPPC(breakpad_thread_state_data_t state,
+                     MDMemoryDescriptor *stack_location);
+  bool WriteContextPPC(breakpad_thread_state_data_t state,
+                       MDLocationDescriptor *register_location);
+  u_int64_t CurrentPCForStackPPC(breakpad_thread_state_data_t state);
+  bool WriteStackPPC64(breakpad_thread_state_data_t state,
+                       MDMemoryDescriptor *stack_location);
+  bool WriteContextPPC64(breakpad_thread_state_data_t state,
+                       MDLocationDescriptor *register_location);
+  u_int64_t CurrentPCForStackPPC64(breakpad_thread_state_data_t state);
+#endif
+#ifdef HAS_X86_SUPPORT
+  bool WriteStackX86(breakpad_thread_state_data_t state,
+                       MDMemoryDescriptor *stack_location);
+  bool WriteContextX86(breakpad_thread_state_data_t state,
+                       MDLocationDescriptor *register_location);
+  u_int64_t CurrentPCForStackX86(breakpad_thread_state_data_t state);
+  bool WriteStackX86_64(breakpad_thread_state_data_t state,
+                        MDMemoryDescriptor *stack_location);
+  bool WriteContextX86_64(breakpad_thread_state_data_t state,
+                          MDLocationDescriptor *register_location);
+  u_int64_t CurrentPCForStackX86_64(breakpad_thread_state_data_t state);
+#endif
 
   // disallow copy ctor and operator=
   explicit MinidumpGenerator(const MinidumpGenerator &);
@@ -158,6 +181,9 @@ class MinidumpGenerator {
   mach_port_t exception_thread_;
   mach_port_t crashing_task_;
   mach_port_t handler_thread_;
+
+  // CPU type of the task being dumped.
+  cpu_type_t cpu_type_;
   
   // System information
   static char build_string_[16];

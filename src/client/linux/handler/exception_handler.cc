@@ -88,14 +88,18 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <utility>
 #include <vector>
 
 #include "common/linux/linux_libc_support.h"
 #include "common/memory.h"
+#include "client/linux/minidump_writer/linux_dumper.h"
 #include "client/linux/minidump_writer/minidump_writer.h"
 #include "common/linux/guid_creator.h"
 #include "common/linux/eintr_wrapper.h"
 #include "third_party/lss/linux_syscall_support.h"
+
+#include "linux/sched.h"
 
 #ifndef PR_SET_PTRACER
 #define PR_SET_PTRACER 0x59616d61
@@ -327,8 +331,13 @@ bool ExceptionHandler::HandleSignal(int sig, siginfo_t* info, void* uc) {
   if (filter_ && !filter_(callback_context_))
     return false;
 
-  // Allow ourselves to be dumped.
-  sys_prctl(PR_SET_DUMPABLE, 1);
+  // Allow ourselves to be dumped if the signal is trusted.
+  bool signal_trusted = info->si_code > 0;
+  bool signal_pid_trusted = info->si_code == SI_USER ||
+      info->si_code == SI_TKILL;
+  if (signal_trusted || (signal_pid_trusted && info->si_pid == getpid())) {
+    sys_prctl(PR_SET_DUMPABLE, 1);
+  }
   CrashContext context;
   memcpy(&context.siginfo, info, sizeof(siginfo_t));
   memcpy(&context.context, uc, sizeof(struct ucontext));
@@ -449,8 +458,11 @@ void ExceptionHandler::WaitForContinueSignal() {
 // Runs on the cloned process.
 bool ExceptionHandler::DoDump(pid_t crashing_process, const void* context,
                               size_t context_size) {
-  return google_breakpad::WriteMinidump(
-      next_minidump_path_c_, crashing_process, context, context_size);
+  return google_breakpad::WriteMinidump(next_minidump_path_c_,
+                                        crashing_process,
+                                        context,
+                                        context_size,
+                                        mapping_list_);
 }
 
 // static
@@ -480,6 +492,23 @@ bool ExceptionHandler::WriteMinidump() {
 #else
   return false;
 #endif  // !defined(__ARM_EABI__)
+}
+
+void ExceptionHandler::AddMappingInfo(const std::string& name,
+                                      const u_int8_t identifier[sizeof(MDGUID)],
+                                      uintptr_t start_address,
+                                      size_t mapping_size,
+                                      size_t file_offset) {
+  MappingInfo info;
+  info.start_addr = start_address;
+  info.size = mapping_size;
+  info.offset = file_offset;
+  strncpy(info.name, name.c_str(), std::min(name.size(), sizeof(info)));
+
+  MappingEntry mapping;
+  mapping.first = info;
+  memcpy(mapping.second, identifier, sizeof(MDGUID));
+  mapping_list_.push_back(mapping);
 }
 
 }  // namespace google_breakpad

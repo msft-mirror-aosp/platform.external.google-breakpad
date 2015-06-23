@@ -44,6 +44,7 @@
 #include "google_breakpad/processor/source_line_resolver_interface.h"
 #include "google_breakpad/processor/stack_frame.h"
 #include "google_breakpad/processor/symbol_supplier.h"
+#include "google_breakpad/processor/system_info.h"
 #include "processor/linked_ptr.h"
 #include "processor/logging.h"
 #include "processor/scoped_ptr.h"
@@ -120,7 +121,8 @@ bool Stackwalker::Walk(CallStack *stack) {
           if (resolver_->ShouldDeleteMemoryBufferAfterLoadModule())
             supplier_->FreeSymbolData(module);
         }
-        resolver_->FillSourceLineInfo(frame.get());
+        if (resolver_)
+          resolver_->FillSourceLineInfo(frame.get());
       }
     }
 
@@ -186,10 +188,13 @@ Stackwalker* Stackwalker::StackwalkerForCPU(
       break;
 
     case MD_CONTEXT_ARM:
+      int fp_register = -1;
+      if (system_info->os_short == "ios")
+        fp_register = MD_CONTEXT_ARM_REG_IOS_FP;
       cpu_stackwalker = new StackwalkerARM(system_info,
                                            context->GetContextARM(),
-                                           memory, modules, supplier,
-                                           resolver);
+					   fp_register, memory, modules,
+					   supplier, resolver);
       break;
   }
 

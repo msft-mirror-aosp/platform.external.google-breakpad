@@ -29,6 +29,7 @@
 
 #include <map>
 #include <pthread.h>
+#include <TargetConditionals.h>
 
 #include "client/mac/handler/exception_handler.h"
 #include "client/mac/handler/minidump_generator.h"
@@ -36,7 +37,11 @@
 #include "common/mac/scoped_task_suspend-inl.h"
 
 #ifndef USE_PROTECTED_ALLOCATIONS
+#if TARGET_OS_IPHONE
+#define USE_PROTECTED_ALLOCATIONS 1
+#else
 #define USE_PROTECTED_ALLOCATIONS 0
+#endif
 #endif
 
 // If USE_PROTECTED_ALLOCATIONS is activated then the
@@ -124,10 +129,10 @@ extern "C"
                           exception_data_t exception_code,
                           mach_msg_type_number_t code_count,
                           thread_state_flavor_t *target_flavor,
-                          thread_state_t thread_state,
-                          mach_msg_type_number_t thread_state_count,
-                          thread_state_t thread_state,
-                          mach_msg_type_number_t *thread_state_count);
+                          thread_state_t in_thread_state,
+                          mach_msg_type_number_t in_thread_state_count,
+                          thread_state_t out_thread_state,
+                          mach_msg_type_number_t *out_thread_state_count);
 
   kern_return_t
     exception_raise_state_identity(mach_port_t target_port,
@@ -137,10 +142,10 @@ extern "C"
                                    exception_data_t exception_code,
                                    mach_msg_type_number_t exception_code_count,
                                    thread_state_flavor_t *target_flavor,
-                                   thread_state_t thread_state,
-                                   mach_msg_type_number_t thread_state_count,
-                                   thread_state_t thread_state,
-                                   mach_msg_type_number_t *thread_state_count);
+                                   thread_state_t in_thread_state,
+                                   mach_msg_type_number_t in_thread_state_count,
+                                   thread_state_t out_thread_state,
+                                   mach_msg_type_number_t *out_thread_state_count);
 
   kern_return_t breakpad_exception_raise_state(mach_port_t exception_port,
                                                exception_type_t exception,
@@ -239,8 +244,10 @@ ExceptionHandler::ExceptionHandler(const string &dump_path,
   // This will update to the ID and C-string pointers
   set_dump_path(dump_path);
   MinidumpGenerator::GatherSystemInformation();
+#if !TARGET_OS_IPHONE
   if (port_name)
     crash_generation_client_.reset(new CrashGenerationClient(port_name));
+#endif
   Setup(install_handler);
 }
 
@@ -269,7 +276,7 @@ ExceptionHandler::~ExceptionHandler() {
   Teardown();
 }
 
-bool ExceptionHandler::WriteMinidump() {
+bool ExceptionHandler::WriteMinidump(bool write_exception_stream) {
   // If we're currently writing, just return
   if (use_minidump_write_mutex_)
     return false;
@@ -281,7 +288,9 @@ bool ExceptionHandler::WriteMinidump() {
   if (pthread_mutex_lock(&minidump_write_mutex_) == 0) {
     // Send an empty message to the handle port so that a minidump will
     // be written
-    SendEmptyMachMessage();
+    SendMessageToHandlerThread(write_exception_stream ?
+                                   kWriteDumpWithExceptionMessage :
+                                   kWriteDumpMessage);
 
     // Wait for the minidump writer to complete its writing.  It will unlock
     // the mutex when completed
@@ -295,11 +304,12 @@ bool ExceptionHandler::WriteMinidump() {
 
 // static
 bool ExceptionHandler::WriteMinidump(const string &dump_path,
+                                     bool write_exception_stream,
                                      MinidumpCallback callback,
                                      void *callback_context) {
   ExceptionHandler handler(dump_path, NULL, callback, callback_context, false,
 			   NULL);
-  return handler.WriteMinidump();
+  return handler.WriteMinidump(write_exception_stream);
 }
 
 // static
@@ -319,8 +329,10 @@ bool ExceptionHandler::WriteMinidumpForChild(mach_port_t child,
 				    EXC_I386_BPT,
 #elif defined (__ppc__) || defined (__ppc64__)
 				    EXC_PPC_BREAKPOINT,
+#elif defined (__arm__)
+				    EXC_ARM_BREAKPOINT,
 #else
-  #error architecture not supported
+#error architecture not supported
 #endif
 				    0,
 				    child_blamed_thread);
@@ -336,7 +348,8 @@ bool ExceptionHandler::WriteMinidumpForChild(mach_port_t child,
 bool ExceptionHandler::WriteMinidumpWithException(int exception_type,
                                                   int exception_code,
                                                   int exception_subcode,
-                                                  mach_port_t thread_name) {
+                                                  mach_port_t thread_name,
+                                                  bool exit_after_write) {
   bool result = false;
 
   if (directCallback_) {
@@ -345,9 +358,10 @@ bool ExceptionHandler::WriteMinidumpWithException(int exception_type,
                         exception_code,
                         exception_subcode,
                         thread_name) ) {
-      if (exception_type && exception_code)
+      if (exit_after_write)
         _exit(exception_type);
     }
+#if !TARGET_OS_IPHONE
   } else if (IsOutOfProcess()) {
     if (exception_type && exception_code) {
       // If this is a real exception, give the filter (if any) a chance to
@@ -360,6 +374,7 @@ bool ExceptionHandler::WriteMinidumpWithException(int exception_type,
 		 exception_subcode,
 		 thread_name);
     }
+#endif
   } else {
     string minidump_id;
 
@@ -387,7 +402,7 @@ bool ExceptionHandler::WriteMinidumpWithException(int exception_type,
       // forwarding the exception to the next handler.
       if (callback_(dump_path_c_, next_minidump_id_c_, callback_context_,
                     result)) {
-        if (exception_type && exception_code)
+        if (exit_after_write)
           _exit(exception_type);
       }
     }
@@ -522,7 +537,9 @@ void *ExceptionHandler::WaitForMessage(void *exception_handler_class) {
       // to avoid misleading stacks.  If appropriate they will be resumed
       // afterwards.
       if (!receive.exception) {
-        if (self->is_in_teardown_)
+        // Don't touch self, since this message could have been sent
+        // from its destructor.
+        if (receive.header.msgh_id == kShutdownMessage)
           return NULL;
 
         self->SuspendThreads();
@@ -532,11 +549,28 @@ void *ExceptionHandler::WaitForMessage(void *exception_handler_class) {
           gBreakpadAllocator->Unprotect();
 #endif
 
+        mach_port_t thread = MACH_PORT_NULL;
+        int exception_type = 0;
+        int exception_code = 0;
+        if (receive.header.msgh_id == kWriteDumpWithExceptionMessage) {
+          thread = receive.thread.name;
+          exception_type = EXC_BREAKPOINT;
+#if defined (__i386__) || defined(__x86_64__)
+          exception_code = EXC_I386_BPT;
+#elif defined (__ppc__) || defined (__ppc64__)
+          exception_code = EXC_PPC_BREAKPOINT;
+#elif defined (__arm__)
+          exception_code = EXC_ARM_BREAKPOINT;
+#else
+#error architecture not supported
+#endif
+        }
+
         // Write out the dump and save the result for later retrieval
         self->last_minidump_write_result_ =
-          self->WriteMinidumpWithException(0, 0, 0, 0);
-
-        self->UninstallHandler(false);
+          self->WriteMinidumpWithException(exception_type, exception_code,
+                                           0, thread,
+                                           false);
 
 #if USE_PROTECTED_ALLOCATIONS
         if(gBreakpadAllocator)
@@ -570,7 +604,15 @@ void *ExceptionHandler::WaitForMessage(void *exception_handler_class) {
 
         // Generate the minidump with the exception data.
         self->WriteMinidumpWithException(receive.exception, receive.code[0],
-                                         subcode, receive.thread.name);
+                                         subcode, receive.thread.name, true);
+
+#if USE_PROTECTED_ALLOCATIONS
+        // This may have become protected again within
+        // WriteMinidumpWithException, but it needs to be unprotected for
+        // UninstallHandler.
+        if(gBreakpadAllocator)
+          gBreakpadAllocator->Unprotect();
+#endif
 
         self->UninstallHandler(true);
 
@@ -705,7 +747,7 @@ bool ExceptionHandler::Teardown() {
     return false;
 
   // Send an empty message so that the handler_thread exits
-  if (SendEmptyMachMessage()) {
+  if (SendMessageToHandlerThread(kShutdownMessage)) {
     mach_port_t current_task = mach_task_self();
     result = mach_port_deallocate(current_task, handler_port_);
     if (result != KERN_SUCCESS)
@@ -721,16 +763,25 @@ bool ExceptionHandler::Teardown() {
   return result == KERN_SUCCESS;
 }
 
-bool ExceptionHandler::SendEmptyMachMessage() {
-  ExceptionMessage empty;
-  memset(&empty, 0, sizeof(empty));
-  empty.header.msgh_size = sizeof(empty) - sizeof(empty.padding);
-  empty.header.msgh_remote_port = handler_port_;
-  empty.header.msgh_bits = MACH_MSGH_BITS(MACH_MSG_TYPE_COPY_SEND,
+bool ExceptionHandler::SendMessageToHandlerThread(
+    HandlerThreadMessage message_id) {
+  ExceptionMessage msg;
+  memset(&msg, 0, sizeof(msg));
+  msg.header.msgh_id = message_id;
+  if (message_id == kWriteDumpMessage ||
+      message_id == kWriteDumpWithExceptionMessage) {
+    // Include this thread's port.
+    msg.thread.name = mach_thread_self();
+    msg.thread.disposition = MACH_MSG_TYPE_PORT_SEND;
+    msg.thread.type = MACH_MSG_PORT_DESCRIPTOR;
+  }
+  msg.header.msgh_size = sizeof(msg) - sizeof(msg.padding);
+  msg.header.msgh_remote_port = handler_port_;
+  msg.header.msgh_bits = MACH_MSGH_BITS(MACH_MSG_TYPE_COPY_SEND,
                                           MACH_MSG_TYPE_MAKE_SEND_ONCE);
-  kern_return_t result = mach_msg(&(empty.header),
+  kern_return_t result = mach_msg(&(msg.header),
                                   MACH_SEND_MSG | MACH_SEND_TIMEOUT,
-                                  empty.header.msgh_size, 0, 0,
+                                  msg.header.msgh_size, 0, 0,
                                   MACH_MSG_TIMEOUT_NONE, MACH_PORT_NULL);
 
   return result == KERN_SUCCESS;
