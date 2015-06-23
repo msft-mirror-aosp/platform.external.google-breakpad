@@ -344,8 +344,7 @@ void CPUFillFromThreadInfo(MDRawContextARM* out,
 #endif
 }
 
-void CPUFillFromUContext(MDRawContextARM* out, const ucontext* uc,
-                         const struct _libc_fpstate* fpregs) {
+void CPUFillFromUContext(MDRawContextARM* out, const ucontext* uc) {
   out->context_flags = MD_CONTEXT_ARM_FULL;
 
   out->iregs[0] = uc->uc_mcontext.arm_r0;
@@ -372,6 +371,19 @@ void CPUFillFromUContext(MDRawContextARM* out, const ucontext* uc,
   out->float_save.fpscr = 0;
   my_memset(&out->float_save.regs, 0, sizeof(out->float_save.regs));
   my_memset(&out->float_save.extra, 0, sizeof(out->float_save.extra));
+}
+
+#elif defined(__aarch64__)
+typedef MDRawContextARM64 RawContextCPU;
+
+void CPUFillFromThreadInfo(MDRawContextARM64* out,
+                           const google_breakpad::ThreadInfo& info) {
+  // TODO(rmcilroy): Implement for arm64.
+}
+
+void CPUFillFromUContext(MDRawContextARM64* out, const ucontext* uc,
+                         const struct fpsimd_context* fpregs) {
+  // TODO(rmcilroy): Implement for arm64.
 }
 
 #elif defined(__mips__)
@@ -405,8 +417,7 @@ static void CPUFillFromThreadInfo(MDRawContextMIPS* out,
   out->float_save.fir = info.fpregs.fir;
 }
 
-static void CPUFillFromUContext(MDRawContextMIPS* out, const ucontext* uc,
-                                const struct _libc_fpstate* fpregs) {
+static void CPUFillFromUContext(MDRawContextMIPS* out, const ucontext* uc) {
   out->context_flags = MD_CONTEXT_MIPS_FULL;
 
   for (int i = 0; i < MD_CONTEXT_MIPS_GPR_COUNT; ++i)
@@ -472,9 +483,6 @@ class MinidumpWriter {
         ucontext_(context ? &context->context : NULL),
 #if !defined(__ARM_EABI__) && !defined(__mips__)
         float_state_(context ? &context->float_state : NULL),
-#else
-        // TODO: fix this after fixing ExceptionHandler
-        float_state_(NULL),
 #endif
         dumper_(dumper),
         minidump_size_limit_(-1),
@@ -835,7 +843,11 @@ class MinidumpWriter {
         if (!cpu.Allocate())
           return false;
         my_memset(cpu.get(), 0, sizeof(RawContextCPU));
+#if !defined(__ARM_EABI__) && !defined(__mips__)
         CPUFillFromUContext(cpu.get(), ucontext_, float_state_);
+#else
+        CPUFillFromUContext(cpu.get(), ucontext_);
+#endif
         if (stack_copy)
           PopSeccompStackFrame(cpu.get(), thread, stack_copy);
         thread.thread_context = cpu.location();
@@ -1271,6 +1283,18 @@ class MinidumpWriter {
   uintptr_t GetInstructionPointer(const ThreadInfo& info) {
     return info.regs.uregs[15];
   }
+#elif defined(__aarch64__)
+  uintptr_t GetStackPointer() {
+    return ucontext_->uc_mcontext.sp;
+  }
+
+  uintptr_t GetInstructionPointer() {
+    return ucontext_->uc_mcontext.pc;
+  }
+
+  uintptr_t GetInstructionPointer(const ThreadInfo& info) {
+    return info.regs.pc;
+  }
 #elif defined(__mips__)
   uintptr_t GetStackPointer() {
     return ucontext_->uc_mcontext.gregs[MD_CONTEXT_MIPS_REG_SP];
@@ -1581,6 +1605,11 @@ class MinidumpWriter {
 
     return true;
   }
+#elif defined(__aarch64__)
+  bool WriteCPUInformation(MDRawSystemInfo* sys_info) {
+    // TODO(rmcilroy): Implement for arm64.
+    return false;
+  }
 #else
 #  error "Unsupported CPU"
 #endif
@@ -1726,7 +1755,9 @@ class MinidumpWriter {
   const char* path_;  // Path to the file where the minidum should be written.
 
   const struct ucontext* const ucontext_;  // also from the signal handler
-  const struct _libc_fpstate* const float_state_;  // ditto
+#if !defined(__ARM_EABI__) && !defined(__mips__)
+  const google_breakpad::fpstate_t* const float_state_;  // ditto
+#endif
   LinuxDumper* dumper_;
   MinidumpFileWriter minidump_writer_;
   off_t minidump_size_limit_;
