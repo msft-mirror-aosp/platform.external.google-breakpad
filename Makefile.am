@@ -314,18 +314,12 @@ bin_PROGRAMS += \
 
 if !DISABLE_TOOLS
 bin_PROGRAMS += \
+	src/tools/linux/core2md/core2md \
 	src/tools/linux/dump_syms/dump_syms \
+	src/tools/linux/md2core/minidump-2-core \
 	src/tools/linux/symupload/minidump_upload \
 	src/tools/linux/symupload/sym_upload
-endif !DISABLE_TOOLS
-if !DISABLE_CORE2MD
-bin_PROGRAMS += \
-	src/tools/linux/core2md/core2md
-endif !DISABLE_CORE2MD
-if !DISABLE_MD2CORE
-bin_PROGRAMS += \
-	src/tools/linux/md2core/minidump-2-core
-endif !DISABLE_MD2CORE
+endif
 endif LINUX_HOST
 
 
@@ -370,12 +364,9 @@ check_PROGRAMS += \
 
 if !DISABLE_TOOLS
 check_PROGRAMS += \
-	src/common/dumper_unittest
-if !DISABLE_MD2CORE
-check_PROGRAMS += \
+	src/common/dumper_unittest \
 	src/tools/linux/md2core/minidump_2_core_unittest
-endif !DISABLE_MD2CORE
-endif !DISABLE_TOOLS
+endif
 endif LINUX_HOST
 
 if !DISABLE_PROCESSOR
@@ -513,6 +504,14 @@ src_client_linux_linux_client_unittest_DEPENDENCIES = \
 	src/client/linux/linux_client_unittest_shlib
 
 if !DISABLE_TOOLS
+src_tools_linux_core2md_core2md_SOURCES = \
+	src/tools/linux/core2md/core2md.cc \
+	src/client/linux/minidump_writer/linux_core_dumper.cc \
+	src/common/linux/elf_core_dump.cc
+
+src_tools_linux_core2md_core2md_LDADD = \
+	src/client/linux/libbreakpad_client.a
+
 src_tools_linux_dump_syms_dump_syms_SOURCES = \
 	src/common/dwarf_cfi_to_module.cc \
 	src/common/dwarf_cu_to_module.cc \
@@ -533,6 +532,10 @@ src_tools_linux_dump_syms_dump_syms_SOURCES = \
 	src/common/linux/memory_mapped_file.cc \
 	src/common/linux/safe_readlink.cc \
 	src/tools/linux/dump_syms/dump_syms.cc
+
+src_tools_linux_md2core_minidump_2_core_SOURCES = \
+	src/common/linux/memory_mapped_file.cc \
+	src/tools/linux/md2core/minidump-2-core.cc
 
 src_tools_linux_symupload_minidump_upload_SOURCES = \
 	src/common/linux/http_upload.cc \
@@ -601,19 +604,6 @@ src_common_dumper_unittest_CPPFLAGS = \
 src_common_dumper_unittest_LDADD = $(PTHREAD_CFLAGS) $(PTHREAD_LIBS)
 endif
 
-if !DISABLE_CORE2MD
-src_tools_linux_core2md_core2md_SOURCES = \
-	src/tools/linux/core2md/core2md.cc \
-	src/client/linux/minidump_writer/linux_core_dumper.cc \
-	src/common/linux/elf_core_dump.cc
-src_tools_linux_core2md_core2md_LDADD = \
-	src/client/linux/libbreakpad_client.a
-endif !DISABLE_CORE2MD
-
-if !DISABLE_MD2CORE
-src_tools_linux_md2core_minidump_2_core_SOURCES = \
-	src/common/linux/memory_mapped_file.cc \
-	src/tools/linux/md2core/minidump-2-core.cc
 src_tools_linux_md2core_minidump_2_core_unittest_SOURCES = \
 	src/testing/gtest/src/gtest-all.cc \
 	src/testing/gtest/src/gtest_main.cc \
@@ -627,7 +617,6 @@ src_tools_linux_md2core_minidump_2_core_unittest_CPPFLAGS = \
 	-I$(top_srcdir)/src/testing
 src_tools_linux_md2core_minidump_2_core_unittest_LDADD = \
 	$(PTHREAD_CFLAGS) $(PTHREAD_LIBS)
-endif !DISABLE_MD2CORE
 
 endif LINUX_HOST
 

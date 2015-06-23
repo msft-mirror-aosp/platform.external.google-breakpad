@@ -1,4 +1,4 @@
-# Copyright (c) 2011, Google Inc.
+# Copyright (c) 2006, Google Inc.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -126,42 +126,6 @@ AC_ARG_ENABLE(tools,
                esac],
               [disable_tools=false])
 AM_CONDITIONAL(DISABLE_TOOLS, test x$disable_tools = xtrue)
-
-AC_ARG_ENABLE(core2md,
-              AS_HELP_STRING([--disable-core2md],
-                             [Don't build core2md binaries]
-                             [(default is no)]),
-              [case "${enableval}" in
-                 yes)
-                   disable_core2md=false
-                   ;;
-                 no)
-                   disable_core2md=true
-                   ;;
-                 *)
-                   AC_MSG_ERROR(bad value ${enableval} for --disable-core2md)
-                   ;;
-               esac],
-              [disable_core2md=false])
-AM_CONDITIONAL(DISABLE_CORE2MD, test x$disable_core2md = xtrue)
-
-AC_ARG_ENABLE(md2core,
-              AS_HELP_STRING([--disable-md2core],
-                             [Don't build md2core binaries]
-                             [(default is no)]),
-              [case "${enableval}" in
-                 yes)
-                   disable_md2core=false
-                   ;;
-                 no)
-                   disable_md2core=true
-                   ;;
-                 *)
-                   AC_MSG_ERROR(bad value ${enableval} for --disable-md2core)
-                   ;;
-               esac],
-              [disable_md2core=false])
-AM_CONDITIONAL(DISABLE_MD2CORE, test x$disable_md2core = xtrue)
 
 if test x$LINUX_HOST = xfalse -a x$disable_processor = xtrue -a x$disable_tools = xtrue; then
    AC_MSG_ERROR([--disable-processor and --disable-tools were specified, and not building for Linux. Nothing to build!])
