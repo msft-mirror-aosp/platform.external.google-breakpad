@@ -45,13 +45,13 @@
 #include <sys/stat.h>
 #include <sys/sysctl.h>
 
+#import "client/ios/handler/ios_exception_minidump_generator.h"
 #import "client/mac/crash_generation/ConfigFile.h"
 #import "client/mac/handler/exception_handler.h"
 #import "client/mac/handler/minidump_generator.h"
 #import "client/mac/sender/uploader.h"
-#import "common/mac/SimpleStringDictionary.h"
-#import "client/ios/handler/ios_exception_minidump_generator.h"
 #import "client/mac/handler/protected_memory_allocator.h"
+#import "common/simple_string_dictionary.h"
 
 #ifndef __EXCEPTIONS
 // This file uses C++ try/catch (but shouldn't). Duplicate the macros from
@@ -67,9 +67,7 @@
 
 using google_breakpad::ConfigFile;
 using google_breakpad::EnsureDirectoryPathExists;
-using google_breakpad::KeyValueEntry;
 using google_breakpad::SimpleStringDictionary;
-using google_breakpad::SimpleStringDictionaryIterator;
 
 //=============================================================================
 // We want any memory allocations which are used by breakpad during the
@@ -469,10 +467,10 @@ void Breakpad::UploadData(NSData *data, NSString *name,
                           NSDictionary *server_parameters) {
   NSMutableDictionary *config = [NSMutableDictionary dictionary];
 
-  SimpleStringDictionaryIterator it(*config_params_);
-  while (const KeyValueEntry *next = it.Next()) {
-    [config setValue:[NSString stringWithUTF8String:next->GetValue()]
-              forKey:[NSString stringWithUTF8String:next->GetKey()]];
+  SimpleStringDictionary::Iterator it(*config_params_);
+  while (const SimpleStringDictionary::Entry *next = it.Next()) {
+    [config setValue:[NSString stringWithUTF8String:next->value]
+              forKey:[NSString stringWithUTF8String:next->key]];
   }
 
   Uploader *uploader =

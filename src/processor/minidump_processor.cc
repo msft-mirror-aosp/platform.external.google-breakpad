@@ -11,7 +11,7 @@
 // copyright notice, this list of conditions and the following disclaimer
 // in the documentation and/or other materials provided with the
 // distribution.
-//     * Neither the name of Google Inc. nor the names of its
+//    * Neither the name of Google Inc. nor the names of its
 // contributors may be used to endorse or promote products derived from
 // this software without specific prior written permission.
 //
@@ -32,7 +32,10 @@
 #include <assert.h>
 #include <stdio.h>
 
+#include <string>
+
 #include "common/scoped_ptr.h"
+#include "common/using_std_string.h"
 #include "google_breakpad/processor/call_stack.h"
 #include "google_breakpad/processor/minidump.h"
 #include "google_breakpad/processor/process_state.h"
@@ -305,6 +308,128 @@ static const MDRawSystemInfo* GetSystemInfo(Minidump *dump,
   return minidump_system_info->system_info();
 }
 
+// Extract CPU info string from ARM-specific MDRawSystemInfo structure.
+// raw_info: pointer to source MDRawSystemInfo.
+// cpu_info: address of target string, cpu info text will be appended to it.
+static void GetARMCpuInfo(const MDRawSystemInfo* raw_info,
+                          string* cpu_info) {
+  assert(raw_info != NULL && cpu_info != NULL);
+
+  // Write ARM architecture version.
+  char cpu_string[32];
+  snprintf(cpu_string, sizeof(cpu_string), "ARMv%d",
+           raw_info->processor_level);
+  cpu_info->append(cpu_string);
+
+  // There is no good list of implementer id values, but the following
+  // pages provide some help:
+  //   http://comments.gmane.org/gmane.linux.linaro.devel/6903
+  //   http://forum.xda-developers.com/archive/index.php/t-480226.html
+  const struct {
+    uint32_t id;
+    const char* name;
+  } vendors[] = {
+    { 0x41, "ARM" },
+    { 0x51, "Qualcomm" },
+    { 0x56, "Marvell" },
+    { 0x69, "Intel/Marvell" },
+  };
+  const struct {
+    uint32_t id;
+    const char* name;
+  } parts[] = {
+    { 0x4100c050, "Cortex-A5" },
+    { 0x4100c080, "Cortex-A8" },
+    { 0x4100c090, "Cortex-A9" },
+    { 0x4100c0f0, "Cortex-A15" },
+    { 0x4100c140, "Cortex-R4" },
+    { 0x4100c150, "Cortex-R5" },
+    { 0x4100b360, "ARM1136" },
+    { 0x4100b560, "ARM1156" },
+    { 0x4100b760, "ARM1176" },
+    { 0x4100b020, "ARM11-MPCore" },
+    { 0x41009260, "ARM926" },
+    { 0x41009460, "ARM946" },
+    { 0x41009660, "ARM966" },
+    { 0x510006f0, "Krait" },
+    { 0x510000f0, "Scorpion" },
+  };
+
+  const struct {
+    uint32_t hwcap;
+    const char* name;
+  } features[] = {
+    { MD_CPU_ARM_ELF_HWCAP_SWP, "swp" },
+    { MD_CPU_ARM_ELF_HWCAP_HALF, "half" },
+    { MD_CPU_ARM_ELF_HWCAP_THUMB, "thumb" },
+    { MD_CPU_ARM_ELF_HWCAP_26BIT, "26bit" },
+    { MD_CPU_ARM_ELF_HWCAP_FAST_MULT, "fastmult" },
+    { MD_CPU_ARM_ELF_HWCAP_FPA, "fpa" },
+    { MD_CPU_ARM_ELF_HWCAP_VFP, "vfpv2" },
+    { MD_CPU_ARM_ELF_HWCAP_EDSP, "edsp" },
+    { MD_CPU_ARM_ELF_HWCAP_JAVA, "java" },
+    { MD_CPU_ARM_ELF_HWCAP_IWMMXT, "iwmmxt" },
+    { MD_CPU_ARM_ELF_HWCAP_CRUNCH, "crunch" },
+    { MD_CPU_ARM_ELF_HWCAP_THUMBEE, "thumbee" },
+    { MD_CPU_ARM_ELF_HWCAP_NEON, "neon" },
+    { MD_CPU_ARM_ELF_HWCAP_VFPv3, "vfpv3" },
+    { MD_CPU_ARM_ELF_HWCAP_VFPv3D16, "vfpv3d16" },
+    { MD_CPU_ARM_ELF_HWCAP_TLS, "tls" },
+    { MD_CPU_ARM_ELF_HWCAP_VFPv4, "vfpv4" },
+    { MD_CPU_ARM_ELF_HWCAP_IDIVA, "idiva" },
+    { MD_CPU_ARM_ELF_HWCAP_IDIVT, "idivt" },
+  };
+
+  uint32_t cpuid = raw_info->cpu.arm_cpu_info.cpuid;
+  if (cpuid != 0) {
+    // Extract vendor name from CPUID
+    const char* vendor = NULL;
+    uint32_t vendor_id = (cpuid >> 24) & 0xff;
+    for (size_t i = 0; i < sizeof(vendors)/sizeof(vendors[0]); ++i) {
+      if (vendors[i].id == vendor_id) {
+        vendor = vendors[i].name;
+        break;
+      }
+    }
+    cpu_info->append(" ");
+    if (vendor) {
+      cpu_info->append(vendor);
+    } else {
+      snprintf(cpu_string, sizeof(cpu_string), "vendor(0x%x)", vendor_id);
+      cpu_info->append(cpu_string);
+    }
+
+    // Extract part name from CPUID
+    uint32_t part_id = (cpuid & 0xff00fff0);
+    const char* part = NULL;
+    for (size_t i = 0; i < sizeof(parts)/sizeof(parts[0]); ++i) {
+      if (parts[i].id == part_id) {
+        part = parts[i].name;
+        break;
+      }
+    }
+    cpu_info->append(" ");
+    if (part != NULL) {
+      cpu_info->append(part);
+    } else {
+      snprintf(cpu_string, sizeof(cpu_string), "part(0x%x)", part_id);
+      cpu_info->append(cpu_string);
+    }
+  }
+  uint32_t elf_hwcaps = raw_info->cpu.arm_cpu_info.elf_hwcaps;
+  if (elf_hwcaps != 0) {
+    cpu_info->append(" features: ");
+    const char* comma = "";
+    for (size_t i = 0; i < sizeof(features)/sizeof(features[0]); ++i) {
+      if (elf_hwcaps & features[i].hwcap) {
+        cpu_info->append(comma);
+        cpu_info->append(features[i].name);
+        comma = ",";
+      }
+    }
+  }
+}
+
 // static
 bool MinidumpProcessor::GetCPUInfo(Minidump *dump, SystemInfo *info) {
   assert(dump);
@@ -359,6 +484,7 @@ bool MinidumpProcessor::GetCPUInfo(Minidump *dump, SystemInfo *info) {
 
     case MD_CPU_ARCHITECTURE_ARM: {
       info->cpu = "arm";
+      GetARMCpuInfo(raw_system_info, &info->cpu_info);
       break;
     }
 
@@ -426,6 +552,16 @@ bool MinidumpProcessor::GetOSInfo(Minidump *dump, SystemInfo *info) {
 
     case MD_OS_ANDROID: {
       info->os = "Android";
+      break;
+    }
+
+    case MD_OS_PS3: {
+      info->os = "PS3";
+      break;
+    }
+
+    case MD_OS_NACL: {
+      info->os = "NaCl";
       break;
     }
 
@@ -1149,6 +1285,84 @@ string MinidumpProcessor::GetCrashReason(Minidump *dump, uint64_t *address) {
           break;
         default:
           BPLOG(INFO) << "Unknown exception reason " << reason;
+          break;
+      }
+      break;
+    }
+
+    case MD_OS_PS3: {
+      switch (exception_code) {
+        case MD_EXCEPTION_CODE_PS3_UNKNOWN:
+          reason = "UNKNOWN";
+          break;
+        case MD_EXCEPTION_CODE_PS3_TRAP_EXCEP:
+          reason = "TRAP_EXCEP";
+          break;
+        case MD_EXCEPTION_CODE_PS3_PRIV_INSTR:
+          reason = "PRIV_INSTR";
+          break;
+        case MD_EXCEPTION_CODE_PS3_ILLEGAL_INSTR:
+          reason = "ILLEGAL_INSTR";
+          break;
+        case MD_EXCEPTION_CODE_PS3_INSTR_STORAGE:
+          reason = "INSTR_STORAGE";
+          break;
+        case MD_EXCEPTION_CODE_PS3_INSTR_SEGMENT:
+          reason = "INSTR_SEGMENT";
+          break;
+        case MD_EXCEPTION_CODE_PS3_DATA_STORAGE:
+          reason = "DATA_STORAGE";
+          break;
+        case MD_EXCEPTION_CODE_PS3_DATA_SEGMENT:
+          reason = "DATA_SEGMENT";
+          break;
+        case MD_EXCEPTION_CODE_PS3_FLOAT_POINT:
+          reason = "FLOAT_POINT";
+          break;
+        case MD_EXCEPTION_CODE_PS3_DABR_MATCH:
+          reason = "DABR_MATCH";
+          break;
+        case MD_EXCEPTION_CODE_PS3_ALIGN_EXCEP:
+          reason = "ALIGN_EXCEP";
+          break;
+        case MD_EXCEPTION_CODE_PS3_MEMORY_ACCESS:
+          reason = "MEMORY_ACCESS";
+          break;
+        case MD_EXCEPTION_CODE_PS3_COPRO_ALIGN:
+          reason = "COPRO_ALIGN";
+          break;
+        case MD_EXCEPTION_CODE_PS3_COPRO_INVALID_COM:
+          reason = "COPRO_INVALID_COM";
+          break;
+        case MD_EXCEPTION_CODE_PS3_COPRO_ERR:
+          reason = "COPRO_ERR";
+          break;
+        case MD_EXCEPTION_CODE_PS3_COPRO_FIR:
+          reason = "COPRO_FIR";
+          break;
+        case MD_EXCEPTION_CODE_PS3_COPRO_DATA_SEGMENT:
+          reason = "COPRO_DATA_SEGMENT";
+          break;
+        case MD_EXCEPTION_CODE_PS3_COPRO_DATA_STORAGE:
+          reason = "COPRO_DATA_STORAGE";
+          break;
+        case MD_EXCEPTION_CODE_PS3_COPRO_STOP_INSTR:
+          reason = "COPRO_STOP_INSTR";
+          break;
+        case MD_EXCEPTION_CODE_PS3_COPRO_HALT_INSTR:
+          reason = "COPRO_HALT_INSTR";
+          break;
+        case MD_EXCEPTION_CODE_PS3_COPRO_HALTINST_UNKNOWN:
+          reason = "COPRO_HALTINSTR_UNKNOWN";
+          break;
+        case MD_EXCEPTION_CODE_PS3_COPRO_MEMORY_ACCESS:
+          reason = "COPRO_MEMORY_ACCESS";
+          break;
+        case MD_EXCEPTION_CODE_PS3_GRAPHIC:
+          reason = "GRAPHIC";
+          break;
+        default:
+          BPLOG(INFO) << "Unknown exception reason "<< reason;
           break;
       }
       break;
