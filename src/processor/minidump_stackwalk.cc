@@ -39,7 +39,6 @@
 #include <string>
 #include <vector>
 
-#include "common/using_std_string.h"
 #include "google_breakpad/processor/basic_source_line_resolver.h"
 #include "google_breakpad/processor/call_stack.h"
 #include "google_breakpad/processor/code_module.h"
@@ -55,6 +54,7 @@
 
 namespace {
 
+using std::string;
 using std::vector;
 using google_breakpad::BasicSourceLineResolver;
 using google_breakpad::CallStack;
@@ -575,7 +575,7 @@ int main(int argc, char **argv) {
   }
 
   // extra arguments are symbol paths
-  std::vector<string> symbol_paths;
+  std::vector<std::string> symbol_paths;
   if (argc > symbol_path_arg) {
     for (int argi = symbol_path_arg; argi < argc; ++argi)
       symbol_paths.push_back(argv[argi]);

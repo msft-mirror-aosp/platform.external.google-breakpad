@@ -42,12 +42,11 @@
 
 #include "breakpad_googletest_includes.h"
 #include "common/linux/synth_elf.h"
-#include "common/using_std_string.h"
 
 namespace google_breakpad {
 bool WriteSymbolFileInternal(uint8_t* obj_file,
-                             const string &obj_filename,
-                             const string &debug_dir,
+                             const std::string &obj_filename,
+                             const std::string &debug_dir,
                              bool cfi,
                              std::ostream &sym_stream);
 }
@@ -58,6 +57,7 @@ using google_breakpad::synth_elf::SymbolTable;
 using google_breakpad::test_assembler::kLittleEndian;
 using google_breakpad::test_assembler::Section;
 using google_breakpad::WriteSymbolFileInternal;
+using std::string;
 using std::stringstream;
 using std::vector;
 using ::testing::Test;

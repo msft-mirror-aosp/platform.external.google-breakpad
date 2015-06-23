@@ -90,7 +90,6 @@
 
 #include "common/linux/linux_libc_support.h"
 #include "common/memory.h"
-#include "client/linux/log/log.h"
 #include "client/linux/minidump_writer/linux_dumper.h"
 #include "client/linux/minidump_writer/minidump_writer.h"
 #include "common/linux/guid_creator.h"
@@ -126,7 +125,7 @@ pthread_mutex_t ExceptionHandler::handler_stack_mutex_ =
     PTHREAD_MUTEX_INITIALIZER;
 
 // Runs before crashing: normal context.
-ExceptionHandler::ExceptionHandler(const string &dump_path,
+ExceptionHandler::ExceptionHandler(const std::string &dump_path,
                                    FilterCallback filter,
                                    MinidumpCallback callback,
                                    void *callback_context,
@@ -139,7 +138,7 @@ ExceptionHandler::ExceptionHandler(const string &dump_path,
   Init(dump_path, -1);
 }
 
-ExceptionHandler::ExceptionHandler(const string &dump_path,
+ExceptionHandler::ExceptionHandler(const std::string &dump_path,
                                    FilterCallback filter,
                                    MinidumpCallback callback,
                                    void* callback_context,
@@ -158,7 +157,7 @@ ExceptionHandler::~ExceptionHandler() {
   UninstallHandlers();
 }
 
-void ExceptionHandler::Init(const string &dump_path,
+void ExceptionHandler::Init(const std::string &dump_path,
                             const int server_fd)
 {
   crash_handler_ = NULL;
@@ -392,15 +391,14 @@ bool ExceptionHandler::GenerateDump(CrashContext *context) {
     // is the write() and read() calls will fail with EBADF
     static const char no_pipe_msg[] = "ExceptionHandler::GenerateDump \
                                        sys_pipe failed:";
-    logger::write(no_pipe_msg, sizeof(no_pipe_msg) - 1);
-    logger::write(strerror(errno), strlen(strerror(errno)));
-    logger::write("\n", 1);
+    sys_write(2, no_pipe_msg, sizeof(no_pipe_msg) - 1);
+    sys_write(2, strerror(errno), strlen(strerror(errno)));
+    sys_write(2, "\n", 1);
   }
 
   const pid_t child = sys_clone(
       ThreadEntry, stack, CLONE_FILES | CLONE_FS | CLONE_UNTRACED,
       &thread_arg, NULL, NULL, NULL);
-
   int r, status;
   // Allow the child to ptrace us
   sys_prctl(PR_SET_PTRACER, child);
@@ -414,9 +412,9 @@ bool ExceptionHandler::GenerateDump(CrashContext *context) {
 
   if (r == -1) {
     static const char msg[] = "ExceptionHandler::GenerateDump waitpid failed:";
-    logger::write(msg, sizeof(msg) - 1);
-    logger::write(strerror(errno), strlen(strerror(errno)));
-    logger::write("\n", 1);
+    sys_write(2, msg, sizeof(msg) - 1);
+    sys_write(2, strerror(errno), strlen(strerror(errno)));
+    sys_write(2, "\n", 1);
   }
 
   bool success = r != -1 && WIFEXITED(status) && WEXITSTATUS(status) == 0;
@@ -436,9 +434,9 @@ void ExceptionHandler::SendContinueSignalToChild() {
   if(r == -1) {
     static const char msg[] = "ExceptionHandler::SendContinueSignalToChild \
                                sys_write failed:";
-    logger::write(msg, sizeof(msg) - 1);
-    logger::write(strerror(errno), strlen(strerror(errno)));
-    logger::write("\n", 1);
+    sys_write(2, msg, sizeof(msg) - 1);
+    sys_write(2, strerror(errno), strlen(strerror(errno)));
+    sys_write(2, "\n", 1);
   }
 }
 
@@ -451,9 +449,9 @@ void ExceptionHandler::WaitForContinueSignal() {
   if(r == -1) {
     static const char msg[] = "ExceptionHandler::WaitForContinueSignal \
                                sys_read failed:";
-    logger::write(msg, sizeof(msg) - 1);
-    logger::write(strerror(errno), strlen(strerror(errno)));
-    logger::write("\n", 1);
+    sys_write(2, msg, sizeof(msg) - 1);
+    sys_write(2, strerror(errno), strlen(strerror(errno)));
+    sys_write(2, "\n", 1);
   }
 }
 
@@ -469,7 +467,7 @@ bool ExceptionHandler::DoDump(pid_t crashing_process, const void* context,
 }
 
 // static
-bool ExceptionHandler::WriteMinidump(const string &dump_path,
+bool ExceptionHandler::WriteMinidump(const std::string &dump_path,
                                      MinidumpCallback callback,
                                      void* callback_context) {
   ExceptionHandler eh(dump_path, NULL, callback, callback_context, false);
@@ -497,7 +495,7 @@ bool ExceptionHandler::WriteMinidump() {
 #endif  // !defined(__ARM_EABI__)
 }
 
-void ExceptionHandler::AddMappingInfo(const string& name,
+void ExceptionHandler::AddMappingInfo(const std::string& name,
                                       const u_int8_t identifier[sizeof(MDGUID)],
                                       uintptr_t start_address,
                                       size_t mapping_size,

@@ -84,12 +84,11 @@ static const int kShutdownDelayMs = 10000;
 static const int kShutdownSleepIntervalMs = 5;
 
 static bool IsClientRequestValid(const ProtocolMessage& msg) {
-  return msg.tag == MESSAGE_TAG_UPLOAD_REQUEST ||
-         (msg.tag == MESSAGE_TAG_REGISTRATION_REQUEST &&
-          msg.id != 0 &&
-          msg.thread_id != NULL &&
-          msg.exception_pointers != NULL &&
-          msg.assert_info != NULL);
+  return msg.tag == MESSAGE_TAG_REGISTRATION_REQUEST &&
+         msg.pid != 0 &&
+         msg.thread_id != NULL &&
+         msg.exception_pointers != NULL &&
+         msg.assert_info != NULL;
 }
 
 CrashGenerationServer::CrashGenerationServer(
@@ -101,8 +100,6 @@ CrashGenerationServer::CrashGenerationServer(
     void* dump_context,
     OnClientExitedCallback exit_callback,
     void* exit_context,
-    OnClientUploadRequestCallback upload_request_callback,
-    void* upload_context,
     bool generate_dumps,
     const std::wstring* dump_path)
     : pipe_name_(pipe_name),
@@ -116,8 +113,6 @@ CrashGenerationServer::CrashGenerationServer(
       dump_context_(dump_context),
       exit_callback_(exit_callback),
       exit_context_(exit_context),
-      upload_request_callback_(upload_request_callback),
-      upload_context_(upload_context),
       generate_dumps_(generate_dumps),
       dump_generator_(NULL),
       server_state_(IPC_SERVER_STATE_UNINITIALIZED),
@@ -125,7 +120,7 @@ CrashGenerationServer::CrashGenerationServer(
       overlapped_(),
       client_info_(NULL),
       cleanup_item_count_(0) {
-  InitializeCriticalSection(&sync_);
+  InitializeCriticalSection(&clients_sync_);
 
   if (dump_path) {
     dump_generator_.reset(new MinidumpGenerator(*dump_path));
@@ -133,41 +128,38 @@ CrashGenerationServer::CrashGenerationServer(
 }
 
 CrashGenerationServer::~CrashGenerationServer() {
-  // New scope to release the lock automatically.
+  // Indicate to existing threads that server is shutting down.
+  shutting_down_ = true;
+
+  // Even if there are no current worker threads running, it is possible that
+  // an I/O request is pending on the pipe right now but not yet done. In fact,
+  // it's very likely this is the case unless we are in an ERROR state. If we
+  // don't wait for the pending I/O to be done, then when the I/O completes,
+  // it may write to invalid memory. AppVerifier will flag this problem too.
+  // So we disconnect from the pipe and then wait for the server to get into
+  // error state so that the pending I/O will fail and get cleared.
+  DisconnectNamedPipe(pipe_);
+  int num_tries = 100;
+  while (num_tries-- && server_state_ != IPC_SERVER_STATE_ERROR) {
+    Sleep(10);
+  }
+
+  // Unregister wait on the pipe.
+  if (pipe_wait_handle_) {
+    // Wait for already executing callbacks to finish.
+    UnregisterWaitEx(pipe_wait_handle_, INVALID_HANDLE_VALUE);
+  }
+
+  // Close the pipe to avoid further client connections.
+  if (pipe_) {
+    CloseHandle(pipe_);
+  }
+
+  // Request all ClientInfo objects to unregister all waits.
+  // New scope to hold the lock for the shortest time.
   {
-    AutoCriticalSection lock(&sync_);
+    AutoCriticalSection lock(&clients_sync_);
 
-    // Indicate to existing threads that server is shutting down.
-    shutting_down_ = true;
-
-    // Even if there are no current worker threads running, it is possible that
-    // an I/O request is pending on the pipe right now but not yet done.
-    // In fact, it's very likely this is the case unless we are in an ERROR
-    // state. If we don't wait for the pending I/O to be done, then when the I/O
-    // completes, it may write to invalid memory. AppVerifier will flag this
-    // problem too. So we disconnect from the pipe and then wait for the server
-    // to get into error state so that the pending I/O will fail and get
-    // cleared.
-    DisconnectNamedPipe(pipe_);
-    int num_tries = 100;
-    while (num_tries-- && server_state_ != IPC_SERVER_STATE_ERROR) {
-      lock.Release();
-      Sleep(10);
-      lock.Acquire();
-    }
-
-    // Unregister wait on the pipe.
-    if (pipe_wait_handle_) {
-      // Wait for already executing callbacks to finish.
-      UnregisterWaitEx(pipe_wait_handle_, INVALID_HANDLE_VALUE);
-    }
-
-    // Close the pipe to avoid further client connections.
-    if (pipe_) {
-      CloseHandle(pipe_);
-    }
-
-    // Request all ClientInfo objects to unregister all waits.
     std::list<ClientInfo*>::iterator iter;
     for (iter = clients_.begin(); iter != clients_.end(); ++iter) {
       ClientInfo* client_info = *iter;
@@ -188,35 +180,33 @@ CrashGenerationServer::~CrashGenerationServer() {
     }
   }
 
+  // Clean up all the ClientInfo objects.
   // New scope to hold the lock for the shortest time.
   {
-    AutoCriticalSection lock(&sync_);
+    AutoCriticalSection lock(&clients_sync_);
 
-    // Clean up all the ClientInfo objects.
     std::list<ClientInfo*>::iterator iter;
     for (iter = clients_.begin(); iter != clients_.end(); ++iter) {
       ClientInfo* client_info = *iter;
       delete client_info;
     }
-
-    if (server_alive_handle_) {
-      // Release the mutex before closing the handle so that clients requesting
-      // dumps wait for a long time for the server to generate a dump.
-      ReleaseMutex(server_alive_handle_);
-      CloseHandle(server_alive_handle_);
-    }
-
-    if (overlapped_.hEvent) {
-      CloseHandle(overlapped_.hEvent);
-    }
   }
 
-  DeleteCriticalSection(&sync_);
+  if (server_alive_handle_) {
+    // Release the mutex before closing the handle so that clients requesting
+    // dumps wait for a long time for the server to generate a dump.
+    ReleaseMutex(server_alive_handle_);
+    CloseHandle(server_alive_handle_);
+  }
+
+  if (overlapped_.hEvent) {
+    CloseHandle(overlapped_.hEvent);
+  }
+
+  DeleteCriticalSection(&clients_sync_);
 }
 
 bool CrashGenerationServer::Start() {
-  AutoCriticalSection lock(&sync_);
-
   if (server_state_ != IPC_SERVER_STATE_UNINITIALIZED) {
     return false;
   }
@@ -426,16 +416,9 @@ void CrashGenerationServer::HandleReadDoneState() {
     return;
   }
 
-  if (msg_.tag == MESSAGE_TAG_UPLOAD_REQUEST) {
-    if (upload_request_callback_)
-      upload_request_callback_(upload_context_, msg_.id);
-    EnterStateImmediately(IPC_SERVER_STATE_DISCONNECTING);
-    return;
-  }
-
   scoped_ptr<ClientInfo> client_info(
       new ClientInfo(this,
-                     msg_.id,
+                     msg_.pid,
                      msg_.dump_type,
                      msg_.thread_id,
                      msg_.exception_pointers,
@@ -599,7 +582,7 @@ void CrashGenerationServer::EnterStateImmediately(IPCServerState state) {
 bool CrashGenerationServer::PrepareReply(const ClientInfo& client_info,
                                          ProtocolMessage* reply) const {
   reply->tag = MESSAGE_TAG_REGISTRATION_RESPONSE;
-  reply->id = GetCurrentProcessId();
+  reply->pid = GetCurrentProcessId();
 
   if (CreateClientHandles(client_info, reply)) {
     return true;
@@ -687,8 +670,6 @@ bool CrashGenerationServer::RespondToClient(ClientInfo* client_info) {
 // implements the state machine described in ReadMe.txt along with the
 // helper methods HandleXXXState.
 void CrashGenerationServer::HandleConnectionRequest() {
-  AutoCriticalSection lock(&sync_);
-
   // If we are shutting doen then get into ERROR state, reset the event so more
   // workers don't run and return immediately.
   if (shutting_down_) {
@@ -775,7 +756,7 @@ bool CrashGenerationServer::AddClient(ClientInfo* client_info) {
 
   // New scope to hold the lock for the shortest time.
   {
-    AutoCriticalSection lock(&sync_);
+    AutoCriticalSection lock(&clients_sync_);
     clients_.push_back(client_info);
   }
 
@@ -843,7 +824,7 @@ void CrashGenerationServer::DoCleanup(ClientInfo* client_info) {
 
   // Start a new scope to release lock automatically.
   {
-    AutoCriticalSection lock(&sync_);
+    AutoCriticalSection lock(&clients_sync_);
     clients_.remove(client_info);
   }
 

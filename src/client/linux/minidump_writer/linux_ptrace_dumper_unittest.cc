@@ -33,13 +33,11 @@
 // This file was renamed from linux_dumper_unittest.cc and modified due
 // to LinuxDumper being splitted into two classes.
 
-#include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <unistd.h>
 #include <signal.h>
 #include <stdint.h>
-#include <string.h>
 #include <sys/mman.h>
 #include <sys/poll.h>
 #include <sys/stat.h>
@@ -49,18 +47,34 @@
 
 #include "breakpad_googletest_includes.h"
 #include "client/linux/minidump_writer/linux_ptrace_dumper.h"
-#include "client/linux/minidump_writer/minidump_writer_unittest_utils.h"
 #include "common/linux/eintr_wrapper.h"
 #include "common/linux/file_id.h"
 #include "common/linux/safe_readlink.h"
 #include "common/memory.h"
-#include "common/using_std_string.h"
 
+using std::string;
 using namespace google_breakpad;
 
 namespace {
 
 typedef testing::Test LinuxPtraceDumperTest;
+
+string GetHelperBinary() {
+  // Locate helper binary next to the current binary.
+  char self_path[PATH_MAX];
+  if (!SafeReadLink("/proc/self/exe", self_path)) {
+    return "";
+  }
+  string helper_path(self_path);
+  size_t pos = helper_path.rfind('/');
+  if (pos == string::npos) {
+    return "";
+  }
+  helper_path.erase(pos + 1);
+  helper_path += "linux_dumper_unittest_helper";
+
+  return helper_path;
+}
 
 }  // namespace
 
@@ -120,8 +134,7 @@ TEST(LinuxPtraceDumperTest, MergedMappings) {
   const size_t kPageSize = sysconf(_SC_PAGESIZE);
   const size_t kMappingSize = 3 * kPageSize;
   int fd = open(helper_path.c_str(), O_RDONLY);
-  ASSERT_NE(-1, fd) << "Failed to open file: " << helper_path
-                    << ", Error: " << strerror(errno);
+  ASSERT_NE(-1, fd);
   char* mapping =
     reinterpret_cast<char*>(mmap(NULL,
                                  kMappingSize,
@@ -203,28 +216,20 @@ TEST(LinuxPtraceDumperTest, VerifyStackReadWithMultipleThreads) {
     exit(0);
   }
   close(fds[1]);
+  // Wait for the child process to signal that it's ready.
+  struct pollfd pfd;
+  memset(&pfd, 0, sizeof(pfd));
+  pfd.fd = fds[0];
+  pfd.events = POLLIN | POLLERR;
 
-  // Wait for all child threads to indicate that they have started
-  for (int threads = 0; threads < kNumberOfThreadsInHelperProgram; threads++) {
-    struct pollfd pfd;
-    memset(&pfd, 0, sizeof(pfd));
-    pfd.fd = fds[0];
-    pfd.events = POLLIN | POLLERR;
-
-    const int r = HANDLE_EINTR(poll(&pfd, 1, 1000));
-    ASSERT_EQ(1, r);
-    ASSERT_TRUE(pfd.revents & POLLIN);
-    uint8_t junk;
-    ASSERT_EQ(read(fds[0], &junk, sizeof(junk)), sizeof(junk));
-  }
+  const int r = HANDLE_EINTR(poll(&pfd, 1, 1000));
+  ASSERT_EQ(1, r);
+  ASSERT_TRUE(pfd.revents & POLLIN);
+  uint8_t junk;
+  read(fds[0], &junk, sizeof(junk));
   close(fds[0]);
 
-  // There is a race here because we may stop a child thread before
-  // it is actually running the busy loop. Empirically this sleep
-  // is sufficient to avoid the race.
-  usleep(100000);
-
-  // Children are ready now.
+  // Child is ready now.
   LinuxPtraceDumper dumper(child_pid);
   ASSERT_TRUE(dumper.Init());
   EXPECT_EQ((size_t)kNumberOfThreadsInHelperProgram, dumper.threads().size());
@@ -251,14 +256,7 @@ TEST(LinuxPtraceDumperTest, VerifyStackReadWithMultipleThreads) {
                            4);
     EXPECT_EQ(dumper.threads()[i], one_thread_id);
   }
-  EXPECT_TRUE(dumper.ThreadsResume());
   kill(child_pid, SIGKILL);
-
-  // Reap child
-  int status;
-  ASSERT_NE(-1, HANDLE_EINTR(waitpid(child_pid, &status, 0)));
-  ASSERT_TRUE(WIFSIGNALED(status));
-  ASSERT_EQ(SIGKILL, WTERMSIG(status));
 }
 #endif
 

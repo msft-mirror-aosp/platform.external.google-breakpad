@@ -27,8 +27,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "breakpad_googletest_includes.h"
 #include "common/memory.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 using namespace google_breakpad;
 

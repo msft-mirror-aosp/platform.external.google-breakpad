@@ -37,7 +37,6 @@
 
 #include "breakpad_googletest_includes.h"
 #include "common/test_assembler.h"
-#include "common/using_std_string.h"
 #include "google_breakpad/common/minidump_format.h"
 #include "google_breakpad/processor/basic_source_line_resolver.h"
 #include "google_breakpad/processor/call_stack.h"
@@ -55,6 +54,7 @@ using google_breakpad::SystemInfo;
 using google_breakpad::test_assembler::kLittleEndian;
 using google_breakpad::test_assembler::Label;
 using google_breakpad::test_assembler::Section;
+using std::string;
 using std::vector;
 using testing::_;
 using testing::Return;
@@ -92,7 +92,9 @@ class StackwalkerAMD64Fixture {
   // Set the Breakpad symbol information that supplier should return for
   // MODULE to INFO.
   void SetModuleSymbols(MockCodeModule *module, const string &info) {
-    char *buffer = supplier.CopySymbolDataAndOwnTheCopy(info);
+    unsigned int buffer_size = info.size() + 1;
+    char *buffer = reinterpret_cast<char*>(operator new(buffer_size));
+    strcpy(buffer, info.c_str());
     EXPECT_CALL(supplier, GetCStringSymbolData(module, &system_info, _, _))
       .WillRepeatedly(DoAll(SetArgumentPointee<3>(buffer),
                             Return(MockSymbolSupplier::FOUND)));
@@ -180,7 +182,7 @@ TEST_F(GetCallerFrame, ScanWithoutSymbols) {
   stack_section.start() = 0x8000000080000000ULL;
   u_int64_t return_address1 = 0x50000000b0000100ULL;
   u_int64_t return_address2 = 0x50000000b0000900ULL;
-  Label frame1_sp, frame2_sp, frame1_rbp;
+  Label frame1_sp, frame2_sp;
   stack_section
     // frame 0
     .Append(16, 0)                      // space
@@ -196,11 +198,6 @@ TEST_F(GetCallerFrame, ScanWithoutSymbols) {
     .D64(0x40000000b0000000ULL)         // more junk
     .D64(0x50000000d0000000ULL)
 
-    .Mark(&frame1_rbp)
-    .D64(stack_section.start())         // This is in the right place to be
-                                        // a saved rbp, but it's bogus, so
-                                        // we shouldn't report it.
-
     .D64(return_address2)               // actual return address
     // frame 2
     .Mark(&frame2_sp)
@@ -209,7 +206,6 @@ TEST_F(GetCallerFrame, ScanWithoutSymbols) {
   RegionFromSection();
     
   raw_context.rip = 0x40000000c0000200ULL;
-  raw_context.rbp = frame1_rbp.Value();
   raw_context.rsp = stack_section.start().Value();
 
   StackwalkerAMD64 walker(&system_info, &raw_context, &stack_region, &modules,
@@ -226,12 +222,10 @@ TEST_F(GetCallerFrame, ScanWithoutSymbols) {
   StackFrameAMD64 *frame1 = static_cast<StackFrameAMD64 *>(frames->at(1));
   EXPECT_EQ(StackFrame::FRAME_TRUST_SCAN, frame1->trust);
   ASSERT_EQ((StackFrameAMD64::CONTEXT_VALID_RIP |
-             StackFrameAMD64::CONTEXT_VALID_RSP |
-             StackFrameAMD64::CONTEXT_VALID_RBP),
+             StackFrameAMD64::CONTEXT_VALID_RSP),
             frame1->context_validity);
   EXPECT_EQ(return_address1, frame1->context.rip);
   EXPECT_EQ(frame1_sp.Value(), frame1->context.rsp);
-  EXPECT_EQ(frame1_rbp.Value(), frame1->context.rbp);
 
   StackFrameAMD64 *frame2 = static_cast<StackFrameAMD64 *>(frames->at(2));
   EXPECT_EQ(StackFrame::FRAME_TRUST_SCAN, frame2->trust);
@@ -249,7 +243,7 @@ TEST_F(GetCallerFrame, ScanWithFunctionSymbols) {
   // lies within a function's bounds.
   stack_section.start() = 0x8000000080000000ULL;
   u_int64_t return_address = 0x50000000b0000110ULL;
-  Label frame1_sp, frame1_rbp;
+  Label frame1_sp;
 
   stack_section
     // frame 0
@@ -264,12 +258,10 @@ TEST_F(GetCallerFrame, ScanWithFunctionSymbols) {
     .D64(return_address)                // actual return address
     // frame 1
     .Mark(&frame1_sp)
-    .Append(32, 0)                      // end of stack
-    .Mark(&frame1_rbp);
+    .Append(32, 0);                     // end of stack
   RegionFromSection();
     
   raw_context.rip = 0x40000000c0000200ULL;
-  raw_context.rbp = frame1_rbp.Value();
   raw_context.rsp = stack_section.start().Value();
 
   SetModuleSymbols(&module1,
@@ -294,78 +286,11 @@ TEST_F(GetCallerFrame, ScanWithFunctionSymbols) {
   StackFrameAMD64 *frame1 = static_cast<StackFrameAMD64 *>(frames->at(1));
   EXPECT_EQ(StackFrame::FRAME_TRUST_SCAN, frame1->trust);
   ASSERT_EQ((StackFrameAMD64::CONTEXT_VALID_RIP |
-             StackFrameAMD64::CONTEXT_VALID_RSP |
-             StackFrameAMD64::CONTEXT_VALID_RBP),
+             StackFrameAMD64::CONTEXT_VALID_RSP),
             frame1->context_validity);
   EXPECT_EQ(return_address, frame1->context.rip);
   EXPECT_EQ(frame1_sp.Value(), frame1->context.rsp);
-  EXPECT_EQ(frame1_rbp.Value(), frame1->context.rbp);
   EXPECT_EQ("echidna", frame1->function_name);
-  EXPECT_EQ(0x50000000b0000100ULL, frame1->function_base);
-}
-
-TEST_F(GetCallerFrame, CallerPushedRBP) {
-  // Functions typically push their %rbp upon entry and set %rbp pointing
-  // there.  If stackwalking finds a plausible address for the next frame's
-  // %rbp directly below the return address, assume that it is indeed the
-  // next frame's %rbp.
-  stack_section.start() = 0x8000000080000000ULL;
-  u_int64_t return_address = 0x50000000b0000110ULL;
-  Label frame0_rbp, frame1_sp, frame1_rbp;
-
-  stack_section
-    // frame 0
-    .Append(16, 0)                      // space
-
-    .D64(0x40000000b0000000ULL)         // junk that's not
-    .D64(0x50000000b0000000ULL)         // a return address
-
-    .D64(0x40000000c0001000ULL)         // a couple of plausible addresses
-    .D64(0x50000000b000aaaaULL)         // that are not within functions
-
-    .Mark(&frame0_rbp)
-    .D64(frame1_rbp)                    // caller-pushed %rbp
-    .D64(return_address)                // actual return address
-    // frame 1
-    .Mark(&frame1_sp)
-    .Append(32, 0)                      // body of frame1
-    .Mark(&frame1_rbp);                 // end of stack
-  RegionFromSection();
-
-  raw_context.rip = 0x40000000c0000200ULL;
-  raw_context.rbp = frame0_rbp.Value();
-  raw_context.rsp = stack_section.start().Value();
-
-  SetModuleSymbols(&module1,
-                   // The youngest frame's function.
-                   "FUNC 100 400 10 sasquatch\n");
-  SetModuleSymbols(&module2,
-                   // The calling frame's function.
-                   "FUNC 100 400 10 yeti\n");
-
-  StackwalkerAMD64 walker(&system_info, &raw_context, &stack_region, &modules,
-                          &supplier, &resolver);
-  ASSERT_TRUE(walker.Walk(&call_stack));
-  frames = call_stack.frames();
-  ASSERT_EQ(2U, frames->size());
-
-  StackFrameAMD64 *frame0 = static_cast<StackFrameAMD64 *>(frames->at(0));
-  EXPECT_EQ(StackFrame::FRAME_TRUST_CONTEXT, frame0->trust);
-  ASSERT_EQ(StackFrameAMD64::CONTEXT_VALID_ALL, frame0->context_validity);
-  EXPECT_EQ(frame0_rbp.Value(), frame0->context.rbp);
-  EXPECT_EQ("sasquatch", frame0->function_name);
-  EXPECT_EQ(0x40000000c0000100ULL, frame0->function_base);
-
-  StackFrameAMD64 *frame1 = static_cast<StackFrameAMD64 *>(frames->at(1));
-  EXPECT_EQ(StackFrame::FRAME_TRUST_SCAN, frame1->trust);
-  ASSERT_EQ((StackFrameAMD64::CONTEXT_VALID_RIP |
-             StackFrameAMD64::CONTEXT_VALID_RSP |
-             StackFrameAMD64::CONTEXT_VALID_RBP),
-            frame1->context_validity);
-  EXPECT_EQ(return_address, frame1->context.rip);
-  EXPECT_EQ(frame1_sp.Value(), frame1->context.rsp);
-  EXPECT_EQ(frame1_rbp.Value(), frame1->context.rbp);
-  EXPECT_EQ("yeti", frame1->function_name);
   EXPECT_EQ(0x50000000b0000100ULL, frame1->function_base);
 }
 

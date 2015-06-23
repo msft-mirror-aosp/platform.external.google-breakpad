@@ -43,8 +43,6 @@
 
 #include <set>
 #include <string>
-
-#include "common/using_std_string.h"
 #include "google_breakpad/common/breakpad_types.h"
 #include "google_breakpad/processor/code_modules.h"
 #include "google_breakpad/processor/memory_region.h"
@@ -191,7 +189,7 @@ class Stackwalker {
   // A list of modules that we haven't found symbols for.  We track
   // this in order to avoid repeatedly looking them up again within
   // one minidump.
-  set<string> no_symbol_modules_;
+  set<std::string> no_symbol_modules_;
 
   // The maximum number of frames Stackwalker will walk through.
   // This defaults to 1024 to prevent infinite loops.
