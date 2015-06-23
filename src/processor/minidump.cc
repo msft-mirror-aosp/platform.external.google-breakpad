@@ -33,7 +33,9 @@
 //
 // Author: Mark Mentovai
 
+#include "google_breakpad/processor/minidump.h"
 
+#include <assert.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
@@ -49,7 +51,6 @@ typedef SSIZE_T ssize_t;
 #define O_BINARY 0
 #endif  // _WIN32
 
-#include <cassert>
 #include <fstream>
 #include <iostream>
 #include <limits>
@@ -58,7 +59,6 @@ typedef SSIZE_T ssize_t;
 
 #include "processor/range_map-inl.h"
 
-#include "google_breakpad/processor/minidump.h"
 #include "processor/basic_code_module.h"
 #include "processor/basic_code_modules.h"
 #include "processor/logging.h"
@@ -676,7 +676,7 @@ bool MinidumpContext::Read(u_int32_t expected_size) {
       }
 
       default: {
-        // Unknown context type - Don't log as an error yet. Let the 
+        // Unknown context type - Don't log as an error yet. Let the
         // caller work that out.
         BPLOG(INFO) << "MinidumpContext unknown context type " <<
           HexString(cpu_type);
@@ -1185,11 +1185,12 @@ bool MinidumpMemoryRegion::GetMemoryAtAddressInternal(u_int64_t address,
     return false;
   }
 
+  // Common failure case
   if (address < descriptor_->start_of_memory_range ||
       sizeof(T) > numeric_limits<u_int64_t>::max() - address ||
       address + sizeof(T) > descriptor_->start_of_memory_range +
                             descriptor_->memory.data_size) {
-    BPLOG(ERROR) << "MinidumpMemoryRegion request out of range: " <<
+    BPLOG(INFO) << "MinidumpMemoryRegion request out of range: " <<
                     HexString(address) << "+" << sizeof(T) << "/" <<
                     HexString(descriptor_->start_of_memory_range) << "+" <<
                     HexString(descriptor_->memory.data_size);
@@ -1482,7 +1483,7 @@ bool MinidumpThreadList::Read(u_int32_t expected_size) {
     }
   }
 
-  
+
   if (thread_count > max_threads_) {
     BPLOG(ERROR) << "MinidumpThreadList count " << thread_count <<
                     " exceeds maximum " << max_threads_;
@@ -1839,8 +1840,9 @@ string MinidumpModule::debug_file() const {
     }
   }
 
-  BPLOG_IF(ERROR, file.empty()) << "MinidumpModule could not determine "
-                                   "debug_file for " << *name_;
+  // Relatively common case
+  BPLOG_IF(INFO, file.empty()) << "MinidumpModule could not determine "
+                                  "debug_file for " << *name_;
 
   return file;
 }
@@ -1907,8 +1909,9 @@ string MinidumpModule::debug_identifier() const {
 
   // TODO(mmentovai): on the Mac, provide fallbacks as in code_identifier().
 
-  BPLOG_IF(ERROR, identifier.empty()) << "MinidumpModule could not determine "
-                                         "debug_identifier for " << *name_;
+  // Relatively common case
+  BPLOG_IF(INFO, identifier.empty()) << "MinidumpModule could not determine "
+                                        "debug_identifier for " << *name_;
 
   return identifier;
 }
@@ -2932,7 +2935,8 @@ bool MinidumpAssertion::Read(u_int32_t expected_size) {
 
     scoped_ptr<string> new_expression(UTF16ToUTF8(expression_utf16,
                                                   minidump_->swap()));
-    expression_ = *new_expression;
+    if (new_expression.get())
+      expression_ = *new_expression;
   }
   
   // assertion
@@ -2944,7 +2948,8 @@ bool MinidumpAssertion::Read(u_int32_t expected_size) {
     memcpy(&function_utf16[0], &assertion_.function[0], byte_length);
     scoped_ptr<string> new_function(UTF16ToUTF8(function_utf16,
                                                 minidump_->swap()));
-    function_ = *new_function;
+    if (new_function.get())
+      function_ = *new_function;
   }
 
   // file
@@ -2956,7 +2961,8 @@ bool MinidumpAssertion::Read(u_int32_t expected_size) {
     memcpy(&file_utf16[0], &assertion_.file[0], byte_length);
     scoped_ptr<string> new_file(UTF16ToUTF8(file_utf16,
                                             minidump_->swap()));
-    file_ = *new_file;
+    if (new_file.get())
+      file_ = *new_file;
   }
 
   if (minidump_->swap()) {

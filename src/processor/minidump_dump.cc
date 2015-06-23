@@ -32,8 +32,8 @@
 //
 // Author: Mark Mentovai
 
-#include <cstdio>
-#include <cstring>
+#include <stdio.h>
+#include <string.h>
 
 #include "google_breakpad/processor/minidump.h"
 #include "processor/logging.h"

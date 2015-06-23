@@ -37,6 +37,8 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 
+#include "third_party/lss/linux_syscall_support.h"
+
 #if defined(__ARM_EABI__)
 #define TID_PTR_REGISTER "r3"
 #elif defined(__i386)
@@ -48,7 +50,7 @@
 #endif
 
 void *thread_function(void *data) {
-  volatile pid_t thread_id = syscall(SYS_gettid);
+  volatile pid_t thread_id = syscall(__NR_gettid);
   register volatile pid_t *thread_id_ptr asm(TID_PTR_REGISTER) = &thread_id;
   while (true)
     asm volatile ("" : : "r" (thread_id_ptr));

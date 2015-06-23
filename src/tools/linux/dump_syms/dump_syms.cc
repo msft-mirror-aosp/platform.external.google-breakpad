@@ -27,27 +27,26 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include <stdio.h>
 #include <string>
-#include <cstdio>
 
 #include "common/linux/dump_symbols.h"
 
-using namespace google_breakpad;
+using google_breakpad::WriteSymbolFile;
 
 int main(int argc, char **argv) {
-  if (argc != 2 && argc != 3) {
-    fprintf(stderr, "Usage:\n\n"
-            "  For a standard ELF file with both debug info and code:\n"
-            "    %s <single-ELF>\n\n"
-            "  For a pair of ELF files split into debug info and code:\n"
-            "    %s <debug-ELF> <code-ELF>\n\n", argv[0], argv[0]);
+  if (argc < 2 || argc > 3) {
+    fprintf(stderr, "Usage: %s <binary-with-debugging-info> "
+            "[directory-for-debug-file]\n", argv[0]);
     return 1;
   }
 
-  const char *debug_file = argv[1];
-  const char *text_file = argc == 3 ? argv[2] : argv[1];
+  const char *binary = argv[1];
+  std::string debug_dir;
+  if (argc == 3)
+    debug_dir = argv[2];
 
-  if (!WriteSymbolFile(debug_file, text_file, stdout)) {
+  if (!WriteSymbolFile(binary, debug_dir, stdout)) {
     fprintf(stderr, "Failed to write symbol file.\n");
     return 1;
   }

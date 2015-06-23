@@ -27,14 +27,15 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "google_breakpad/processor/network_source_line_resolver.h"
+
+#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include <cassert>
 #include <sstream>
 #include <vector>
 
-#include "google_breakpad/processor/network_source_line_resolver.h"
 #include "google_breakpad/processor/stack_frame.h"
 #include "processor/binarystream.h"
 #include "processor/cfi_frame_info.h"
@@ -92,6 +93,13 @@ bool NetworkSourceLineResolver::LoadModule(const CodeModule *module,
 bool NetworkSourceLineResolver::LoadModuleUsingMapBuffer(
     const CodeModule *module,
     const string &map_buffer) {
+  // see above
+  return true;
+}
+
+bool NetworkSourceLineResolver::LoadModuleUsingMemoryBuffer(
+    const CodeModule *module,
+    char *memory_buffer) {
   // see above
   return true;
 }
@@ -327,6 +335,18 @@ NetworkSourceLineResolver::GetSymbolFile(const CodeModule *module,
 					 string *symbol_data) {
   if(symbol_data)
     symbol_data->clear();
+  return GetSymbolFile(module, system_info, symbol_file);
+}
+
+SymbolSupplier::SymbolResult
+NetworkSourceLineResolver::GetCStringSymbolData(
+    const CodeModule *module,
+    const SystemInfo *system_info,
+    string *symbol_file,
+    char **symbol_data) {
+  if (symbol_data)
+    delete *symbol_data;
+
   return GetSymbolFile(module, system_info, symbol_file);
 }
 

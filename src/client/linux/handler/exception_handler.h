@@ -33,9 +33,13 @@
 #include <vector>
 #include <string>
 
+#include <pthread.h>
 #include <signal.h>
 #include <stdio.h>
 
+#if defined(__ANDROID__)
+#include "client/linux/android_ucontext.h"
+#endif
 #include "client/linux/crash_generation/crash_generation_client.h"
 #include "processor/scoped_ptr.h"
 
@@ -105,7 +109,7 @@ class ExceptionHandler {
 
   // In certain cases, a user may wish to handle the generation of the minidump
   // themselves. In this case, they can install a handler callback which is
-  // called when a crash has occured. If this function returns true, no other
+  // called when a crash has occurred. If this function returns true, no other
   // processing of occurs and the process will shortly be crashed. If this
   // returns false, the normal processing continues.
   typedef bool (*HandlerCallback)(const void* crash_context,
@@ -184,6 +188,8 @@ class ExceptionHandler {
   void UninstallHandlers();
   void PreresolveSymbols();
   bool GenerateDump(CrashContext *context);
+  void SendContinueSignalToChild();
+  void WaitForContinueSignal();
 
   void UpdateNextID();
   static void SignalHandler(int sig, siginfo_t* info, void* uc);
@@ -223,6 +229,13 @@ class ExceptionHandler {
 
   // A vector of the old signal handlers.
   std::vector<std::pair<int, struct sigaction *> > old_handlers_;
+
+  // We need to explicitly enable ptrace of parent processes on some
+  // kernels, but we need to know the PID of the cloned process before we
+  // can do this. We create a pipe which we can use to block the
+  // cloned process after creating it, until we have explicitly enabled 
+  // ptrace. This is used to store the file descriptors for the pipe
+  int fdes[2];
 };
 
 }  // namespace google_breakpad

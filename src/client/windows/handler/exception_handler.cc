@@ -37,6 +37,8 @@
 #include "client/windows/handler/exception_handler.h"
 #include "common/windows/guid_string.h"
 
+typedef VOID (WINAPI *RtlCaptureContextPtr) (PCONTEXT pContextRecord);
+
 namespace google_breakpad {
 
 static const int kWaitForHandlerThreadMs = 60000;
@@ -344,7 +346,7 @@ class AutoExceptionHandler {
   AutoExceptionHandler() {
     // Increment handler_stack_index_ so that if another Breakpad handler is
     // registered using this same HandleException function, and it needs to be
-    // called while this handler is running (either becaause this handler
+    // called while this handler is running (either because this handler
     // declines to handle the exception, or an exception occurs during
     // handling), HandleException will find the appropriate ExceptionHandler
     // object in handler_stack_ to deliver the exception to.
@@ -362,7 +364,6 @@ class AutoExceptionHandler {
     handler_ = ExceptionHandler::handler_stack_->at(
         ExceptionHandler::handler_stack_->size() -
         ++ExceptionHandler::handler_stack_index_);
-    LeaveCriticalSection(&ExceptionHandler::handler_stack_critical_section_);
 
     // In case another exception occurs while this handler is doing its thing,
     // it should be delivered to the previous filter.
@@ -381,7 +382,6 @@ class AutoExceptionHandler {
 #endif  // _MSC_VER >= 1400
     _set_purecall_handler(ExceptionHandler::HandlePureVirtualCall);
 
-    EnterCriticalSection(&ExceptionHandler::handler_stack_critical_section_);
     --ExceptionHandler::handler_stack_index_;
     LeaveCriticalSection(&ExceptionHandler::handler_stack_critical_section_);
   }
@@ -488,18 +488,28 @@ void ExceptionHandler::HandleInvalidParameter(const wchar_t* expression,
   EXCEPTION_RECORD exception_record = {};
   CONTEXT exception_context = {};
   EXCEPTION_POINTERS exception_ptrs = { &exception_record, &exception_context };
-  RtlCaptureContext(&exception_context);
-  exception_record.ExceptionCode = STATUS_NONCONTINUABLE_EXCEPTION;
 
-  // We store pointers to the the expression and function strings,
-  // and the line as exception parameters to make them easy to
-  // access by the developer on the far side.
-  exception_record.NumberParameters = 3;
-  exception_record.ExceptionInformation[0] =
-      reinterpret_cast<ULONG_PTR>(&assertion.expression);
-  exception_record.ExceptionInformation[1] =
-      reinterpret_cast<ULONG_PTR>(&assertion.file);
-  exception_record.ExceptionInformation[2] = assertion.line;
+  EXCEPTION_POINTERS* exinfo = NULL;
+
+  RtlCaptureContextPtr fnRtlCaptureContext = (RtlCaptureContextPtr)
+    GetProcAddress(GetModuleHandleW(L"kernel32"), "RtlCaptureContext");
+  if (fnRtlCaptureContext) {
+    fnRtlCaptureContext(&exception_context);
+
+    exception_record.ExceptionCode = STATUS_NONCONTINUABLE_EXCEPTION;
+
+    // We store pointers to the the expression and function strings,
+    // and the line as exception parameters to make them easy to
+    // access by the developer on the far side.
+    exception_record.NumberParameters = 3;
+    exception_record.ExceptionInformation[0] =
+        reinterpret_cast<ULONG_PTR>(&assertion.expression);
+    exception_record.ExceptionInformation[1] =
+        reinterpret_cast<ULONG_PTR>(&assertion.file);
+    exception_record.ExceptionInformation[2] = assertion.line;
+
+    exinfo = &exception_ptrs;
+  }
 
   bool success = false;
   // In case of out-of-process dump generation, directly call
@@ -507,10 +517,10 @@ void ExceptionHandler::HandleInvalidParameter(const wchar_t* expression,
   if (current_handler->IsOutOfProcess()) {
     success = current_handler->WriteMinidumpWithException(
         GetCurrentThreadId(),
-        &exception_ptrs,
+        exinfo,
         &assertion);
   } else {
-    success = current_handler->WriteMinidumpOnHandlerThread(&exception_ptrs,
+    success = current_handler->WriteMinidumpOnHandlerThread(exinfo,
                                                             &assertion);
   }
 
@@ -566,18 +576,28 @@ void ExceptionHandler::HandlePureVirtualCall() {
   EXCEPTION_RECORD exception_record = {};
   CONTEXT exception_context = {};
   EXCEPTION_POINTERS exception_ptrs = { &exception_record, &exception_context };
-  RtlCaptureContext(&exception_context);
-  exception_record.ExceptionCode = STATUS_NONCONTINUABLE_EXCEPTION;
 
-  // We store pointers to the the expression and function strings,
-  // and the line as exception parameters to make them easy to
-  // access by the developer on the far side.
-  exception_record.NumberParameters = 3;
-  exception_record.ExceptionInformation[0] =
-      reinterpret_cast<ULONG_PTR>(&assertion.expression);
-  exception_record.ExceptionInformation[1] =
-      reinterpret_cast<ULONG_PTR>(&assertion.file);
-  exception_record.ExceptionInformation[2] = assertion.line;
+  EXCEPTION_POINTERS* exinfo = NULL;
+
+  RtlCaptureContextPtr fnRtlCaptureContext = (RtlCaptureContextPtr)
+    GetProcAddress(GetModuleHandleW(L"kernel32"), "RtlCaptureContext");
+  if (fnRtlCaptureContext) {
+    fnRtlCaptureContext(&exception_context);
+
+    exception_record.ExceptionCode = STATUS_NONCONTINUABLE_EXCEPTION;
+
+    // We store pointers to the the expression and function strings,
+    // and the line as exception parameters to make them easy to
+    // access by the developer on the far side.
+    exception_record.NumberParameters = 3;
+    exception_record.ExceptionInformation[0] =
+        reinterpret_cast<ULONG_PTR>(&assertion.expression);
+    exception_record.ExceptionInformation[1] =
+        reinterpret_cast<ULONG_PTR>(&assertion.file);
+    exception_record.ExceptionInformation[2] = assertion.line;
+
+    exinfo = &exception_ptrs;
+  }
 
   bool success = false;
   // In case of out-of-process dump generation, directly call
@@ -586,10 +606,10 @@ void ExceptionHandler::HandlePureVirtualCall() {
   if (current_handler->IsOutOfProcess()) {
     success = current_handler->WriteMinidumpWithException(
         GetCurrentThreadId(),
-        &exception_ptrs,
+        exinfo,
         &assertion);
   } else {
-    success = current_handler->WriteMinidumpOnHandlerThread(&exception_ptrs,
+    success = current_handler->WriteMinidumpOnHandlerThread(exinfo,
                                                             &assertion);
   }
 
