@@ -146,6 +146,7 @@ check_PROGRAMS = $(am__EXEEXT_6) $(am__EXEEXT_7) $(am__EXEEXT_8) \
 @ANDROID_HOST_TRUE@@LINUX_HOST_TRUE@	src/common/android/breakpad_getcontext.S
 
 @DISABLE_PROCESSOR_FALSE@am__append_11 = \
+@DISABLE_PROCESSOR_FALSE@	src/processor/microdump_stackwalk \
 @DISABLE_PROCESSOR_FALSE@	src/processor/minidump_dump \
 @DISABLE_PROCESSOR_FALSE@	src/processor/minidump_stackwalk
 
@@ -174,7 +175,7 @@ check_PROGRAMS = $(am__EXEEXT_6) $(am__EXEEXT_7) $(am__EXEEXT_8) \
 @DISABLE_PROCESSOR_FALSE@	src/processor/exploitability_unittest \
 @DISABLE_PROCESSOR_FALSE@	src/processor/fast_source_line_resolver_unittest \
 @DISABLE_PROCESSOR_FALSE@	src/processor/map_serializers_unittest \
-@DISABLE_PROCESSOR_FALSE@        src/processor/microdump_processor_unittest \
+@DISABLE_PROCESSOR_FALSE@	src/processor/microdump_processor_unittest \
 @DISABLE_PROCESSOR_FALSE@	src/processor/minidump_processor_unittest \
 @DISABLE_PROCESSOR_FALSE@	src/processor/minidump_unittest \
 @DISABLE_PROCESSOR_FALSE@	src/processor/static_address_map_unittest \
@@ -205,12 +206,16 @@ check_PROGRAMS = $(am__EXEEXT_6) $(am__EXEEXT_7) $(am__EXEEXT_8) \
 @DISABLE_PROCESSOR_FALSE@@SELFTEST_TRUE@am__append_20 = \
 @DISABLE_PROCESSOR_FALSE@@SELFTEST_TRUE@	src/processor/stackwalker_selftest
 
-@ANDROID_HOST_TRUE@@LINUX_HOST_TRUE@am__append_21 = src/common/android/breakpad_getcontext.S \
-@ANDROID_HOST_TRUE@@LINUX_HOST_TRUE@	src/common/android/breakpad_getcontext_unittest.cc
+@ANDROID_HOST_TRUE@@LINUX_HOST_TRUE@am__append_21 = \
+@ANDROID_HOST_TRUE@@LINUX_HOST_TRUE@	src/common/android/breakpad_getcontext.S
+
 @ANDROID_HOST_TRUE@@LINUX_HOST_TRUE@am__append_22 = \
-@ANDROID_HOST_TRUE@@LINUX_HOST_TRUE@	-llog -lm
+@ANDROID_HOST_TRUE@@LINUX_HOST_TRUE@	src/common/android/breakpad_getcontext_unittest.cc
 
 @ANDROID_HOST_TRUE@@LINUX_HOST_TRUE@am__append_23 = \
+@ANDROID_HOST_TRUE@@LINUX_HOST_TRUE@	-llog -lm
+
+@ANDROID_HOST_TRUE@@LINUX_HOST_TRUE@am__append_24 = \
 @ANDROID_HOST_TRUE@@LINUX_HOST_TRUE@        -llog
 
 noinst_PROGRAMS =
@@ -295,6 +300,7 @@ am__src_client_linux_libbreakpad_client_a_SOURCES_DIST =  \
 	src/client/linux/handler/exception_handler.cc \
 	src/client/linux/handler/minidump_descriptor.cc \
 	src/client/linux/log/log.cc \
+	src/client/linux/microdump_writer/microdump_writer.cc \
 	src/client/linux/minidump_writer/linux_dumper.cc \
 	src/client/linux/minidump_writer/linux_ptrace_dumper.cc \
 	src/client/linux/minidump_writer/minidump_writer.cc \
@@ -316,6 +322,7 @@ am__dirstamp = $(am__leading_dot)dirstamp
 @LINUX_HOST_TRUE@	src/client/linux/handler/exception_handler.$(OBJEXT) \
 @LINUX_HOST_TRUE@	src/client/linux/handler/minidump_descriptor.$(OBJEXT) \
 @LINUX_HOST_TRUE@	src/client/linux/log/log.$(OBJEXT) \
+@LINUX_HOST_TRUE@	src/client/linux/microdump_writer/microdump_writer.$(OBJEXT) \
 @LINUX_HOST_TRUE@	src/client/linux/minidump_writer/linux_dumper.$(OBJEXT) \
 @LINUX_HOST_TRUE@	src/client/linux/minidump_writer/linux_ptrace_dumper.$(OBJEXT) \
 @LINUX_HOST_TRUE@	src/client/linux/minidump_writer/minidump_writer.$(OBJEXT) \
@@ -347,6 +354,7 @@ am__src_libbreakpad_a_SOURCES_DIST =  \
 	src/google_breakpad/processor/exploitability.h \
 	src/google_breakpad/processor/fast_source_line_resolver.h \
 	src/google_breakpad/processor/memory_region.h \
+	src/google_breakpad/processor/microdump.h \
 	src/google_breakpad/processor/microdump_processor.h \
 	src/google_breakpad/processor/minidump.h \
 	src/google_breakpad/processor/minidump_processor.h \
@@ -383,7 +391,7 @@ am__src_libbreakpad_a_SOURCES_DIST =  \
 	src/processor/fast_source_line_resolver.cc \
 	src/processor/linked_ptr.h src/processor/logging.h \
 	src/processor/logging.cc src/processor/map_serializers-inl.h \
-	src/processor/map_serializers.h \
+	src/processor/map_serializers.h src/processor/microdump.cc \
 	src/processor/microdump_processor.cc src/processor/minidump.cc \
 	src/processor/minidump_processor.cc \
 	src/processor/module_comparer.cc \
@@ -447,6 +455,7 @@ am__src_libbreakpad_a_SOURCES_DIST =  \
 @DISABLE_PROCESSOR_FALSE@	src/processor/exploitability_win.$(OBJEXT) \
 @DISABLE_PROCESSOR_FALSE@	src/processor/fast_source_line_resolver.$(OBJEXT) \
 @DISABLE_PROCESSOR_FALSE@	src/processor/logging.$(OBJEXT) \
+@DISABLE_PROCESSOR_FALSE@	src/processor/microdump.$(OBJEXT) \
 @DISABLE_PROCESSOR_FALSE@	src/processor/microdump_processor.$(OBJEXT) \
 @DISABLE_PROCESSOR_FALSE@	src/processor/minidump.$(OBJEXT) \
 @DISABLE_PROCESSOR_FALSE@	src/processor/minidump_processor.$(OBJEXT) \
@@ -515,7 +524,7 @@ am__src_third_party_libdisasm_libdisasm_a_SOURCES_DIST =  \
 @DISABLE_PROCESSOR_FALSE@	src/third_party/libdisasm/x86_operand_list.$(OBJEXT)
 src_third_party_libdisasm_libdisasm_a_OBJECTS =  \
 	$(am_src_third_party_libdisasm_libdisasm_a_OBJECTS)
-@DISABLE_PROCESSOR_FALSE@am__EXEEXT_1 =  \
+@DISABLE_PROCESSOR_FALSE@am__EXEEXT_1 = src/processor/microdump_stackwalk$(EXEEXT) \
 @DISABLE_PROCESSOR_FALSE@	src/processor/minidump_dump$(EXEEXT) \
 @DISABLE_PROCESSOR_FALSE@	src/processor/minidump_stackwalk$(EXEEXT)
 @LINUX_HOST_TRUE@am__EXEEXT_2 = src/client/linux/linux_dumper_unittest_helper$(EXEEXT)
@@ -585,9 +594,10 @@ am__src_client_linux_linux_client_unittest_shlib_SOURCES_DIST =  \
 	src/processor/logging.cc src/processor/minidump.cc \
 	src/processor/pathname_stripper.cc \
 	src/common/android/breakpad_getcontext.S \
+	src/client/linux/microdump_writer/microdump_writer_unittest.cc \
 	src/common/android/breakpad_getcontext_unittest.cc
-@ANDROID_HOST_TRUE@@LINUX_HOST_TRUE@am__objects_2 = src/common/android/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext.$(OBJEXT) \
-@ANDROID_HOST_TRUE@@LINUX_HOST_TRUE@	src/common/android/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext_unittest.$(OBJEXT)
+@ANDROID_HOST_TRUE@@LINUX_HOST_TRUE@am__objects_2 = src/common/android/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext.$(OBJEXT)
+@ANDROID_HOST_TRUE@@LINUX_HOST_TRUE@am__objects_3 = src/common/android/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext_unittest.$(OBJEXT)
 @LINUX_HOST_TRUE@am_src_client_linux_linux_client_unittest_shlib_OBJECTS = src/client/linux/handler/src_client_linux_linux_client_unittest_shlib-exception_handler_unittest.$(OBJEXT) \
 @LINUX_HOST_TRUE@	src/client/linux/minidump_writer/src_client_linux_linux_client_unittest_shlib-directory_reader_unittest.$(OBJEXT) \
 @LINUX_HOST_TRUE@	src/client/linux/minidump_writer/src_client_linux_linux_client_unittest_shlib-cpu_set_unittest.$(OBJEXT) \
@@ -612,7 +622,9 @@ am__src_client_linux_linux_client_unittest_shlib_SOURCES_DIST =  \
 @LINUX_HOST_TRUE@	src/processor/src_client_linux_linux_client_unittest_shlib-logging.$(OBJEXT) \
 @LINUX_HOST_TRUE@	src/processor/src_client_linux_linux_client_unittest_shlib-minidump.$(OBJEXT) \
 @LINUX_HOST_TRUE@	src/processor/src_client_linux_linux_client_unittest_shlib-pathname_stripper.$(OBJEXT) \
-@LINUX_HOST_TRUE@	$(am__objects_2)
+@LINUX_HOST_TRUE@	$(am__objects_2) \
+@LINUX_HOST_TRUE@	src/client/linux/microdump_writer/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.$(OBJEXT) \
+@LINUX_HOST_TRUE@	$(am__objects_3)
 src_client_linux_linux_client_unittest_shlib_OBJECTS =  \
 	$(am_src_client_linux_linux_client_unittest_shlib_OBJECTS)
 am__DEPENDENCIES_1 =
@@ -848,10 +860,10 @@ src_processor_exploitability_unittest_OBJECTS =  \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stack_frame_cpu.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stack_frame_symbolizer.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_address_list.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_amd64.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_arm.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_arm64.o \
-@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_address_list.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_mips.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_ppc.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_ppc64.o \
@@ -904,8 +916,69 @@ am__src_processor_microdump_processor_unittest_SOURCES_DIST =  \
 src_processor_microdump_processor_unittest_OBJECTS =  \
 	$(am_src_processor_microdump_processor_unittest_OBJECTS)
 @DISABLE_PROCESSOR_FALSE@src_processor_microdump_processor_unittest_DEPENDENCIES =  \
+@DISABLE_PROCESSOR_FALSE@	src/processor/basic_code_modules.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/basic_source_line_resolver.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/call_stack.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/cfi_frame_info.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/dump_context.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/dump_object.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/logging.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/microdump.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/microdump_processor.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/pathname_stripper.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/process_state.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/simple_symbol_supplier.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/source_line_resolver_base.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stack_frame_symbolizer.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_address_list.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_amd64.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_arm.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_arm64.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_mips.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_ppc.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_ppc64.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_sparc.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_x86.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/tokenize.o \
 @DISABLE_PROCESSOR_FALSE@	$(am__DEPENDENCIES_1) \
 @DISABLE_PROCESSOR_FALSE@	$(am__DEPENDENCIES_1)
+am__src_processor_microdump_stackwalk_SOURCES_DIST =  \
+	src/processor/microdump_stackwalk.cc
+@DISABLE_PROCESSOR_FALSE@am_src_processor_microdump_stackwalk_OBJECTS = src/processor/microdump_stackwalk.$(OBJEXT)
+src_processor_microdump_stackwalk_OBJECTS =  \
+	$(am_src_processor_microdump_stackwalk_OBJECTS)
+@DISABLE_PROCESSOR_FALSE@src_processor_microdump_stackwalk_DEPENDENCIES =  \
+@DISABLE_PROCESSOR_FALSE@	src/processor/basic_code_modules.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/basic_source_line_resolver.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/binarystream.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/call_stack.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/cfi_frame_info.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/disassembler_x86.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/dump_context.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/dump_object.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/logging.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/microdump.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/microdump_processor.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/pathname_stripper.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/process_state.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/simple_symbol_supplier.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/source_line_resolver_base.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stack_frame_cpu.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stack_frame_symbolizer.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalk_common.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_address_list.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_amd64.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_arm.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_arm64.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_mips.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_ppc.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_ppc64.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_sparc.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_x86.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/tokenize.o \
+@DISABLE_PROCESSOR_FALSE@	src/third_party/libdisasm/libdisasm.a
 am__src_processor_minidump_dump_SOURCES_DIST =  \
 	src/processor/minidump_dump.cc
 @DISABLE_PROCESSOR_FALSE@am_src_processor_minidump_dump_OBJECTS = src/processor/minidump_dump.$(OBJEXT)
@@ -947,10 +1020,10 @@ src_processor_minidump_processor_unittest_OBJECTS =  \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stack_frame_cpu.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stack_frame_symbolizer.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_address_list.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_amd64.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_arm.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_arm64.o \
-@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_address_list.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_mips.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_ppc.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_ppc64.o \
@@ -986,11 +1059,12 @@ src_processor_minidump_stackwalk_OBJECTS =  \
 @DISABLE_PROCESSOR_FALSE@	src/processor/source_line_resolver_base.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stack_frame_cpu.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stack_frame_symbolizer.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalk_common.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_address_list.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_amd64.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_arm.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_arm64.o \
-@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_address_list.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_mips.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_ppc.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_ppc64.o \
@@ -1156,10 +1230,10 @@ src_processor_stackwalker_selftest_OBJECTS =  \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stack_frame_cpu.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stack_frame_symbolizer.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_address_list.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_amd64.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_arm.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_arm64.o \
-@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_address_list.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_mips.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_ppc.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_ppc64.o \
@@ -1412,6 +1486,7 @@ SOURCES = $(src_client_linux_libbreakpad_client_a_SOURCES) \
 	$(src_processor_fast_source_line_resolver_unittest_SOURCES) \
 	$(src_processor_map_serializers_unittest_SOURCES) \
 	$(src_processor_microdump_processor_unittest_SOURCES) \
+	$(src_processor_microdump_stackwalk_SOURCES) \
 	$(src_processor_minidump_dump_SOURCES) \
 	$(src_processor_minidump_processor_unittest_SOURCES) \
 	$(src_processor_minidump_stackwalk_SOURCES) \
@@ -1456,6 +1531,7 @@ DIST_SOURCES =  \
 	$(am__src_processor_fast_source_line_resolver_unittest_SOURCES_DIST) \
 	$(am__src_processor_map_serializers_unittest_SOURCES_DIST) \
 	$(am__src_processor_microdump_processor_unittest_SOURCES_DIST) \
+	$(am__src_processor_microdump_stackwalk_SOURCES_DIST) \
 	$(am__src_processor_minidump_dump_SOURCES_DIST) \
 	$(am__src_processor_minidump_processor_unittest_SOURCES_DIST) \
 	$(am__src_processor_minidump_stackwalk_SOURCES_DIST) \
@@ -1867,6 +1943,7 @@ lib_LIBRARIES = $(am__append_5) $(am__append_8)
 @LINUX_HOST_TRUE@	src/client/linux/handler/exception_handler.cc \
 @LINUX_HOST_TRUE@	src/client/linux/handler/minidump_descriptor.cc \
 @LINUX_HOST_TRUE@	src/client/linux/log/log.cc \
+@LINUX_HOST_TRUE@	src/client/linux/microdump_writer/microdump_writer.cc \
 @LINUX_HOST_TRUE@	src/client/linux/minidump_writer/linux_dumper.cc \
 @LINUX_HOST_TRUE@	src/client/linux/minidump_writer/linux_ptrace_dumper.cc \
 @LINUX_HOST_TRUE@	src/client/linux/minidump_writer/minidump_writer.cc \
@@ -1893,7 +1970,8 @@ lib_LIBRARIES = $(am__append_5) $(am__append_8)
 @DISABLE_PROCESSOR_FALSE@	src/google_breakpad/processor/exploitability.h \
 @DISABLE_PROCESSOR_FALSE@	src/google_breakpad/processor/fast_source_line_resolver.h \
 @DISABLE_PROCESSOR_FALSE@	src/google_breakpad/processor/memory_region.h \
-@DISABLE_PROCESSOR_FALSE@        src/google_breakpad/processor/microdump_processor.h \
+@DISABLE_PROCESSOR_FALSE@	src/google_breakpad/processor/microdump.h \
+@DISABLE_PROCESSOR_FALSE@	src/google_breakpad/processor/microdump_processor.h \
 @DISABLE_PROCESSOR_FALSE@	src/google_breakpad/processor/minidump.h \
 @DISABLE_PROCESSOR_FALSE@	src/google_breakpad/processor/minidump_processor.h \
 @DISABLE_PROCESSOR_FALSE@	src/google_breakpad/processor/process_result.h \
@@ -1936,7 +2014,8 @@ lib_LIBRARIES = $(am__append_5) $(am__append_8)
 @DISABLE_PROCESSOR_FALSE@	src/processor/logging.cc \
 @DISABLE_PROCESSOR_FALSE@	src/processor/map_serializers-inl.h \
 @DISABLE_PROCESSOR_FALSE@	src/processor/map_serializers.h \
-@DISABLE_PROCESSOR_FALSE@        src/processor/microdump_processor.cc \
+@DISABLE_PROCESSOR_FALSE@	src/processor/microdump.cc \
+@DISABLE_PROCESSOR_FALSE@	src/processor/microdump_processor.cc \
 @DISABLE_PROCESSOR_FALSE@	src/processor/minidump.cc \
 @DISABLE_PROCESSOR_FALSE@	src/processor/minidump_processor.cc \
 @DISABLE_PROCESSOR_FALSE@	src/processor/module_comparer.cc \
@@ -2022,6 +2101,8 @@ lib_LIBRARIES = $(am__append_5) $(am__append_8)
 @DISABLE_PROCESSOR_FALSE@	src/third_party/libdisasm/x86_operand_list.h
 
 @DISABLE_PROCESSOR_FALSE@check_SCRIPTS = \
+@DISABLE_PROCESSOR_FALSE@	src/processor/microdump_stackwalk_test \
+@DISABLE_PROCESSOR_FALSE@	src/processor/microdump_stackwalk_machine_readable_test \
 @DISABLE_PROCESSOR_FALSE@	src/processor/minidump_dump_test \
 @DISABLE_PROCESSOR_FALSE@	src/processor/minidump_stackwalk_test \
 @DISABLE_PROCESSOR_FALSE@	src/processor/minidump_stackwalk_machine_readable_test
@@ -2068,7 +2149,9 @@ TESTS = $(check_PROGRAMS) $(check_SCRIPTS)
 @LINUX_HOST_TRUE@	src/processor/logging.cc \
 @LINUX_HOST_TRUE@	src/processor/minidump.cc \
 @LINUX_HOST_TRUE@	src/processor/pathname_stripper.cc \
-@LINUX_HOST_TRUE@	$(am__append_21)
+@LINUX_HOST_TRUE@	$(am__append_21) \
+@LINUX_HOST_TRUE@	src/client/linux/microdump_writer/microdump_writer_unittest.cc \
+@LINUX_HOST_TRUE@	$(am__append_22)
 @LINUX_HOST_TRUE@src_client_linux_linux_client_unittest_shlib_CPPFLAGS = \
 @LINUX_HOST_TRUE@	-I$(top_srcdir)/src \
 @LINUX_HOST_TRUE@	-I$(top_srcdir)/src/testing/include \
@@ -2078,7 +2161,7 @@ TESTS = $(check_PROGRAMS) $(check_SCRIPTS)
 
 @LINUX_HOST_TRUE@src_client_linux_linux_client_unittest_shlib_LDFLAGS =  \
 @LINUX_HOST_TRUE@	-shared -Wl,-h,linux_client_unittest_shlib \
-@LINUX_HOST_TRUE@	$(am__append_22)
+@LINUX_HOST_TRUE@	$(am__append_23)
 @LINUX_HOST_TRUE@src_client_linux_linux_client_unittest_shlib_LDADD = \
 @LINUX_HOST_TRUE@	src/client/linux/crash_generation/crash_generation_client.o \
 @LINUX_HOST_TRUE@	src/client/linux/dump_writer_common/seccomp_unwinder.o \
@@ -2087,6 +2170,7 @@ TESTS = $(check_PROGRAMS) $(check_SCRIPTS)
 @LINUX_HOST_TRUE@	src/client/linux/handler/exception_handler.o \
 @LINUX_HOST_TRUE@	src/client/linux/handler/minidump_descriptor.o \
 @LINUX_HOST_TRUE@	src/client/linux/log/log.o \
+@LINUX_HOST_TRUE@	src/client/linux/microdump_writer/microdump_writer.o \
 @LINUX_HOST_TRUE@	src/client/linux/minidump_writer/linux_dumper.o \
 @LINUX_HOST_TRUE@	src/client/linux/minidump_writer/linux_ptrace_dumper.o \
 @LINUX_HOST_TRUE@	src/client/linux/minidump_writer/minidump_writer.o \
@@ -2109,7 +2193,7 @@ TESTS = $(check_PROGRAMS) $(check_SCRIPTS)
 
 @LINUX_HOST_TRUE@src_client_linux_linux_client_unittest_SOURCES = 
 @LINUX_HOST_TRUE@src_client_linux_linux_client_unittest_LDFLAGS =  \
-@LINUX_HOST_TRUE@	-Wl,-rpath,'$$ORIGIN' $(am__append_23)
+@LINUX_HOST_TRUE@	-Wl,-rpath,'$$ORIGIN' $(am__append_24)
 @LINUX_HOST_TRUE@src_client_linux_linux_client_unittest_LDADD = \
 @LINUX_HOST_TRUE@	src/client/linux/linux_client_unittest_shlib
 
@@ -2336,10 +2420,10 @@ TESTS = $(check_PROGRAMS) $(check_SCRIPTS)
 @DISABLE_PROCESSOR_FALSE@	src/processor/stack_frame_cpu.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stack_frame_symbolizer.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_address_list.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_amd64.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_arm.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_arm64.o \
-@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_address_list.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_mips.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_ppc.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_ppc64.o \
@@ -2409,19 +2493,44 @@ TESTS = $(check_PROGRAMS) $(check_SCRIPTS)
 @DISABLE_PROCESSOR_FALSE@	$(PTHREAD_CFLAGS) $(PTHREAD_LIBS)
 
 @DISABLE_PROCESSOR_FALSE@src_processor_microdump_processor_unittest_SOURCES = \
-@DISABLE_PROCESSOR_FALSE@  src/processor/microdump_processor_unittest.cc \
-@DISABLE_PROCESSOR_FALSE@  src/testing/gtest/src/gtest-all.cc \
-@DISABLE_PROCESSOR_FALSE@  src/testing/src/gmock-all.cc
+@DISABLE_PROCESSOR_FALSE@	src/processor/microdump_processor_unittest.cc \
+@DISABLE_PROCESSOR_FALSE@	src/testing/gtest/src/gtest-all.cc \
+@DISABLE_PROCESSOR_FALSE@	src/testing/src/gmock-all.cc
 
 @DISABLE_PROCESSOR_FALSE@src_processor_microdump_processor_unittest_CPPFLAGS = \
-@DISABLE_PROCESSOR_FALSE@  -I$(top_srcdir)/src \
-@DISABLE_PROCESSOR_FALSE@  -I$(top_srcdir)/src/testing/include \
-@DISABLE_PROCESSOR_FALSE@  -I$(top_srcdir)/src/testing/gtest/include \
-@DISABLE_PROCESSOR_FALSE@  -I$(top_srcdir)/src/testing/gtest \
-@DISABLE_PROCESSOR_FALSE@  -I$(top_srcdir)/src/testing
+@DISABLE_PROCESSOR_FALSE@	-I$(top_srcdir)/src \
+@DISABLE_PROCESSOR_FALSE@	-I$(top_srcdir)/src/testing/include \
+@DISABLE_PROCESSOR_FALSE@	-I$(top_srcdir)/src/testing/gtest/include \
+@DISABLE_PROCESSOR_FALSE@	-I$(top_srcdir)/src/testing/gtest \
+@DISABLE_PROCESSOR_FALSE@	-I$(top_srcdir)/src/testing
 
 @DISABLE_PROCESSOR_FALSE@src_processor_microdump_processor_unittest_LDADD = \
-@DISABLE_PROCESSOR_FALSE@  $(PTHREAD_CFLAGS) $(PTHREAD_LIBS)
+@DISABLE_PROCESSOR_FALSE@	src/processor/basic_code_modules.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/basic_source_line_resolver.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/call_stack.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/cfi_frame_info.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/dump_context.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/dump_object.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/logging.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/microdump.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/microdump_processor.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/pathname_stripper.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/process_state.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/simple_symbol_supplier.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/source_line_resolver_base.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stack_frame_symbolizer.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_address_list.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_amd64.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_arm.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_arm64.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_mips.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_ppc.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_ppc64.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_sparc.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_x86.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/tokenize.o \
+@DISABLE_PROCESSOR_FALSE@  	$(PTHREAD_CFLAGS) $(PTHREAD_LIBS)
 
 @DISABLE_PROCESSOR_FALSE@src_processor_minidump_processor_unittest_SOURCES = \
 @DISABLE_PROCESSOR_FALSE@	src/processor/minidump_processor_unittest.cc \
@@ -2455,10 +2564,10 @@ TESTS = $(check_PROGRAMS) $(check_SCRIPTS)
 @DISABLE_PROCESSOR_FALSE@	src/processor/stack_frame_cpu.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stack_frame_symbolizer.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_address_list.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_amd64.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_arm.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_arm64.o \
-@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_address_list.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_mips.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_ppc.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_ppc64.o \
@@ -2601,10 +2710,10 @@ TESTS = $(check_PROGRAMS) $(check_SCRIPTS)
 @DISABLE_PROCESSOR_FALSE@	src/processor/stack_frame_cpu.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stack_frame_symbolizer.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_address_list.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_amd64.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_arm.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_arm64.o \
-@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_address_list.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_mips.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_ppc.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_ppc64.o \
@@ -2767,6 +2876,41 @@ TESTS = $(check_PROGRAMS) $(check_SCRIPTS)
 @DISABLE_PROCESSOR_FALSE@	src/processor/minidump.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/pathname_stripper.o
 
+@DISABLE_PROCESSOR_FALSE@src_processor_microdump_stackwalk_SOURCES = \
+@DISABLE_PROCESSOR_FALSE@	src/processor/microdump_stackwalk.cc
+
+@DISABLE_PROCESSOR_FALSE@src_processor_microdump_stackwalk_LDADD = \
+@DISABLE_PROCESSOR_FALSE@	src/processor/basic_code_modules.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/basic_source_line_resolver.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/binarystream.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/call_stack.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/cfi_frame_info.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/disassembler_x86.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/dump_context.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/dump_object.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/logging.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/microdump.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/microdump_processor.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/pathname_stripper.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/process_state.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/simple_symbol_supplier.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/source_line_resolver_base.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stack_frame_cpu.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stack_frame_symbolizer.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalk_common.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_address_list.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_amd64.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_arm.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_arm64.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_mips.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_ppc.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_ppc64.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_sparc.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_x86.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/tokenize.o \
+@DISABLE_PROCESSOR_FALSE@	src/third_party/libdisasm/libdisasm.a
+
 @DISABLE_PROCESSOR_FALSE@src_processor_minidump_stackwalk_SOURCES = \
 @DISABLE_PROCESSOR_FALSE@	src/processor/minidump_stackwalk.cc
 
@@ -2791,11 +2935,12 @@ TESTS = $(check_PROGRAMS) $(check_SCRIPTS)
 @DISABLE_PROCESSOR_FALSE@	src/processor/source_line_resolver_base.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stack_frame_cpu.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stack_frame_symbolizer.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalk_common.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker.o \
+@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_address_list.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_amd64.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_arm.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_arm64.o \
-@DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_address_list.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_mips.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_ppc.o \
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_ppc64.o \
@@ -3082,6 +3227,15 @@ src/client/linux/log/$(DEPDIR)/$(am__dirstamp):
 src/client/linux/log/log.$(OBJEXT):  \
 	src/client/linux/log/$(am__dirstamp) \
 	src/client/linux/log/$(DEPDIR)/$(am__dirstamp)
+src/client/linux/microdump_writer/$(am__dirstamp):
+	@$(MKDIR_P) src/client/linux/microdump_writer
+	@: > src/client/linux/microdump_writer/$(am__dirstamp)
+src/client/linux/microdump_writer/$(DEPDIR)/$(am__dirstamp):
+	@$(MKDIR_P) src/client/linux/microdump_writer/$(DEPDIR)
+	@: > src/client/linux/microdump_writer/$(DEPDIR)/$(am__dirstamp)
+src/client/linux/microdump_writer/microdump_writer.$(OBJEXT):  \
+	src/client/linux/microdump_writer/$(am__dirstamp) \
+	src/client/linux/microdump_writer/$(DEPDIR)/$(am__dirstamp)
 src/client/linux/minidump_writer/$(am__dirstamp):
 	@$(MKDIR_P) src/client/linux/minidump_writer
 	@: > src/client/linux/minidump_writer/$(am__dirstamp)
@@ -3193,6 +3347,8 @@ src/processor/fast_source_line_resolver.$(OBJEXT):  \
 	src/processor/$(am__dirstamp) \
 	src/processor/$(DEPDIR)/$(am__dirstamp)
 src/processor/logging.$(OBJEXT): src/processor/$(am__dirstamp) \
+	src/processor/$(DEPDIR)/$(am__dirstamp)
+src/processor/microdump.$(OBJEXT): src/processor/$(am__dirstamp) \
 	src/processor/$(DEPDIR)/$(am__dirstamp)
 src/processor/microdump_processor.$(OBJEXT):  \
 	src/processor/$(am__dirstamp) \
@@ -3468,6 +3624,9 @@ src/processor/src_client_linux_linux_client_unittest_shlib-pathname_stripper.$(O
 src/common/android/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext.$(OBJEXT):  \
 	src/common/android/$(am__dirstamp) \
 	src/common/android/$(DEPDIR)/$(am__dirstamp)
+src/client/linux/microdump_writer/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.$(OBJEXT):  \
+	src/client/linux/microdump_writer/$(am__dirstamp) \
+	src/client/linux/microdump_writer/$(DEPDIR)/$(am__dirstamp)
 src/common/android/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext_unittest.$(OBJEXT):  \
 	src/common/android/$(am__dirstamp) \
 	src/common/android/$(DEPDIR)/$(am__dirstamp)
@@ -3776,6 +3935,13 @@ src/testing/src/src_processor_microdump_processor_unittest-gmock-all.$(OBJEXT): 
 src/processor/microdump_processor_unittest$(EXEEXT): $(src_processor_microdump_processor_unittest_OBJECTS) $(src_processor_microdump_processor_unittest_DEPENDENCIES) $(EXTRA_src_processor_microdump_processor_unittest_DEPENDENCIES) src/processor/$(am__dirstamp)
 	@rm -f src/processor/microdump_processor_unittest$(EXEEXT)
 	$(AM_V_CXXLD)$(CXXLINK) $(src_processor_microdump_processor_unittest_OBJECTS) $(src_processor_microdump_processor_unittest_LDADD) $(LIBS)
+src/processor/microdump_stackwalk.$(OBJEXT):  \
+	src/processor/$(am__dirstamp) \
+	src/processor/$(DEPDIR)/$(am__dirstamp)
+
+src/processor/microdump_stackwalk$(EXEEXT): $(src_processor_microdump_stackwalk_OBJECTS) $(src_processor_microdump_stackwalk_DEPENDENCIES) $(EXTRA_src_processor_microdump_stackwalk_DEPENDENCIES) src/processor/$(am__dirstamp)
+	@rm -f src/processor/microdump_stackwalk$(EXEEXT)
+	$(AM_V_CXXLD)$(CXXLINK) $(src_processor_microdump_stackwalk_OBJECTS) $(src_processor_microdump_stackwalk_LDADD) $(LIBS)
 src/processor/minidump_dump.$(OBJEXT): src/processor/$(am__dirstamp) \
 	src/processor/$(DEPDIR)/$(am__dirstamp)
 
@@ -4163,6 +4329,7 @@ mostlyclean-compile:
 	-rm -f src/client/linux/dump_writer_common/*.$(OBJEXT)
 	-rm -f src/client/linux/handler/*.$(OBJEXT)
 	-rm -f src/client/linux/log/*.$(OBJEXT)
+	-rm -f src/client/linux/microdump_writer/*.$(OBJEXT)
 	-rm -f src/client/linux/minidump_writer/*.$(OBJEXT)
 	-rm -f src/common/*.$(OBJEXT)
 	-rm -f src/common/android/*.$(OBJEXT)
@@ -4192,6 +4359,8 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/client/linux/handler/$(DEPDIR)/minidump_descriptor.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/client/linux/handler/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-exception_handler_unittest.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/client/linux/log/$(DEPDIR)/log.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/client/linux/microdump_writer/$(DEPDIR)/microdump_writer.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/client/linux/microdump_writer/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/client/linux/minidump_writer/$(DEPDIR)/linux_core_dumper.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/client/linux/minidump_writer/$(DEPDIR)/linux_dumper.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/client/linux/minidump_writer/$(DEPDIR)/linux_ptrace_dumper.Po@am__quote@
@@ -4306,7 +4475,9 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/processor/$(DEPDIR)/exploitability_win.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/processor/$(DEPDIR)/fast_source_line_resolver.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/processor/$(DEPDIR)/logging.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/processor/$(DEPDIR)/microdump.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/processor/$(DEPDIR)/microdump_processor.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/processor/$(DEPDIR)/microdump_stackwalk.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/processor/$(DEPDIR)/minidump.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/processor/$(DEPDIR)/minidump_dump.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/processor/$(DEPDIR)/minidump_processor.Po@am__quote@
@@ -4846,6 +5017,20 @@ src/processor/src_client_linux_linux_client_unittest_shlib-pathname_stripper.obj
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/processor/pathname_stripper.cc' object='src/processor/src_client_linux_linux_client_unittest_shlib-pathname_stripper.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_client_linux_linux_client_unittest_shlib_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o src/processor/src_client_linux_linux_client_unittest_shlib-pathname_stripper.obj `if test -f 'src/processor/pathname_stripper.cc'; then $(CYGPATH_W) 'src/processor/pathname_stripper.cc'; else $(CYGPATH_W) '$(srcdir)/src/processor/pathname_stripper.cc'; fi`
+
+src/client/linux/microdump_writer/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.o: src/client/linux/microdump_writer/microdump_writer_unittest.cc
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_client_linux_linux_client_unittest_shlib_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT src/client/linux/microdump_writer/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.o -MD -MP -MF src/client/linux/microdump_writer/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.Tpo -c -o src/client/linux/microdump_writer/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.o `test -f 'src/client/linux/microdump_writer/microdump_writer_unittest.cc' || echo '$(srcdir)/'`src/client/linux/microdump_writer/microdump_writer_unittest.cc
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/client/linux/microdump_writer/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.Tpo src/client/linux/microdump_writer/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/client/linux/microdump_writer/microdump_writer_unittest.cc' object='src/client/linux/microdump_writer/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_client_linux_linux_client_unittest_shlib_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o src/client/linux/microdump_writer/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.o `test -f 'src/client/linux/microdump_writer/microdump_writer_unittest.cc' || echo '$(srcdir)/'`src/client/linux/microdump_writer/microdump_writer_unittest.cc
+
+src/client/linux/microdump_writer/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.obj: src/client/linux/microdump_writer/microdump_writer_unittest.cc
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_client_linux_linux_client_unittest_shlib_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT src/client/linux/microdump_writer/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.obj -MD -MP -MF src/client/linux/microdump_writer/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.Tpo -c -o src/client/linux/microdump_writer/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.obj `if test -f 'src/client/linux/microdump_writer/microdump_writer_unittest.cc'; then $(CYGPATH_W) 'src/client/linux/microdump_writer/microdump_writer_unittest.cc'; else $(CYGPATH_W) '$(srcdir)/src/client/linux/microdump_writer/microdump_writer_unittest.cc'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/client/linux/microdump_writer/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.Tpo src/client/linux/microdump_writer/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/client/linux/microdump_writer/microdump_writer_unittest.cc' object='src/client/linux/microdump_writer/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_client_linux_linux_client_unittest_shlib_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o src/client/linux/microdump_writer/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.obj `if test -f 'src/client/linux/microdump_writer/microdump_writer_unittest.cc'; then $(CYGPATH_W) 'src/client/linux/microdump_writer/microdump_writer_unittest.cc'; else $(CYGPATH_W) '$(srcdir)/src/client/linux/microdump_writer/microdump_writer_unittest.cc'; fi`
 
 src/common/android/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext_unittest.o: src/common/android/breakpad_getcontext_unittest.cc
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_client_linux_linux_client_unittest_shlib_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT src/common/android/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext_unittest.o -MD -MP -MF src/common/android/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext_unittest.Tpo -c -o src/common/android/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext_unittest.o `test -f 'src/common/android/breakpad_getcontext_unittest.cc' || echo '$(srcdir)/'`src/common/android/breakpad_getcontext_unittest.cc
@@ -7448,6 +7633,20 @@ src/processor/stackwalker_selftest.log: src/processor/stackwalker_selftest$(EXEE
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
 	"$$tst" $(AM_TESTS_FD_REDIRECT)
+src/processor/microdump_stackwalk_test.log: src/processor/microdump_stackwalk_test
+	@p='src/processor/microdump_stackwalk_test'; \
+	b='src/processor/microdump_stackwalk_test'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+src/processor/microdump_stackwalk_machine_readable_test.log: src/processor/microdump_stackwalk_machine_readable_test
+	@p='src/processor/microdump_stackwalk_machine_readable_test'; \
+	b='src/processor/microdump_stackwalk_machine_readable_test'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
 src/processor/minidump_dump_test.log: src/processor/minidump_dump_test
 	@p='src/processor/minidump_dump_test'; \
 	b='src/processor/minidump_dump_test'; \
@@ -7698,6 +7897,8 @@ distclean-generic:
 	-rm -f src/client/linux/handler/$(am__dirstamp)
 	-rm -f src/client/linux/log/$(DEPDIR)/$(am__dirstamp)
 	-rm -f src/client/linux/log/$(am__dirstamp)
+	-rm -f src/client/linux/microdump_writer/$(DEPDIR)/$(am__dirstamp)
+	-rm -f src/client/linux/microdump_writer/$(am__dirstamp)
 	-rm -f src/client/linux/minidump_writer/$(DEPDIR)/$(am__dirstamp)
 	-rm -f src/client/linux/minidump_writer/$(am__dirstamp)
 	-rm -f src/common/$(DEPDIR)/$(am__dirstamp)
@@ -7740,7 +7941,7 @@ clean-am: clean-binPROGRAMS clean-checkPROGRAMS clean-generic \
 
 distclean: distclean-am
 	-rm -f $(am__CONFIG_DISTCLEAN_FILES)
-	-rm -rf src/client/$(DEPDIR) src/client/linux/crash_generation/$(DEPDIR) src/client/linux/dump_writer_common/$(DEPDIR) src/client/linux/handler/$(DEPDIR) src/client/linux/log/$(DEPDIR) src/client/linux/minidump_writer/$(DEPDIR) src/common/$(DEPDIR) src/common/android/$(DEPDIR) src/common/dwarf/$(DEPDIR) src/common/linux/$(DEPDIR) src/common/linux/tests/$(DEPDIR) src/common/tests/$(DEPDIR) src/processor/$(DEPDIR) src/testing/gtest/src/$(DEPDIR) src/testing/src/$(DEPDIR) src/third_party/libdisasm/$(DEPDIR) src/tools/linux/core2md/$(DEPDIR) src/tools/linux/dump_syms/$(DEPDIR) src/tools/linux/md2core/$(DEPDIR) src/tools/linux/symupload/$(DEPDIR)
+	-rm -rf src/client/$(DEPDIR) src/client/linux/crash_generation/$(DEPDIR) src/client/linux/dump_writer_common/$(DEPDIR) src/client/linux/handler/$(DEPDIR) src/client/linux/log/$(DEPDIR) src/client/linux/microdump_writer/$(DEPDIR) src/client/linux/minidump_writer/$(DEPDIR) src/common/$(DEPDIR) src/common/android/$(DEPDIR) src/common/dwarf/$(DEPDIR) src/common/linux/$(DEPDIR) src/common/linux/tests/$(DEPDIR) src/common/tests/$(DEPDIR) src/processor/$(DEPDIR) src/testing/gtest/src/$(DEPDIR) src/testing/src/$(DEPDIR) src/third_party/libdisasm/$(DEPDIR) src/tools/linux/core2md/$(DEPDIR) src/tools/linux/dump_syms/$(DEPDIR) src/tools/linux/md2core/$(DEPDIR) src/tools/linux/symupload/$(DEPDIR)
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-hdr distclean-tags
@@ -7792,7 +7993,7 @@ installcheck-am:
 maintainer-clean: maintainer-clean-am
 	-rm -f $(am__CONFIG_DISTCLEAN_FILES)
 	-rm -rf $(top_srcdir)/autom4te.cache
-	-rm -rf src/client/$(DEPDIR) src/client/linux/crash_generation/$(DEPDIR) src/client/linux/dump_writer_common/$(DEPDIR) src/client/linux/handler/$(DEPDIR) src/client/linux/log/$(DEPDIR) src/client/linux/minidump_writer/$(DEPDIR) src/common/$(DEPDIR) src/common/android/$(DEPDIR) src/common/dwarf/$(DEPDIR) src/common/linux/$(DEPDIR) src/common/linux/tests/$(DEPDIR) src/common/tests/$(DEPDIR) src/processor/$(DEPDIR) src/testing/gtest/src/$(DEPDIR) src/testing/src/$(DEPDIR) src/third_party/libdisasm/$(DEPDIR) src/tools/linux/core2md/$(DEPDIR) src/tools/linux/dump_syms/$(DEPDIR) src/tools/linux/md2core/$(DEPDIR) src/tools/linux/symupload/$(DEPDIR)
+	-rm -rf src/client/$(DEPDIR) src/client/linux/crash_generation/$(DEPDIR) src/client/linux/dump_writer_common/$(DEPDIR) src/client/linux/handler/$(DEPDIR) src/client/linux/log/$(DEPDIR) src/client/linux/microdump_writer/$(DEPDIR) src/client/linux/minidump_writer/$(DEPDIR) src/common/$(DEPDIR) src/common/android/$(DEPDIR) src/common/dwarf/$(DEPDIR) src/common/linux/$(DEPDIR) src/common/linux/tests/$(DEPDIR) src/common/tests/$(DEPDIR) src/processor/$(DEPDIR) src/testing/gtest/src/$(DEPDIR) src/testing/src/$(DEPDIR) src/third_party/libdisasm/$(DEPDIR) src/tools/linux/core2md/$(DEPDIR) src/tools/linux/dump_syms/$(DEPDIR) src/tools/linux/md2core/$(DEPDIR) src/tools/linux/symupload/$(DEPDIR)
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 
