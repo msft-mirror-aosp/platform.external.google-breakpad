@@ -73,19 +73,16 @@
 #include <stdio.h>
 #include <sys/mman.h>
 #include <sys/prctl.h>
+#include <sys/syscall.h>
+#include <sys/wait.h>
+#include <unistd.h>
+
 #if !defined(__ANDROID__)
 #include <sys/signal.h>
-#endif
-#include <sys/syscall.h>
-#if !defined(__ANDROID__)
 #include <sys/ucontext.h>
 #include <sys/user.h>
-#endif
-#include <sys/wait.h>
-#if !defined(__ANDROID__)
 #include <ucontext.h>
 #endif
-#include <unistd.h>
 
 #include <algorithm>
 #include <utility>
@@ -190,14 +187,18 @@ bool ExceptionHandler::InstallHandlers() {
   // such a small stack.
   static const unsigned kSigStackSize = 8192;
 
-  signal_stack = malloc(kSigStackSize);
   stack_t stack;
-  memset(&stack, 0, sizeof(stack));
-  stack.ss_sp = signal_stack;
-  stack.ss_size = kSigStackSize;
+  // Only set an alternative stack if there isn't already one, or if the current
+  // one is too small.
+  if (sys_sigaltstack(NULL, &stack) == -1 || !stack.ss_sp ||
+      stack.ss_size < kSigStackSize) {
+    memset(&stack, 0, sizeof(stack));
+    stack.ss_sp = malloc(kSigStackSize);
+    stack.ss_size = kSigStackSize;
 
-  if (sys_sigaltstack(&stack, NULL) == -1)
-    return false;
+    if (sys_sigaltstack(&stack, NULL) == -1)
+      return false;
+  }
 
   struct sigaction sa;
   memset(&sa, 0, sizeof(sa));
@@ -400,7 +401,7 @@ bool ExceptionHandler::GenerateDump(CrashContext *context) {
       &thread_arg, NULL, NULL, NULL);
   int r, status;
   // Allow the child to ptrace us
-  prctl(PR_SET_PTRACER, child, 0, 0, 0);
+  sys_prctl(PR_SET_PTRACER, child);
   SendContinueSignalToChild();
   do {
     r = sys_waitpid(child, &status, __WALL);

@@ -251,7 +251,7 @@ NSDictionary *readConfigurationData(const char *configFile) {
   long clientId1 = random();
   long clientId2 = random();
   long clientId3 = random();
-  crashClientID = [NSString stringWithFormat:@"%x%x%x",
+  crashClientID = [NSString stringWithFormat:@"%lx%lx%lx",
                             clientId1, clientId2, clientId3];
 
   [ud setObject:crashClientID forKey:kClientIdPreferenceKey];
@@ -546,7 +546,7 @@ NSDictionary *readConfigurationData(const char *configFile) {
   }
 
   if (logFileData_) {
-    [self uploadData:logFileData_ name:@"log" url:url];
+    [self uploadData:logFileData_ name:@"log"];
   }
 
   [upload release];

@@ -1,4 +1,5 @@
-// Copyright 2008 Google, Inc.  All Rights reserved
+// Copyright (c) 2012, Google Inc.
+// All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -26,30 +27,16 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "common/mac/bootstrap_compat.h"
 
-// This file contains some typedefs for basic types
+namespace breakpad {
 
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+kern_return_t BootstrapRegister(mach_port_t bp,
+                                name_t service_name,
+                                mach_port_t sp) {
+  return bootstrap_register(bp, service_name, sp);
+}
+#pragma GCC diagnostic warning "-Wdeprecated-declarations"
 
-#ifndef _COMMON_DWARF_TYPES_H__
-#define _COMMON_DWARF_TYPES_H__
-
-#include <stdint.h>
-
-typedef signed char         int8;
-typedef short               int16;
-typedef int                 int32;
-typedef long long           int64;
-
-typedef unsigned char      uint8;
-typedef unsigned short     uint16;
-typedef unsigned int       uint32;
-typedef unsigned long long uint64;
-
-#ifdef __PTRDIFF_TYPE__
-typedef          __PTRDIFF_TYPE__ intptr;
-typedef unsigned __PTRDIFF_TYPE__ uintptr;
-#else
-#error "Can't find pointer-sized integral types."
-#endif
-
-#endif // _COMMON_DWARF_TYPES_H__
+}  // namesapce breakpad

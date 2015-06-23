@@ -1,4 +1,5 @@
-// Copyright 2008 Google, Inc.  All Rights reserved
+// Copyright (c) 2012, Google Inc.
+// All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -26,30 +27,28 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#ifndef COMMON_MAC_BOOTSTRAP_COMPAT_H_
+#define COMMON_MAC_BOOTSTRAP_COMPAT_H_
 
-// This file contains some typedefs for basic types
+#include <servers/bootstrap.h>
 
+namespace breakpad {
 
-#ifndef _COMMON_DWARF_TYPES_H__
-#define _COMMON_DWARF_TYPES_H__
+// Wrapper for bootstrap_register to avoid deprecation warnings.
+//
+// In 10.6, it's possible to call bootstrap_check_in as the one-stop-shop for
+// handling what bootstrap_register is used for. In 10.5, bootstrap_check_in
+// can't check in a service whose name has not yet been registered, despite
+// bootstrap_register being marked as deprecated in that OS release. Breakpad
+// needs to register new service names, and in 10.5, calling
+// bootstrap_register is the only way to achieve that. Attempts to call
+// bootstrap_check_in for a new service name on 10.5 will result in
+// BOOTSTRAP_UNKNOWN_SERVICE being returned rather than registration of the
+// new service name.
+kern_return_t BootstrapRegister(mach_port_t bp,
+                                name_t service_name,
+                                mach_port_t sp);
 
-#include <stdint.h>
+}  // namespace breakpad
 
-typedef signed char         int8;
-typedef short               int16;
-typedef int                 int32;
-typedef long long           int64;
-
-typedef unsigned char      uint8;
-typedef unsigned short     uint16;
-typedef unsigned int       uint32;
-typedef unsigned long long uint64;
-
-#ifdef __PTRDIFF_TYPE__
-typedef          __PTRDIFF_TYPE__ intptr;
-typedef unsigned __PTRDIFF_TYPE__ uintptr;
-#else
-#error "Can't find pointer-sized integral types."
-#endif
-
-#endif // _COMMON_DWARF_TYPES_H__
+#endif  // COMMON_MAC_BOOTSTRAP_COMPAT_H_
