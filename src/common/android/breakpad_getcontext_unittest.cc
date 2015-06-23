@@ -1,4 +1,4 @@
-// Copyright (c) 2010, Google Inc.
+// Copyright (c) 2012, Google Inc.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -27,22 +27,50 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// The Android NDK doesn't have link.h. Fortunately, the only thing
-// that Breakpad uses from it is the ElfW macro, so define it here.
+#include <sys/ucontext.h>
 
-#ifndef GOOGLE_BREAKPAD_CLIENT_LINUX_ANDROID_LINK_H_
-#define GOOGLE_BREAKPAD_CLIENT_LINUX_ANDROID_LINK_H_
+#include "breakpad_googletest_includes.h"
+#include "common/android/ucontext_constants.h"
 
-// TODO(zhenghao): exec_elf.h conflicts with linux/elf.h.
-// But we still need ELFSIZE.
-//#include <sys/exec_elf.h>
-#include <machine/exec.h>
-#define ELFSIZE ARCH_ELFSIZE
+TEST(AndroidUContext, GRegsOffset) {
+#ifdef __arm__
+  // There is no gregs[] array on ARM, so compare to the offset of
+  // first register fields, since they're stored in order.
+  ASSERT_EQ(MCONTEXT_GREGS_OFFSET, offsetof(ucontext_t,uc_mcontext.arm_r0));
+#elif defined(__i386__)
+  ASSERT_EQ(MCONTEXT_GREGS_OFFSET, offsetof(ucontext_t,uc_mcontext.gregs));
+#define CHECK_REG(x) \
+  ASSERT_EQ(MCONTEXT_##x##_OFFSET, \
+            offsetof(ucontext_t,uc_mcontext.gregs[REG_##x]))
+  CHECK_REG(GS);
+  CHECK_REG(FS);
+  CHECK_REG(ES);
+  CHECK_REG(DS);
+  CHECK_REG(EDI);
+  CHECK_REG(ESI);
+  CHECK_REG(EBP);
+  CHECK_REG(ESP);
+  CHECK_REG(EBX);
+  CHECK_REG(EDX);
+  CHECK_REG(ECX);
+  CHECK_REG(EAX);
+  CHECK_REG(TRAPNO);
+  CHECK_REG(ERR);
+  CHECK_REG(EIP);
+  CHECK_REG(CS);
+  CHECK_REG(EFL);
+  CHECK_REG(UESP);
+  CHECK_REG(SS);
 
-#ifndef ElfW
-#define ElfW(type)	_ElfW (Elf, ELFSIZE, type)
-#define _ElfW(e,w,t)	_ElfW_1 (e, w, _##t)
-#define _ElfW_1(e,w,t)	e##w##t
+  ASSERT_EQ(UCONTEXT_FPREGS_OFFSET, offsetof(ucontext_t,uc_mcontext.fpregs));
+
+  ASSERT_EQ(UCONTEXT_FPREGS_MEM_OFFSET,
+            offsetof(ucontext_t,__fpregs_mem));
+#else
+  ASSERT_EQ(MCONTEXT_GREGS_OFFSET, offsetof(ucontext_t,uc_mcontext.gregs));
 #endif
+}
 
-#endif  // GOOGLE_BREAKPAD_CLIENT_LINUX_ANDROID_LINK_H_
+TEST(AndroidUContext, SigmakOffset) {
+  ASSERT_EQ(UCONTEXT_SIGMASK_OFFSET, offsetof(ucontext_t,uc_sigmask));
+}
