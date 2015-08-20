@@ -14,6 +14,8 @@
 
 LOCAL_PATH := $(call my-dir)
 
+# Static library.
+# =================================================
 include $(CLEAR_VARS)
 
 LOCAL_MODULE := breakpad_client
@@ -49,3 +51,17 @@ LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_C_INCLUDES)
 LOCAL_CLANG := true
 
 include $(BUILD_STATIC_LIBRARY)
+
+# core2md binary.
+# =================================================
+include $(CLEAR_VARS)
+
+LOCAL_MODULE := core2md
+
+LOCAL_CPP_EXTENSION := .cc
+
+LOCAL_SRC_FILES := src/tools/linux/core2md/core2md.cc
+
+LOCAL_STATIC_LIBRARIES := breakpad_client
+
+include $(BUILD_EXECUTABLE)
