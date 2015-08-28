@@ -66,6 +66,8 @@ LOCAL_SRC_FILES := src/tools/linux/core2md/core2md.cc
 
 LOCAL_STATIC_LIBRARIES := breakpad_client
 
+LOCAL_CLANG := true
+
 include $(BUILD_EXECUTABLE)
 
 endif # TARGET_ARCH != mips64
