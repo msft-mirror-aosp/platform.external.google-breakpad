@@ -14,8 +14,6 @@
 
 LOCAL_PATH := $(call my-dir)
 
-ifneq ($(TARGET_ARCH),mips64)
-
 # Static library.
 # =================================================
 include $(CLEAR_VARS)
@@ -69,5 +67,3 @@ LOCAL_STATIC_LIBRARIES := breakpad_client
 LOCAL_CLANG := true
 
 include $(BUILD_EXECUTABLE)
-
-endif # TARGET_ARCH != mips64
