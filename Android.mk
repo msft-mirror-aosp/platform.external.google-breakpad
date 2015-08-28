@@ -14,6 +14,8 @@
 
 LOCAL_PATH := $(call my-dir)
 
+ifneq ($(TARGET_ARCH),mips64)
+
 # Static library.
 # =================================================
 include $(CLEAR_VARS)
@@ -65,3 +67,5 @@ LOCAL_SRC_FILES := src/tools/linux/core2md/core2md.cc
 LOCAL_STATIC_LIBRARIES := breakpad_client
 
 include $(BUILD_EXECUTABLE)
+
+endif # TARGET_ARCH != mips64
