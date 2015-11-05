@@ -48,12 +48,9 @@ LOCAL_C_INCLUDES := \
 
 LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_C_INCLUDES)
 
-ifeq ($(TARGET_ARCH),x86)
-# Temporarily build without clang, until b/25435766 fixes core2md segfault.
-LOCAL_CLANG := false
-else
+# Work around b/25435766 core2md segfault.
+LOCAL_CLANG_CFLAGS_x86 += -mno-stackrealign
 LOCAL_CLANG := true
-endif
 
 include $(BUILD_STATIC_LIBRARY)
 
@@ -69,12 +66,9 @@ LOCAL_SRC_FILES := src/tools/linux/core2md/core2md.cc
 
 LOCAL_STATIC_LIBRARIES := breakpad_client
 
-ifeq ($(TARGET_ARCH),x86)
-# Temporarily build without clang, until b/25435766 fixes core2md segfault.
-LOCAL_CLANG := false
-else
+# Work around b/25435766 core2md segfault.
+LOCAL_CLANG_CFLAGS_x86 += -mno-stackrealign
 LOCAL_CLANG := true
-endif
 
 include $(BUILD_EXECUTABLE)
 
