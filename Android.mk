@@ -46,6 +46,10 @@ LOCAL_C_INCLUDES := \
     $(LOCAL_PATH)/src/common/android/include \
     $(LOCAL_PATH)/src \
 
+LOCAL_CFLAGS := \
+    -Wno-unused-parameter \
+    -Wno-tautological-compare
+
 LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_C_INCLUDES)
 
 # Work around b/25435766 core2md segfault.
