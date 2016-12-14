@@ -107,3 +107,18 @@ LOCAL_SRC_FILES_linux := \
     src/common/linux/memory_mapped_file.cc \
     src/tools/linux/dump_syms/dump_syms.cc
 include $(BUILD_HOST_EXECUTABLE)
+
+# sym_upload host tool.
+# =================================================
+include $(CLEAR_VARS)
+LOCAL_MODULE := sym_upload
+LOCAL_MODULE_HOST_OS := linux
+LOCAL_CLANG := true
+LOCAL_LDLIBS := -ldl
+LOCAL_CPP_EXTENSION := .cc
+LOCAL_C_INCLUDES := \
+    $(LOCAL_PATH)/src
+LOCAL_SRC_FILES_linux := \
+    src/common/linux/http_upload.cc \
+    src/tools/linux/symupload/sym_upload.cc
+include $(BUILD_HOST_EXECUTABLE)
