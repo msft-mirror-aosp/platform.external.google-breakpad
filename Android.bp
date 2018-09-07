@@ -207,6 +207,8 @@ cc_binary_host {
         linux_glibc: {
             cppflags: [
                 "-DHAVE_A_OUT_H",
+                "-Wno-implicit-fallthrough",
+                // minidump_processor.cc:853, minidump.cc:4228 have fallthrough.
                 "-Wno-unused-function",
                 "-Wno-unused-parameter",
             ],
