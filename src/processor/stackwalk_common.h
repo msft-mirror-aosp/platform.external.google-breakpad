@@ -33,12 +33,14 @@
 
 #ifndef PROCESSOR_STACKWALK_COMMON_H__
 #define PROCESSOR_STACKWALK_COMMON_H__
+#include <stdio.h>
 
 namespace google_breakpad {
 
 class ProcessState;
 class SourceLineResolverInterface;
 
+void SetPrintStream(FILE* fp);
 void PrintProcessStateMachineReadable(const ProcessState& process_state);
 void PrintProcessState(const ProcessState& process_state,
                        bool output_stack_contents,
