@@ -35,6 +35,7 @@
 // Author: Siyang Xie (lambxsy@google.com)
 
 #include <stdio.h>
+
 #include <string.h>
 #include <sys/stat.h>
 
@@ -44,6 +45,7 @@
 #include "google_breakpad/processor/source_line_resolver_base.h"
 #include "processor/source_line_resolver_base_types.h"
 #include "processor/module_factory.h"
+
 
 using std::map;
 using std::make_pair;
@@ -117,7 +119,7 @@ bool SourceLineResolverBase::ReadSymbolFile(const string &map_file,
 
   BPLOG(INFO) << "Opening " << map_file;
 
-  FILE *f = fopen(map_file.c_str(), "rt");
+  FILE *f = fopen(map_file.c_str(), "rb");
   if (!f) {
     string error_string;
     error_code = ErrnoString(&error_string);

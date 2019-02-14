@@ -63,7 +63,7 @@ class MicrodumpProcessorTest : public ::testing::Test {
 
   void ReadFile(const string& file_name, string* file_contents) {
     assert(file_contents);
-    std::ifstream file_stream(file_name.c_str(), std::ios::in);
+    std::ifstream file_stream(file_name.c_str(), std::ios::in | std::ios::binary);
     ASSERT_TRUE(file_stream.good());
     std::vector<char> bytes;
     file_stream.seekg(0, std::ios_base::end);
