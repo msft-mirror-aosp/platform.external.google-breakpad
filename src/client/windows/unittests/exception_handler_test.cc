@@ -341,9 +341,11 @@ TEST_F(ExceptionHandlerTest, PureVirtualCallMiniDumpTest) {
   EXPECT_TRUE(mini.HasStream(HandleDataStream));
   EXPECT_TRUE(full.HasStream(HandleDataStream));
 
-  // We expect PEB and TEBs in this dump.
-  EXPECT_TRUE(mini.HasTebs() || full.HasTebs());
-  EXPECT_TRUE(mini.HasPeb() || full.HasPeb());
+  #ifndef _WIN64
+      // We expect PEB and TEBs in this dump.
+      EXPECT_TRUE(mini.HasTebs() || full.HasTebs());
+      EXPECT_TRUE(mini.HasPeb() || full.HasPeb());
+  #endif
 
   // Minidump should have a memory listing, but no 64-bit memory.
   EXPECT_TRUE(mini.HasStream(MemoryListStream));
