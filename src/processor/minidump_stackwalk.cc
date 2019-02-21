@@ -34,7 +34,12 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
+#ifdef _MSC_VER
+#include "msvc-posix.h"
+#include "msvc-getopt.h"
+#else
+ #include <unistd.h>
+#endif
 
 #include <limits>
 #include <string>
@@ -129,7 +134,7 @@ static void Usage(int argc, const char *argv[], bool error) {
           "\n"
           "  -m         Output in machine-readable format\n"
           "  -s         Output stack contents\n",
-          google_breakpad::BaseName(argv[0]).c_str());
+          argv[0]);
 }
 
 static void SetupOptions(int argc, const char *argv[], Options* options) {
