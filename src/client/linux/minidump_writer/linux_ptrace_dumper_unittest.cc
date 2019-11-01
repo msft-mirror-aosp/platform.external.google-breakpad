@@ -425,7 +425,8 @@ TEST_F(LinuxPtraceDumperChildTest, FileIDsMatch) {
 /* Get back to normal behavior of TEST*() macros wrt TestBody. */
 #undef TestBody
 
-TEST(LinuxPtraceDumperTest, VerifyStackReadWithMultipleThreads) {
+// Disabled until b/143777590 is resolved.
+TEST(LinuxPtraceDumperTest, DISABLED_VerifyStackReadWithMultipleThreads) {
   static const size_t kNumberOfThreadsInHelperProgram = 5;
 
   pid_t child_pid = SetupChildProcess(kNumberOfThreadsInHelperProgram);
@@ -483,7 +484,8 @@ TEST(LinuxPtraceDumperTest, VerifyStackReadWithMultipleThreads) {
   ASSERT_EQ(SIGKILL, WTERMSIG(status));
 }
 
-TEST_F(LinuxPtraceDumperTest, SanitizeStackCopy) {
+// Disabled until b/143777590 is resolved.
+TEST_F(LinuxPtraceDumperTest, DISABLED_SanitizeStackCopy) {
   static const size_t kNumberOfThreadsInHelperProgram = 1;
 
   pid_t child_pid = SetupChildProcess(kNumberOfThreadsInHelperProgram);
