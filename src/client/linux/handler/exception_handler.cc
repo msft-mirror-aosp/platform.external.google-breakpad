@@ -536,7 +536,7 @@ bool ExceptionHandler::GenerateDump(CrashContext *context) {
   }
 
   const pid_t child = sys_clone(
-      ThreadEntry, stack, CLONE_FS | CLONE_UNTRACED, &thread_arg, NULL, NULL,
+      ThreadEntry, stack, CLONE_FS | CLONE_UNTRACED | CLONE_VM, &thread_arg, NULL, NULL,
       NULL);
   if (child == -1) {
     sys_close(fdes[0]);

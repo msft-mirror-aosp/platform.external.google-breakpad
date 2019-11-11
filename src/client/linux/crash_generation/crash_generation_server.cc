@@ -145,8 +145,8 @@ CrashGenerationServer::CreateReportChannel(int* server_fd, int* client_fd)
 
   if (fcntl(fds[1], F_SETFL, O_NONBLOCK))
     return false;
-  if (fcntl(fds[1], F_SETFD, FD_CLOEXEC))
-    return false;
+  // if (fcntl(fds[1], F_SETFD, FD_CLOEXEC))
+  //   return false;
 
   *client_fd = fds[0];
   *server_fd = fds[1];
@@ -281,6 +281,10 @@ CrashGenerationServer::ClientEvent(short revents)
   // (Closing this will make the child's sys_read unblock and return 0.)
   close(signal_fd);
 
+  if (exit_callback_) {
+    ClientInfo info(crashing_pid, this);
+    exit_callback_(exit_context_, &info);
+  }
   return true;
 }
 
