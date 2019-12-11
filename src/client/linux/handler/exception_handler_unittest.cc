@@ -271,9 +271,10 @@ static void* CrashFunction(void* b_ptr) {
   return NULL;
 }
 
+// Disabled (doesn't work in CIPD build env: https://bugs.fuchsia.dev/p/fuchsia/issues/detail?id=37301#c26)
 // Tests that concurrent crashes do not enter a loop by alternately triggering
 // the signal handler.
-TEST(ExceptionHandlerTest, ParallelChildCrashesDontHang) {
+TEST(ExceptionHandlerTest, DISABLED_ParallelChildCrashesDontHang) {
   AutoTempDir temp_dir;
   const pid_t child = fork();
   if (child == 0) {
