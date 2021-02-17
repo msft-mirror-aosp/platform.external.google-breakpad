@@ -56,6 +56,9 @@ LOCAL_PATH := $(call my-dir)/../..
 include $(CLEAR_VARS)
 
 LOCAL_MODULE := breakpad_client
+LOCAL_LICENSE_KINDS := SPDX-license-identifier-BSD
+LOCAL_LICENSE_CONDITIONS := notice
+LOCAL_NOTICE_FILE := $(LOCAL_PATH)/../../LICENSE
 
 LOCAL_CPP_EXTENSION := .cc
 
