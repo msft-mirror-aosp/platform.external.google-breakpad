@@ -87,7 +87,7 @@ cc_library_static {
         "-Wno-tautological-compare",
     ],
     target: {
-        android: {
+        bionic: {
             local_include_dirs: [
                 "src/common/android/include",
             ],
