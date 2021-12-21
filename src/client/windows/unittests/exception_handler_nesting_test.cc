@@ -128,11 +128,12 @@ bool MinidumpWrittenCallback(const wchar_t* dump_path,
 }
 
 
-void DoCrash(const char *message) {
+void DoCrash(const char *message) __attribute__((optnone)) {
   if (message) {
     fprintf(stderr, "%s", message);
     fflush(stderr);
   }
+  // Do not optimize out this!
   int *i = NULL;
   (*i)++;
 
