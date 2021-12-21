@@ -132,9 +132,13 @@ cc_binary_host {
         darwin: {
             enabled: false,
         },
-        linux_glibc: {
+        glibc: {
             cppflags: [
                 "-DHAVE_A_OUT_H",
+            ],
+        },
+        linux_glibc: {
+            cppflags: [
                 "-Wno-unused-parameter",
             ],
             srcs: [
