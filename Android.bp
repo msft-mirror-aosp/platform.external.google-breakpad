@@ -92,11 +92,6 @@ cc_library_static {
                 "src/common/android/include",
             ],
         },
-        musl: {
-            local_include_dirs: [
-                "src/common/musl/include",
-            ],
-        },
     },
     // Work around b/25435766 core2md segfault.
     arch: {
@@ -137,18 +132,9 @@ cc_binary_host {
         darwin: {
             enabled: false,
         },
-        glibc: {
-            cppflags: [
-                "-DHAVE_A_OUT_H",
-            ],
-        },
-        musl: {
-            local_include_dirs: [
-                "src/common/musl/include",
-            ],
-        },
         linux_glibc: {
             cppflags: [
+                "-DHAVE_A_OUT_H",
                 "-Wno-unused-parameter",
             ],
             srcs: [
