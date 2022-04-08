@@ -33,7 +33,6 @@
 #include "common/linux/tests/crash_generator.h"
 
 #include <pthread.h>
-#include <sched.h>
 #include <signal.h>
 #include <stdio.h>
 #include <sys/mman.h>
@@ -89,7 +88,7 @@ void *thread_function(void *data) {
     exit(1);
   }
   while (true) {
-    sched_yield();
+    pthread_yield();
   }
 }
 
@@ -185,12 +184,6 @@ bool CrashGenerator::CreateChildCrash(
 
   pid_t pid = fork();
   if (pid == 0) {
-    // Custom signal handlers, which may have been installed by a test launcher,
-    // are undesirable in this child.
-    if (signal(crash_signal, SIG_DFL) == SIG_ERR) {
-      perror("CrashGenerator: signal");
-      exit(1);
-    }
     if (chdir(temp_dir_.path().c_str()) == -1) {
       perror("CrashGenerator: Failed to change directory");
       exit(1);
@@ -209,7 +202,7 @@ bool CrashGenerator::CreateChildCrash(
       // On Android the signal sometimes doesn't seem to get sent even though
       // tkill returns '0'.  Retry a couple of times if the signal doesn't get
       // through on the first go:
-      // https://bugs.chromium.org/p/google-breakpad/issues/detail?id=579
+      // https://code.google.com/p/google-breakpad/issues/detail?id=579
 #if defined(__ANDROID__)
       const int kRetries = 60;
       const unsigned int kSleepTimeInSeconds = 1;

@@ -38,12 +38,11 @@
       'type': 'static_library',
       'include_dirs': [
         '<(DEPTH)/testing/include',
-        '<(DEPTH)/testing/googletest/include',
-        '<(DEPTH)/testing/googletest',
-        '<(DEPTH)/testing',
+        '<(DEPTH)/testing/gtest',
+        '<(DEPTH)/testing/gtest/include',
       ],
       'sources': [
-        '<(DEPTH)/testing/googletest/src/gtest-all.cc',
+        '<(DEPTH)/testing/gtest/src/gtest-all.cc',
       ],
       'direct_dependent_settings': {
         'include_dirs': [
@@ -53,37 +52,31 @@
         # Visual C++ implements variadic templates strangely, and
         # VC++2012 broke Google Test by lowering this value. See
         # http://stackoverflow.com/questions/12558327/google-test-in-visual-studio-2012
-        'defines': ['_VARIADIC_MAX=10', '_SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING'],
+        'defines': ['_VARIADIC_MAX=10'],
       },
-      'defines': ['_VARIADIC_MAX=10', '_SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING'],
+      'defines': ['_VARIADIC_MAX=10'],
     },
     {
       'target_name': 'gmock',
       'type': 'static_library',
       'include_dirs': [
         '<(DEPTH)/testing/include',
-        '<(DEPTH)/testing/googletest/include',
-        '<(DEPTH)/testing/googletest',
-        '<(DEPTH)/testing/googlemock/include',
-        '<(DEPTH)/testing/googlemock',
-        '<(DEPTH)/testing',
+        '<(DEPTH)/testing/',
+        '<(DEPTH)/testing/gtest',
+        '<(DEPTH)/testing/gtest/include',
       ],
       'sources': [
-        '<(DEPTH)/testing/googlemock/src/gmock-all.cc',
-        '<(DEPTH)/testing/googletest/src/gtest_main.cc',
+        '<(DEPTH)/testing/src/gmock-all.cc',
+        '<(DEPTH)/testing/src/gmock_main.cc',
       ],
       'direct_dependent_settings': {
         'include_dirs': [
           '<(DEPTH)/testing/include',
-          '<(DEPTH)/testing/googletest/include',
-          '<(DEPTH)/testing/googletest',
-          '<(DEPTH)/testing/googlemock/include',
-          '<(DEPTH)/testing/googlemock',
-          '<(DEPTH)/testing',
+          '<(DEPTH)/testing/gtest/include',
         ],
-        'defines': ['_VARIADIC_MAX=10', '_SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING'],
+        'defines': ['_VARIADIC_MAX=10'],
       },
-      'defines': ['_VARIADIC_MAX=10', '_SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING'],
+      'defines': ['_VARIADIC_MAX=10'],
     },
 
   ],

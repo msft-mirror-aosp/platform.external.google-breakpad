@@ -93,12 +93,11 @@ NSString* GetPlatform() {
 @implementation BreakpadController
 
 + (BreakpadController*)sharedInstance {
-  static dispatch_once_t onceToken;
-  static BreakpadController* sharedInstance ;
-  dispatch_once(&onceToken, ^{
-      sharedInstance = [[BreakpadController alloc] initSingleton];
-  });
-  return sharedInstance;
+  @synchronized(self) {
+    static BreakpadController* sharedInstance_ =
+        [[BreakpadController alloc] initSingleton];
+    return sharedInstance_;
+  }
 }
 
 - (id)init {
@@ -156,19 +155,15 @@ NSString* GetPlatform() {
   });
 }
 
-- (BOOL)isStarted {
-  return started_;
-}
-
 // This method must be called from the breakpad queue.
 - (void)threadUnsafeSendReportWithConfiguration:(NSDictionary*)configuration
                                 withBreakpadRef:(BreakpadRef)ref {
   NSAssert(started_, @"The controller must be started before "
                      "threadUnsafeSendReportWithConfiguration is called");
   if (breakpadRef_) {
-    BreakpadUploadReportWithParametersAndConfiguration(
-        breakpadRef_, uploadTimeParameters_, configuration,
-        uploadCompleteCallback_);
+    BreakpadUploadReportWithParametersAndConfiguration(breakpadRef_,
+                                                       uploadTimeParameters_,
+                                                       configuration);
   }
 }
 
@@ -184,9 +179,10 @@ NSString* GetPlatform() {
         enableUploads_ = YES;
         [self sendStoredCrashReports];
       } else {
-        // disable the enableUpload_ flag.
-        // sendDelay checks this flag and disables the upload of logs by sendStoredCrashReports
         enableUploads_ = NO;
+        [NSObject cancelPreviousPerformRequestsWithTarget:self
+            selector:@selector(sendStoredCrashReports)
+            object:nil];
       }
   });
 }
@@ -195,7 +191,7 @@ NSString* GetPlatform() {
   NSAssert(!started_,
       @"The controller must not be started when updateConfiguration is called");
   [configuration_ addEntriesFromDictionary:configuration];
-  NSString *uploadInterval =
+  NSString* uploadInterval =
       [configuration_ valueForKey:@BREAKPAD_REPORT_INTERVAL];
   if (uploadInterval)
     [self setUploadInterval:[uploadInterval intValue]];
@@ -206,7 +202,7 @@ NSString* GetPlatform() {
       @"The controller must not be started when resetConfiguration is called");
   [configuration_ autorelease];
   configuration_ = [[[NSBundle mainBundle] infoDictionary] mutableCopy];
-  NSString *uploadInterval =
+  NSString* uploadInterval =
       [configuration_ valueForKey:@BREAKPAD_REPORT_INTERVAL];
   [self setUploadInterval:[uploadInterval intValue]];
   [self setParametersToAddAtUploadTime:nil];
@@ -243,15 +239,6 @@ NSString* GetPlatform() {
   });
 }
 
-- (void)setUploadCallback:(BreakpadUploadCompletionCallback)callback {
-  NSAssert(started_,
-           @"The controller must not be started before setUploadCallback is "
-            "called");
-  dispatch_async(queue_, ^{
-    uploadCompleteCallback_ = callback;
-  });
-}
-
 - (void)removeUploadParameterForKey:(NSString*)key {
   NSAssert(started_, @"The controller must be started before "
                      "removeUploadParameterForKey is called");
@@ -262,8 +249,10 @@ NSString* GetPlatform() {
 }
 
 - (void)withBreakpadRef:(void(^)(BreakpadRef))callback {
+  NSAssert(started_,
+      @"The controller must be started before withBreakpadRef is called");
   dispatch_async(queue_, ^{
-      callback(started_ ? breakpadRef_ : NULL);
+      callback(breakpadRef_);
   });
 }
 
@@ -302,18 +291,6 @@ NSString* GetPlatform() {
   });
 }
 
-- (void)getDateOfMostRecentCrashReport:(void(^)(NSDate *))callback {
-  NSAssert(started_, @"The controller must be started before "
-           "getDateOfMostRecentCrashReport is called");
-  dispatch_async(queue_, ^{
-    if (!breakpadRef_) {
-      callback(nil);
-      return;
-    }
-    callback(BreakpadGetDateOfMostRecentCrashReport(breakpadRef_));
-  });
-}
-
 #pragma mark -
 
 - (int)sendDelay {
@@ -340,35 +317,38 @@ NSString* GetPlatform() {
   [userDefaults synchronize];
 }
 
-// This method must be called from the breakpad queue.
 - (void)sendStoredCrashReports {
-  if (BreakpadGetCrashReportCount(breakpadRef_) == 0)
-    return;
+  dispatch_async(queue_, ^{
+      if (BreakpadGetCrashReportCount(breakpadRef_) == 0)
+        return;
 
-  int timeToWait = [self sendDelay];
+      int timeToWait = [self sendDelay];
 
-  // Unable to ever send report.
-  if (timeToWait == -1)
-    return;
+      // Unable to ever send report.
+      if (timeToWait == -1)
+        return;
 
-  // A report can be sent now.
-  if (timeToWait == 0) {
-    [self reportWillBeSent];
-    BreakpadUploadNextReportWithParameters(breakpadRef_, uploadTimeParameters_,
-                                           uploadCompleteCallback_);
+      // A report can be sent now.
+      if (timeToWait == 0) {
+        [self reportWillBeSent];
+        BreakpadUploadNextReportWithParameters(breakpadRef_,
+                                               uploadTimeParameters_);
 
-    // If more reports must be sent, make sure this method is called again.
-    if (BreakpadGetCrashReportCount(breakpadRef_) > 0)
-      timeToWait = uploadIntervalInSeconds_;
-  }
+        // If more reports must be sent, make sure this method is called again.
+        if (BreakpadGetCrashReportCount(breakpadRef_) > 0)
+          timeToWait = uploadIntervalInSeconds_;
+      }
 
-  // A report must be sent later.
-  if (timeToWait > 0) {
-    dispatch_time_t delay = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(timeToWait * NSEC_PER_SEC));
-    dispatch_after(delay, queue_, ^{
-        [self sendStoredCrashReports];
-    });
-  }
+      // A report must be sent later.
+      if (timeToWait > 0) {
+        // performSelector: doesn't work on queue_
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self performSelector:@selector(sendStoredCrashReports)
+                       withObject:nil
+                       afterDelay:timeToWait];
+        });
+     }
+  });
 }
 
 @end

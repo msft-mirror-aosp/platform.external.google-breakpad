@@ -28,7 +28,9 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-#include "breakpad_googletest_includes.h"
+#include "testing/gtest/include/gtest/gtest.h"
+#include "testing/include/gmock/gmock.h"
+
 #include "client/windows/crash_generation/crash_generation_server.h"
 #include "client/windows/common/ipc_protocol.h"
 
@@ -48,8 +50,9 @@ const DWORD kPipeFlagsAndAttributes = SECURITY_IDENTIFICATION |
 
 const DWORD kPipeMode = PIPE_READMODE_MESSAGE;
 
-#define arraysize(f) (sizeof(f) / sizeof(*f))
-const google_breakpad::CustomInfoEntry kCustomInfoEntries[] = {
+int kCustomInfoCount = 2;
+
+google_breakpad::CustomInfoEntry kCustomInfoEntries[] = {
     google_breakpad::CustomInfoEntry(L"prod", L"CrashGenerationServerTest"),
     google_breakpad::CustomInfoEntry(L"ver", L"1.0"),
 };
@@ -162,7 +165,7 @@ class CrashGenerationServerTest : public ::testing::Test {
     }
 
     google_breakpad::CustomClientInfo custom_info = {kCustomInfoEntries,
-                                                     arraysize(kCustomInfoEntries)};
+                                                     kCustomInfoCount};
 
     google_breakpad::ProtocolMessage msg(
       fault_type == SEND_INVALID_REGISTRATION ?

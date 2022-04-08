@@ -123,9 +123,6 @@ CrashGenerationServer::Stop()
   void* dummy;
   pthread_join(thread_, &dummy);
 
-  close(control_pipe_in_);
-  close(control_pipe_out_);
-
   started_ = false;
 }
 
@@ -255,7 +252,7 @@ CrashGenerationServer::ClientEvent(short revents)
   }
 
   if (crashing_pid == -1 || signal_fd == -1) {
-    if (signal_fd != -1)
+    if (signal_fd)
       close(signal_fd);
     return true;
   }
