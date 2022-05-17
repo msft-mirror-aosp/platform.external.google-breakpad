@@ -132,6 +132,7 @@ host_triplet = @host@
 # Build as PIC on Linux, for linux_client_unittest_shlib
 @LINUX_HOST_TRUE@am__append_2 = -fPIC
 @LINUX_HOST_TRUE@am__append_3 = -fPIC
+libexec_PROGRAMS = $(am__EXEEXT_10)
 bin_PROGRAMS = $(am__EXEEXT_2) $(am__EXEEXT_3) $(am__EXEEXT_4)
 check_PROGRAMS = $(am__EXEEXT_5) $(am__EXEEXT_6) $(am__EXEEXT_7) \
 	$(am__EXEEXT_8) $(am__EXEEXT_9)
@@ -141,8 +142,8 @@ EXTRA_PROGRAMS = $(am__EXEEXT_1)
 @DISABLE_PROCESSOR_FALSE@am__append_6 = src/third_party/libdisasm/libdisasm.a
 @LINUX_HOST_TRUE@am__append_7 = src/client/linux/libbreakpad_client.a
 @LINUX_HOST_TRUE@am__append_8 = breakpad-client.pc
-@ANDROID_HOST_TRUE@@LINUX_HOST_TRUE@am__append_9 = \
-@ANDROID_HOST_TRUE@@LINUX_HOST_TRUE@	src/common/android/breakpad_getcontext.S
+@HAVE_GETCONTEXT_FALSE@@LINUX_HOST_TRUE@am__append_9 = \
+@HAVE_GETCONTEXT_FALSE@@LINUX_HOST_TRUE@	src/common/linux/breakpad_getcontext.S
 
 @DISABLE_PROCESSOR_FALSE@am__append_10 = \
 @DISABLE_PROCESSOR_FALSE@	src/processor/microdump_stackwalk \
@@ -155,6 +156,7 @@ EXTRA_PROGRAMS = $(am__EXEEXT_1)
 @LINUX_HOST_TRUE@	src/client/linux/linux_client_unittest_shlib
 @DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@am__append_13 = \
 @DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@	src/tools/linux/core2md/core2md \
+@DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@	src/tools/linux/pid2md/pid2md \
 @DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@	src/tools/linux/dump_syms/dump_syms \
 @DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@	src/tools/linux/md2core/minidump-2-core \
 @DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@	src/tools/linux/symupload/minidump_upload \
@@ -163,7 +165,10 @@ EXTRA_PROGRAMS = $(am__EXEEXT_1)
 @DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@@X86_HOST_TRUE@am__append_14 = \
 @DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@@X86_HOST_TRUE@	src/tools/mac/dump_syms/dump_syms_mac
 
-@DISABLE_PROCESSOR_FALSE@am__append_15 = \
+@DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@am__append_15 = \
+@DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@	src/tools/linux/core_handler/core_handler
+
+@DISABLE_PROCESSOR_FALSE@am__append_16 = \
 @DISABLE_PROCESSOR_FALSE@	src/common/test_assembler_unittest \
 @DISABLE_PROCESSOR_FALSE@	src/processor/address_map_unittest \
 @DISABLE_PROCESSOR_FALSE@	src/processor/basic_source_line_resolver_unittest \
@@ -195,26 +200,22 @@ EXTRA_PROGRAMS = $(am__EXEEXT_1)
 @DISABLE_PROCESSOR_FALSE@	src/processor/stackwalker_x86_unittest \
 @DISABLE_PROCESSOR_FALSE@	src/processor/synth_minidump_unittest
 
-@LINUX_HOST_TRUE@am__append_16 = \
+@LINUX_HOST_TRUE@am__append_17 = \
 @LINUX_HOST_TRUE@	src/client/linux/linux_client_unittest \
 @LINUX_HOST_TRUE@	src/common/linux/google_crashdump_uploader_test
 
-@DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@am__append_17 = \
+@DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@am__append_18 = \
 @DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@	src/common/dumper_unittest \
 @DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@	src/tools/linux/md2core/minidump_2_core_unittest
 
-@DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@@X86_HOST_TRUE@am__append_18 = \
+@DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@@X86_HOST_TRUE@am__append_19 = \
 @DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@@X86_HOST_TRUE@	src/common/mac/macho_reader_unittest
 
-@DISABLE_PROCESSOR_FALSE@@SELFTEST_TRUE@am__append_19 = \
+@DISABLE_PROCESSOR_FALSE@@SELFTEST_TRUE@am__append_20 = \
 @DISABLE_PROCESSOR_FALSE@@SELFTEST_TRUE@	src/processor/stackwalker_selftest
 
-@ANDROID_HOST_TRUE@@LINUX_HOST_TRUE@am__append_20 = \
-@ANDROID_HOST_TRUE@@LINUX_HOST_TRUE@	src/common/android/breakpad_getcontext.S
-
-@ANDROID_HOST_TRUE@@LINUX_HOST_TRUE@am__append_21 = \
-@ANDROID_HOST_TRUE@@LINUX_HOST_TRUE@	src/common/android/breakpad_getcontext_unittest.cc
-
+@HAVE_GETCONTEXT_FALSE@@LINUX_HOST_TRUE@am__append_21 = src/common/linux/breakpad_getcontext.S \
+@HAVE_GETCONTEXT_FALSE@@LINUX_HOST_TRUE@	src/common/linux/breakpad_getcontext_unittest.cc
 @ANDROID_HOST_TRUE@@LINUX_HOST_TRUE@am__append_22 = \
 @ANDROID_HOST_TRUE@@LINUX_HOST_TRUE@	-llog -lm
 
@@ -275,12 +276,12 @@ am__uninstall_files_from_dir = { \
          $(am__cd) "$$dir" && rm -f $$files; }; \
   }
 am__installdirs = "$(DESTDIR)$(libdir)" "$(DESTDIR)$(bindir)" \
-	"$(DESTDIR)$(docdir)" "$(DESTDIR)$(pkgconfigdir)" \
-	"$(DESTDIR)$(includecdir)" "$(DESTDIR)$(includecldir)" \
-	"$(DESTDIR)$(includeclcdir)" "$(DESTDIR)$(includecldwcdir)" \
-	"$(DESTDIR)$(includeclhdir)" "$(DESTDIR)$(includeclmdir)" \
-	"$(DESTDIR)$(includegbcdir)" "$(DESTDIR)$(includelssdir)" \
-	"$(DESTDIR)$(includepdir)"
+	"$(DESTDIR)$(libexecdir)" "$(DESTDIR)$(docdir)" \
+	"$(DESTDIR)$(pkgconfigdir)" "$(DESTDIR)$(includecdir)" \
+	"$(DESTDIR)$(includecldir)" "$(DESTDIR)$(includeclcdir)" \
+	"$(DESTDIR)$(includecldwcdir)" "$(DESTDIR)$(includeclhdir)" \
+	"$(DESTDIR)$(includeclmdir)" "$(DESTDIR)$(includegbcdir)" \
+	"$(DESTDIR)$(includelssdir)" "$(DESTDIR)$(includepdir)"
 LIBRARIES = $(lib_LIBRARIES) $(noinst_LIBRARIES)
 ARFLAGS = cru
 AM_V_AR = $(am__v_AR_@AM_V@)
@@ -317,9 +318,9 @@ am__src_client_linux_libbreakpad_client_a_SOURCES_DIST =  \
 	src/common/linux/linux_libc_support.cc \
 	src/common/linux/memory_mapped_file.cc \
 	src/common/linux/safe_readlink.cc \
-	src/common/android/breakpad_getcontext.S
+	src/common/linux/breakpad_getcontext.S
 am__dirstamp = $(am__leading_dot)dirstamp
-@ANDROID_HOST_TRUE@@LINUX_HOST_TRUE@am__objects_1 = src/common/android/breakpad_getcontext.$(OBJEXT)
+@HAVE_GETCONTEXT_FALSE@@LINUX_HOST_TRUE@am__objects_1 = src/common/linux/breakpad_getcontext.$(OBJEXT)
 @LINUX_HOST_TRUE@am_src_client_linux_libbreakpad_client_a_OBJECTS = src/client/linux/crash_generation/crash_generation_client.$(OBJEXT) \
 @LINUX_HOST_TRUE@	src/client/linux/crash_generation/crash_generation_server.$(OBJEXT) \
 @LINUX_HOST_TRUE@	src/client/linux/dump_writer_common/thread_info.$(OBJEXT) \
@@ -556,6 +557,7 @@ src_third_party_libdisasm_libdisasm_a_OBJECTS =  \
 @DISABLE_PROCESSOR_FALSE@	src/processor/minidump_dump$(EXEEXT) \
 @DISABLE_PROCESSOR_FALSE@	src/processor/minidump_stackwalk$(EXEEXT)
 @DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@am__EXEEXT_3 = src/tools/linux/core2md/core2md$(EXEEXT) \
+@DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@	src/tools/linux/pid2md/pid2md$(EXEEXT) \
 @DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@	src/tools/linux/dump_syms/dump_syms$(EXEEXT) \
 @DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@	src/tools/linux/md2core/minidump-2-core$(EXEEXT) \
 @DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@	src/tools/linux/symupload/minidump_upload$(EXEEXT) \
@@ -597,7 +599,8 @@ src_third_party_libdisasm_libdisasm_a_OBJECTS =  \
 @DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@	src/tools/linux/md2core/minidump_2_core_unittest$(EXEEXT)
 @DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@@X86_HOST_TRUE@am__EXEEXT_8 = src/common/mac/macho_reader_unittest$(EXEEXT)
 @DISABLE_PROCESSOR_FALSE@@SELFTEST_TRUE@am__EXEEXT_9 = src/processor/stackwalker_selftest$(EXEEXT)
-PROGRAMS = $(bin_PROGRAMS) $(noinst_PROGRAMS)
+@DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@am__EXEEXT_10 = src/tools/linux/core_handler/core_handler$(EXEEXT)
+PROGRAMS = $(bin_PROGRAMS) $(libexec_PROGRAMS) $(noinst_PROGRAMS)
 am_src_client_linux_linux_client_unittest_OBJECTS =
 src_client_linux_linux_client_unittest_OBJECTS =  \
 	$(am_src_client_linux_linux_client_unittest_OBJECTS)
@@ -614,6 +617,7 @@ am__src_client_linux_linux_client_unittest_shlib_SOURCES_DIST =  \
 	src/testing/googletest/src/gtest_main.cc \
 	src/testing/googlemock/src/gmock-all.cc \
 	src/client/linux/handler/exception_handler_unittest.cc \
+	src/client/linux/microdump_writer/microdump_writer_unittest.cc \
 	src/client/linux/minidump_writer/directory_reader_unittest.cc \
 	src/client/linux/minidump_writer/cpu_set_unittest.cc \
 	src/client/linux/minidump_writer/line_reader_unittest.cc \
@@ -636,17 +640,17 @@ am__src_client_linux_linux_client_unittest_shlib_SOURCES_DIST =  \
 	src/processor/logging.cc src/processor/minidump.cc \
 	src/processor/pathname_stripper.cc \
 	src/processor/proc_maps_linux.cc \
-	src/common/android/breakpad_getcontext.S \
-	src/client/linux/microdump_writer/microdump_writer_unittest.cc \
-	src/common/android/breakpad_getcontext_unittest.cc
+	src/common/linux/breakpad_getcontext.S \
+	src/common/linux/breakpad_getcontext_unittest.cc
 @SYSTEM_TEST_LIBS_FALSE@am__objects_2 = src/testing/googletest/src/src_client_linux_linux_client_unittest_shlib-gtest-all.$(OBJEXT) \
 @SYSTEM_TEST_LIBS_FALSE@	src/testing/googletest/src/src_client_linux_linux_client_unittest_shlib-gtest_main.$(OBJEXT) \
 @SYSTEM_TEST_LIBS_FALSE@	src/testing/googlemock/src/src_client_linux_linux_client_unittest_shlib-gmock-all.$(OBJEXT)
-@ANDROID_HOST_TRUE@@LINUX_HOST_TRUE@am__objects_3 = src/common/android/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext.$(OBJEXT)
-@ANDROID_HOST_TRUE@@LINUX_HOST_TRUE@am__objects_4 = src/common/android/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext_unittest.$(OBJEXT)
+@HAVE_GETCONTEXT_FALSE@@LINUX_HOST_TRUE@am__objects_3 = src/common/linux/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext.$(OBJEXT) \
+@HAVE_GETCONTEXT_FALSE@@LINUX_HOST_TRUE@	src/common/linux/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext_unittest.$(OBJEXT)
 @LINUX_HOST_TRUE@am_src_client_linux_linux_client_unittest_shlib_OBJECTS =  \
 @LINUX_HOST_TRUE@	$(am__objects_2) \
 @LINUX_HOST_TRUE@	src/client/linux/handler/src_client_linux_linux_client_unittest_shlib-exception_handler_unittest.$(OBJEXT) \
+@LINUX_HOST_TRUE@	src/client/linux/microdump_writer/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.$(OBJEXT) \
 @LINUX_HOST_TRUE@	src/client/linux/minidump_writer/src_client_linux_linux_client_unittest_shlib-directory_reader_unittest.$(OBJEXT) \
 @LINUX_HOST_TRUE@	src/client/linux/minidump_writer/src_client_linux_linux_client_unittest_shlib-cpu_set_unittest.$(OBJEXT) \
 @LINUX_HOST_TRUE@	src/client/linux/minidump_writer/src_client_linux_linux_client_unittest_shlib-line_reader_unittest.$(OBJEXT) \
@@ -669,9 +673,7 @@ am__src_client_linux_linux_client_unittest_shlib_SOURCES_DIST =  \
 @LINUX_HOST_TRUE@	src/processor/src_client_linux_linux_client_unittest_shlib-minidump.$(OBJEXT) \
 @LINUX_HOST_TRUE@	src/processor/src_client_linux_linux_client_unittest_shlib-pathname_stripper.$(OBJEXT) \
 @LINUX_HOST_TRUE@	src/processor/src_client_linux_linux_client_unittest_shlib-proc_maps_linux.$(OBJEXT) \
-@LINUX_HOST_TRUE@	$(am__objects_3) \
-@LINUX_HOST_TRUE@	src/client/linux/microdump_writer/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.$(OBJEXT) \
-@LINUX_HOST_TRUE@	$(am__objects_4)
+@LINUX_HOST_TRUE@	$(am__objects_3)
 src_client_linux_linux_client_unittest_shlib_OBJECTS =  \
 	$(am_src_client_linux_linux_client_unittest_shlib_OBJECTS)
 src_client_linux_linux_client_unittest_shlib_LINK = $(CXXLD) \
@@ -1418,6 +1420,12 @@ am__src_tools_linux_core2md_core2md_SOURCES_DIST =  \
 src_tools_linux_core2md_core2md_OBJECTS =  \
 	$(am_src_tools_linux_core2md_core2md_OBJECTS)
 @DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@src_tools_linux_core2md_core2md_DEPENDENCIES = src/client/linux/libbreakpad_client.a
+am__src_tools_linux_core_handler_core_handler_SOURCES_DIST =  \
+	src/tools/linux/core_handler/core_handler.cc
+@DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@am_src_tools_linux_core_handler_core_handler_OBJECTS = src/tools/linux/core_handler/core_handler.$(OBJEXT)
+src_tools_linux_core_handler_core_handler_OBJECTS =  \
+	$(am_src_tools_linux_core_handler_core_handler_OBJECTS)
+@DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@src_tools_linux_core_handler_core_handler_DEPENDENCIES = src/client/linux/libbreakpad_client.a
 am__src_tools_linux_dump_syms_dump_syms_SOURCES_DIST =  \
 	src/common/dwarf_cfi_to_module.cc \
 	src/common/dwarf_cu_to_module.cc \
@@ -1485,6 +1493,12 @@ src_tools_linux_md2core_minidump_2_core_unittest_OBJECTS = $(am_src_tools_linux_
 @LINUX_HOST_TRUE@src_tools_linux_md2core_minidump_2_core_unittest_DEPENDENCIES =  \
 @LINUX_HOST_TRUE@	$(am__DEPENDENCIES_2) $(am__DEPENDENCIES_1) \
 @LINUX_HOST_TRUE@	$(am__DEPENDENCIES_1)
+am__src_tools_linux_pid2md_pid2md_SOURCES_DIST =  \
+	src/tools/linux/pid2md/pid2md.cc
+@DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@am_src_tools_linux_pid2md_pid2md_OBJECTS = src/tools/linux/pid2md/pid2md.$(OBJEXT)
+src_tools_linux_pid2md_pid2md_OBJECTS =  \
+	$(am_src_tools_linux_pid2md_pid2md_OBJECTS)
+@DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@src_tools_linux_pid2md_pid2md_DEPENDENCIES = src/client/linux/libbreakpad_client.a
 am__src_tools_linux_symupload_minidump_upload_SOURCES_DIST =  \
 	src/common/linux/http_upload.cc \
 	src/tools/linux/symupload/minidump_upload.cc
@@ -1495,10 +1509,16 @@ src_tools_linux_symupload_minidump_upload_OBJECTS =  \
 src_tools_linux_symupload_minidump_upload_DEPENDENCIES =
 am__src_tools_linux_symupload_sym_upload_SOURCES_DIST =  \
 	src/common/linux/http_upload.cc src/common/linux/http_upload.h \
+	src/common/linux/libcurl_wrapper.cc \
+	src/common/linux/libcurl_wrapper.h \
+	src/common/linux/symbol_collector_client.cc \
+	src/common/linux/symbol_collector_client.h \
 	src/common/linux/symbol_upload.cc \
 	src/common/linux/symbol_upload.h \
 	src/tools/linux/symupload/sym_upload.cc
 @DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@am_src_tools_linux_symupload_sym_upload_OBJECTS = src/common/linux/http_upload.$(OBJEXT) \
+@DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@	src/common/linux/libcurl_wrapper.$(OBJEXT) \
+@DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@	src/common/linux/symbol_collector_client.$(OBJEXT) \
 @DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@	src/common/linux/symbol_upload.$(OBJEXT) \
 @DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@	src/tools/linux/symupload/sym_upload.$(OBJEXT)
 src_tools_linux_symupload_sym_upload_OBJECTS =  \
@@ -1650,9 +1670,11 @@ SOURCES = $(src_client_linux_libbreakpad_client_a_SOURCES) \
 	$(src_processor_static_range_map_unittest_SOURCES) \
 	$(src_processor_synth_minidump_unittest_SOURCES) \
 	$(src_tools_linux_core2md_core2md_SOURCES) \
+	$(src_tools_linux_core_handler_core_handler_SOURCES) \
 	$(src_tools_linux_dump_syms_dump_syms_SOURCES) \
 	$(src_tools_linux_md2core_minidump_2_core_SOURCES) \
 	$(src_tools_linux_md2core_minidump_2_core_unittest_SOURCES) \
+	$(src_tools_linux_pid2md_pid2md_SOURCES) \
 	$(src_tools_linux_symupload_minidump_upload_SOURCES) \
 	$(src_tools_linux_symupload_sym_upload_SOURCES) \
 	$(src_tools_mac_dump_syms_dump_syms_mac_SOURCES)
@@ -1702,9 +1724,11 @@ DIST_SOURCES =  \
 	$(am__src_processor_static_range_map_unittest_SOURCES_DIST) \
 	$(am__src_processor_synth_minidump_unittest_SOURCES_DIST) \
 	$(am__src_tools_linux_core2md_core2md_SOURCES_DIST) \
+	$(am__src_tools_linux_core_handler_core_handler_SOURCES_DIST) \
 	$(am__src_tools_linux_dump_syms_dump_syms_SOURCES_DIST) \
 	$(am__src_tools_linux_md2core_minidump_2_core_SOURCES_DIST) \
 	$(am__src_tools_linux_md2core_minidump_2_core_unittest_SOURCES_DIST) \
+	$(am__src_tools_linux_pid2md_pid2md_SOURCES_DIST) \
 	$(am__src_tools_linux_symupload_minidump_upload_SOURCES_DIST) \
 	$(am__src_tools_linux_symupload_sym_upload_SOURCES_DIST) \
 	$(am__src_tools_mac_dump_syms_dump_syms_mac_SOURCES_DIST)
@@ -2348,6 +2372,7 @@ TESTS = $(check_PROGRAMS) $(check_SCRIPTS)
 @LINUX_HOST_TRUE@src_client_linux_linux_client_unittest_shlib_SOURCES =  \
 @LINUX_HOST_TRUE@	$(src_testing_libtesting_a_SOURCES) \
 @LINUX_HOST_TRUE@	src/client/linux/handler/exception_handler_unittest.cc \
+@LINUX_HOST_TRUE@	src/client/linux/microdump_writer/microdump_writer_unittest.cc \
 @LINUX_HOST_TRUE@	src/client/linux/minidump_writer/directory_reader_unittest.cc \
 @LINUX_HOST_TRUE@	src/client/linux/minidump_writer/cpu_set_unittest.cc \
 @LINUX_HOST_TRUE@	src/client/linux/minidump_writer/line_reader_unittest.cc \
@@ -2373,8 +2398,6 @@ TESTS = $(check_PROGRAMS) $(check_SCRIPTS)
 @LINUX_HOST_TRUE@	src/processor/minidump.cc \
 @LINUX_HOST_TRUE@	src/processor/pathname_stripper.cc \
 @LINUX_HOST_TRUE@	src/processor/proc_maps_linux.cc \
-@LINUX_HOST_TRUE@	$(am__append_20) \
-@LINUX_HOST_TRUE@	src/client/linux/microdump_writer/microdump_writer_unittest.cc \
 @LINUX_HOST_TRUE@	$(am__append_21)
 @LINUX_HOST_TRUE@src_client_linux_linux_client_unittest_shlib_CPPFLAGS = \
 @LINUX_HOST_TRUE@	$(AM_CPPFLAGS) $(TEST_CFLAGS)
@@ -2431,6 +2454,18 @@ TESTS = $(check_PROGRAMS) $(check_SCRIPTS)
 @DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@src_tools_linux_core2md_core2md_LDADD = \
 @DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@	src/client/linux/libbreakpad_client.a
 
+@DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@src_tools_linux_core_handler_core_handler_SOURCES = \
+@DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@	src/tools/linux/core_handler/core_handler.cc
+
+@DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@src_tools_linux_core_handler_core_handler_LDADD = \
+@DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@	src/client/linux/libbreakpad_client.a
+
+@DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@src_tools_linux_pid2md_pid2md_SOURCES = \
+@DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@	src/tools/linux/pid2md/pid2md.cc
+
+@DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@src_tools_linux_pid2md_pid2md_LDADD = \
+@DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@	src/client/linux/libbreakpad_client.a
+
 @DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@src_tools_linux_dump_syms_dump_syms_SOURCES = \
 @DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@	src/common/dwarf_cfi_to_module.cc \
 @DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@	src/common/dwarf_cu_to_module.cc \
@@ -2477,6 +2512,10 @@ TESTS = $(check_PROGRAMS) $(check_SCRIPTS)
 @DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@src_tools_linux_symupload_sym_upload_SOURCES = \
 @DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@	src/common/linux/http_upload.cc \
 @DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@	src/common/linux/http_upload.h \
+@DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@	src/common/linux/libcurl_wrapper.cc \
+@DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@	src/common/linux/libcurl_wrapper.h \
+@DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@	src/common/linux/symbol_collector_client.cc \
+@DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@	src/common/linux/symbol_collector_client.h \
 @DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@	src/common/linux/symbol_upload.cc \
 @DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@	src/common/linux/symbol_upload.h \
 @DISABLE_TOOLS_FALSE@@LINUX_HOST_TRUE@	src/tools/linux/symupload/sym_upload.cc
@@ -3334,6 +3373,7 @@ EXTRA_DIST = \
 	src/processor/testdata/microdump.stackwalk.machine_readable-arm.out \
 	src/processor/testdata/microdump-withcrashreason.dmp \
 	src/processor/testdata/microdump-x86.dmp \
+	src/processor/testdata/minidump_32bit_crash_addr.dmp \
 	src/processor/testdata/minidump2.dmp \
 	src/processor/testdata/minidump2.dump.out \
 	src/processor/testdata/minidump2.stackwalk.machine_readable.out \
@@ -3364,6 +3404,7 @@ EXTRA_DIST = \
 	src/processor/testdata/test_app.cc \
 	src/testing/googletest/include/gtest/gtest.h \
 	src/testing/googletest/include/gtest/gtest-death-test.h \
+	src/testing/googletest/include/gtest/gtest-matchers.h \
 	src/testing/googletest/include/gtest/gtest-message.h \
 	src/testing/googletest/include/gtest/gtest-param-test.h \
 	src/testing/googletest/include/gtest/gtest-printers.h \
@@ -3378,18 +3419,17 @@ EXTRA_DIST = \
 	src/testing/googletest/include/gtest/internal/gtest-death-test-internal.h \
 	src/testing/googletest/include/gtest/internal/gtest-filepath.h \
 	src/testing/googletest/include/gtest/internal/gtest-internal.h \
-	src/testing/googletest/include/gtest/internal/gtest-linked_ptr.h \
 	src/testing/googletest/include/gtest/internal/gtest-param-util-generated.h \
 	src/testing/googletest/include/gtest/internal/gtest-param-util.h \
 	src/testing/googletest/include/gtest/internal/gtest-port-arch.h \
 	src/testing/googletest/include/gtest/internal/gtest-port.h \
 	src/testing/googletest/include/gtest/internal/gtest-string.h \
-	src/testing/googletest/include/gtest/internal/gtest-tuple.h \
 	src/testing/googletest/include/gtest/internal/gtest-type-util.h \
 	src/testing/googletest/src/gtest.cc \
 	src/testing/googletest/src/gtest-death-test.cc \
 	src/testing/googletest/src/gtest-filepath.cc \
 	src/testing/googletest/src/gtest-internal-inl.h \
+	src/testing/googletest/src/gtest-matchers.cc \
 	src/testing/googletest/src/gtest-port.cc \
 	src/testing/googletest/src/gtest-printers.cc \
 	src/testing/googletest/src/gtest-test-part.cc \
@@ -3397,20 +3437,21 @@ EXTRA_DIST = \
 	src/testing/googlemock/include/gmock/gmock.h \
 	src/testing/googlemock/include/gmock/gmock-actions.h \
 	src/testing/googlemock/include/gmock/gmock-cardinalities.h \
+	src/testing/googlemock/include/gmock/gmock-function-mocker.h \
 	src/testing/googlemock/include/gmock/gmock-generated-actions.h \
 	src/testing/googlemock/include/gmock/gmock-generated-function-mockers.h \
 	src/testing/googlemock/include/gmock/gmock-generated-matchers.h \
-	src/testing/googlemock/include/gmock/gmock-generated-nice-strict.h \
 	src/testing/googlemock/include/gmock/gmock-matchers.h \
 	src/testing/googlemock/include/gmock/gmock-more-actions.h \
 	src/testing/googlemock/include/gmock/gmock-more-matchers.h \
+	src/testing/googlemock/include/gmock/gmock-nice-strict.h \
 	src/testing/googlemock/include/gmock/gmock-spec-builders.h \
 	src/testing/googlemock/include/gmock/internal/custom/gmock-generated-actions.h \
 	src/testing/googlemock/include/gmock/internal/custom/gmock-matchers.h \
 	src/testing/googlemock/include/gmock/internal/custom/gmock-port.h \
-	src/testing/googlemock/include/gmock/internal/gmock-generated-internal-utils.h \
 	src/testing/googlemock/include/gmock/internal/gmock-internal-utils.h \
 	src/testing/googlemock/include/gmock/internal/gmock-port.h \
+	src/testing/googlemock/include/gmock/internal/gmock-pp.h \
 	src/testing/googlemock/src/gmock.cc \
 	src/testing/googlemock/src/gmock-cardinalities.cc \
 	src/testing/googlemock/src/gmock-internal-utils.cc \
@@ -3694,15 +3735,9 @@ src/common/linux/memory_mapped_file.$(OBJEXT):  \
 src/common/linux/safe_readlink.$(OBJEXT):  \
 	src/common/linux/$(am__dirstamp) \
 	src/common/linux/$(DEPDIR)/$(am__dirstamp)
-src/common/android/$(am__dirstamp):
-	@$(MKDIR_P) src/common/android
-	@: > src/common/android/$(am__dirstamp)
-src/common/android/$(DEPDIR)/$(am__dirstamp):
-	@$(MKDIR_P) src/common/android/$(DEPDIR)
-	@: > src/common/android/$(DEPDIR)/$(am__dirstamp)
-src/common/android/breakpad_getcontext.$(OBJEXT):  \
-	src/common/android/$(am__dirstamp) \
-	src/common/android/$(DEPDIR)/$(am__dirstamp)
+src/common/linux/breakpad_getcontext.$(OBJEXT):  \
+	src/common/linux/$(am__dirstamp) \
+	src/common/linux/$(DEPDIR)/$(am__dirstamp)
 src/client/linux/$(am__dirstamp):
 	@$(MKDIR_P) src/client/linux
 	@: > src/client/linux/$(am__dirstamp)
@@ -3955,6 +3990,48 @@ clean-binPROGRAMS:
 
 clean-checkPROGRAMS:
 	-test -z "$(check_PROGRAMS)" || rm -f $(check_PROGRAMS)
+install-libexecPROGRAMS: $(libexec_PROGRAMS)
+	@$(NORMAL_INSTALL)
+	@list='$(libexec_PROGRAMS)'; test -n "$(libexecdir)" || list=; \
+	if test -n "$$list"; then \
+	  echo " $(MKDIR_P) '$(DESTDIR)$(libexecdir)'"; \
+	  $(MKDIR_P) "$(DESTDIR)$(libexecdir)" || exit 1; \
+	fi; \
+	for p in $$list; do echo "$$p $$p"; done | \
+	sed 's/$(EXEEXT)$$//' | \
+	while read p p1; do if test -f $$p \
+	  ; then echo "$$p"; echo "$$p"; else :; fi; \
+	done | \
+	sed -e 'p;s,.*/,,;n;h' \
+	    -e 's|.*|.|' \
+	    -e 'p;x;s,.*/,,;s/$(EXEEXT)$$//;$(transform);s/$$/$(EXEEXT)/' | \
+	sed 'N;N;N;s,\n, ,g' | \
+	$(AWK) 'BEGIN { files["."] = ""; dirs["."] = 1 } \
+	  { d=$$3; if (dirs[d] != 1) { print "d", d; dirs[d] = 1 } \
+	    if ($$2 == $$4) files[d] = files[d] " " $$1; \
+	    else { print "f", $$3 "/" $$4, $$1; } } \
+	  END { for (d in files) print "f", d, files[d] }' | \
+	while read type dir files; do \
+	    if test "$$dir" = .; then dir=; else dir=/$$dir; fi; \
+	    test -z "$$files" || { \
+	      echo " $(INSTALL_PROGRAM_ENV) $(INSTALL_PROGRAM) $$files '$(DESTDIR)$(libexecdir)$$dir'"; \
+	      $(INSTALL_PROGRAM_ENV) $(INSTALL_PROGRAM) $$files "$(DESTDIR)$(libexecdir)$$dir" || exit $$?; \
+	    } \
+	; done
+
+uninstall-libexecPROGRAMS:
+	@$(NORMAL_UNINSTALL)
+	@list='$(libexec_PROGRAMS)'; test -n "$(libexecdir)" || list=; \
+	files=`for p in $$list; do echo "$$p"; done | \
+	  sed -e 'h;s,^.*/,,;s/$(EXEEXT)$$//;$(transform)' \
+	      -e 's/$$/$(EXEEXT)/' \
+	`; \
+	test -n "$$list" || exit 0; \
+	echo " ( cd '$(DESTDIR)$(libexecdir)' && rm -f" $$files ")"; \
+	cd "$(DESTDIR)$(libexecdir)" && rm -f $$files
+
+clean-libexecPROGRAMS:
+	-test -z "$(libexec_PROGRAMS)" || rm -f $(libexec_PROGRAMS)
 
 clean-noinstPROGRAMS:
 	-test -z "$(noinst_PROGRAMS)" || rm -f $(noinst_PROGRAMS)
@@ -3974,6 +4051,9 @@ src/testing/googlemock/src/src_client_linux_linux_client_unittest_shlib-gmock-al
 src/client/linux/handler/src_client_linux_linux_client_unittest_shlib-exception_handler_unittest.$(OBJEXT):  \
 	src/client/linux/handler/$(am__dirstamp) \
 	src/client/linux/handler/$(DEPDIR)/$(am__dirstamp)
+src/client/linux/microdump_writer/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.$(OBJEXT):  \
+	src/client/linux/microdump_writer/$(am__dirstamp) \
+	src/client/linux/microdump_writer/$(DEPDIR)/$(am__dirstamp)
 src/client/linux/minidump_writer/src_client_linux_linux_client_unittest_shlib-directory_reader_unittest.$(OBJEXT):  \
 	src/client/linux/minidump_writer/$(am__dirstamp) \
 	src/client/linux/minidump_writer/$(DEPDIR)/$(am__dirstamp)
@@ -4052,15 +4132,12 @@ src/processor/src_client_linux_linux_client_unittest_shlib-pathname_stripper.$(O
 src/processor/src_client_linux_linux_client_unittest_shlib-proc_maps_linux.$(OBJEXT):  \
 	src/processor/$(am__dirstamp) \
 	src/processor/$(DEPDIR)/$(am__dirstamp)
-src/common/android/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext.$(OBJEXT):  \
-	src/common/android/$(am__dirstamp) \
-	src/common/android/$(DEPDIR)/$(am__dirstamp)
-src/client/linux/microdump_writer/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.$(OBJEXT):  \
-	src/client/linux/microdump_writer/$(am__dirstamp) \
-	src/client/linux/microdump_writer/$(DEPDIR)/$(am__dirstamp)
-src/common/android/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext_unittest.$(OBJEXT):  \
-	src/common/android/$(am__dirstamp) \
-	src/common/android/$(DEPDIR)/$(am__dirstamp)
+src/common/linux/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext.$(OBJEXT):  \
+	src/common/linux/$(am__dirstamp) \
+	src/common/linux/$(DEPDIR)/$(am__dirstamp)
+src/common/linux/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext_unittest.$(OBJEXT):  \
+	src/common/linux/$(am__dirstamp) \
+	src/common/linux/$(DEPDIR)/$(am__dirstamp)
 
 src/client/linux/linux_client_unittest_shlib$(EXEEXT): $(src_client_linux_linux_client_unittest_shlib_OBJECTS) $(src_client_linux_linux_client_unittest_shlib_DEPENDENCIES) $(EXTRA_src_client_linux_linux_client_unittest_shlib_DEPENDENCIES) src/client/linux/$(am__dirstamp)
 	@rm -f src/client/linux/linux_client_unittest_shlib$(EXEEXT)
@@ -4610,6 +4687,19 @@ src/tools/linux/core2md/core2md.$(OBJEXT):  \
 src/tools/linux/core2md/core2md$(EXEEXT): $(src_tools_linux_core2md_core2md_OBJECTS) $(src_tools_linux_core2md_core2md_DEPENDENCIES) $(EXTRA_src_tools_linux_core2md_core2md_DEPENDENCIES) src/tools/linux/core2md/$(am__dirstamp)
 	@rm -f src/tools/linux/core2md/core2md$(EXEEXT)
 	$(AM_V_CXXLD)$(CXXLINK) $(src_tools_linux_core2md_core2md_OBJECTS) $(src_tools_linux_core2md_core2md_LDADD) $(LIBS)
+src/tools/linux/core_handler/$(am__dirstamp):
+	@$(MKDIR_P) src/tools/linux/core_handler
+	@: > src/tools/linux/core_handler/$(am__dirstamp)
+src/tools/linux/core_handler/$(DEPDIR)/$(am__dirstamp):
+	@$(MKDIR_P) src/tools/linux/core_handler/$(DEPDIR)
+	@: > src/tools/linux/core_handler/$(DEPDIR)/$(am__dirstamp)
+src/tools/linux/core_handler/core_handler.$(OBJEXT):  \
+	src/tools/linux/core_handler/$(am__dirstamp) \
+	src/tools/linux/core_handler/$(DEPDIR)/$(am__dirstamp)
+
+src/tools/linux/core_handler/core_handler$(EXEEXT): $(src_tools_linux_core_handler_core_handler_OBJECTS) $(src_tools_linux_core_handler_core_handler_DEPENDENCIES) $(EXTRA_src_tools_linux_core_handler_core_handler_DEPENDENCIES) src/tools/linux/core_handler/$(am__dirstamp)
+	@rm -f src/tools/linux/core_handler/core_handler$(EXEEXT)
+	$(AM_V_CXXLD)$(CXXLINK) $(src_tools_linux_core_handler_core_handler_OBJECTS) $(src_tools_linux_core_handler_core_handler_LDADD) $(LIBS)
 src/common/src_tools_linux_dump_syms_dump_syms-dwarf_cfi_to_module.$(OBJEXT):  \
 	src/common/$(am__dirstamp) \
 	src/common/$(DEPDIR)/$(am__dirstamp)
@@ -4708,6 +4798,19 @@ src/tools/linux/md2core/src_tools_linux_md2core_minidump_2_core_unittest-minidum
 src/tools/linux/md2core/minidump_2_core_unittest$(EXEEXT): $(src_tools_linux_md2core_minidump_2_core_unittest_OBJECTS) $(src_tools_linux_md2core_minidump_2_core_unittest_DEPENDENCIES) $(EXTRA_src_tools_linux_md2core_minidump_2_core_unittest_DEPENDENCIES) src/tools/linux/md2core/$(am__dirstamp)
 	@rm -f src/tools/linux/md2core/minidump_2_core_unittest$(EXEEXT)
 	$(AM_V_CXXLD)$(CXXLINK) $(src_tools_linux_md2core_minidump_2_core_unittest_OBJECTS) $(src_tools_linux_md2core_minidump_2_core_unittest_LDADD) $(LIBS)
+src/tools/linux/pid2md/$(am__dirstamp):
+	@$(MKDIR_P) src/tools/linux/pid2md
+	@: > src/tools/linux/pid2md/$(am__dirstamp)
+src/tools/linux/pid2md/$(DEPDIR)/$(am__dirstamp):
+	@$(MKDIR_P) src/tools/linux/pid2md/$(DEPDIR)
+	@: > src/tools/linux/pid2md/$(DEPDIR)/$(am__dirstamp)
+src/tools/linux/pid2md/pid2md.$(OBJEXT):  \
+	src/tools/linux/pid2md/$(am__dirstamp) \
+	src/tools/linux/pid2md/$(DEPDIR)/$(am__dirstamp)
+
+src/tools/linux/pid2md/pid2md$(EXEEXT): $(src_tools_linux_pid2md_pid2md_OBJECTS) $(src_tools_linux_pid2md_pid2md_DEPENDENCIES) $(EXTRA_src_tools_linux_pid2md_pid2md_DEPENDENCIES) src/tools/linux/pid2md/$(am__dirstamp)
+	@rm -f src/tools/linux/pid2md/pid2md$(EXEEXT)
+	$(AM_V_CXXLD)$(CXXLINK) $(src_tools_linux_pid2md_pid2md_OBJECTS) $(src_tools_linux_pid2md_pid2md_LDADD) $(LIBS)
 src/common/linux/http_upload.$(OBJEXT):  \
 	src/common/linux/$(am__dirstamp) \
 	src/common/linux/$(DEPDIR)/$(am__dirstamp)
@@ -4724,6 +4827,12 @@ src/tools/linux/symupload/minidump_upload.$(OBJEXT):  \
 src/tools/linux/symupload/minidump_upload$(EXEEXT): $(src_tools_linux_symupload_minidump_upload_OBJECTS) $(src_tools_linux_symupload_minidump_upload_DEPENDENCIES) $(EXTRA_src_tools_linux_symupload_minidump_upload_DEPENDENCIES) src/tools/linux/symupload/$(am__dirstamp)
 	@rm -f src/tools/linux/symupload/minidump_upload$(EXEEXT)
 	$(AM_V_CXXLD)$(CXXLINK) $(src_tools_linux_symupload_minidump_upload_OBJECTS) $(src_tools_linux_symupload_minidump_upload_LDADD) $(LIBS)
+src/common/linux/libcurl_wrapper.$(OBJEXT):  \
+	src/common/linux/$(am__dirstamp) \
+	src/common/linux/$(DEPDIR)/$(am__dirstamp)
+src/common/linux/symbol_collector_client.$(OBJEXT):  \
+	src/common/linux/$(am__dirstamp) \
+	src/common/linux/$(DEPDIR)/$(am__dirstamp)
 src/common/linux/symbol_upload.$(OBJEXT):  \
 	src/common/linux/$(am__dirstamp) \
 	src/common/linux/$(DEPDIR)/$(am__dirstamp)
@@ -4821,7 +4930,6 @@ mostlyclean-compile:
 	-rm -f src/client/linux/microdump_writer/*.$(OBJEXT)
 	-rm -f src/client/linux/minidump_writer/*.$(OBJEXT)
 	-rm -f src/common/*.$(OBJEXT)
-	-rm -f src/common/android/*.$(OBJEXT)
 	-rm -f src/common/dwarf/*.$(OBJEXT)
 	-rm -f src/common/linux/*.$(OBJEXT)
 	-rm -f src/common/linux/tests/*.$(OBJEXT)
@@ -4832,8 +4940,10 @@ mostlyclean-compile:
 	-rm -f src/testing/googletest/src/*.$(OBJEXT)
 	-rm -f src/third_party/libdisasm/*.$(OBJEXT)
 	-rm -f src/tools/linux/core2md/*.$(OBJEXT)
+	-rm -f src/tools/linux/core_handler/*.$(OBJEXT)
 	-rm -f src/tools/linux/dump_syms/*.$(OBJEXT)
 	-rm -f src/tools/linux/md2core/*.$(OBJEXT)
+	-rm -f src/tools/linux/pid2md/*.$(OBJEXT)
 	-rm -f src/tools/linux/symupload/*.$(OBJEXT)
 	-rm -f src/tools/mac/dump_syms/*.$(OBJEXT)
 
@@ -4931,9 +5041,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/common/$(DEPDIR)/src_tools_mac_dump_syms_dump_syms_mac-stabs_reader.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/common/$(DEPDIR)/src_tools_mac_dump_syms_dump_syms_mac-stabs_to_module.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/common/$(DEPDIR)/string_conversion.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@src/common/android/$(DEPDIR)/breakpad_getcontext.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@src/common/android/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@src/common/android/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext_unittest.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/common/dwarf/$(DEPDIR)/src_common_dumper_unittest-bytereader.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/common/dwarf/$(DEPDIR)/src_common_dumper_unittest-bytereader_unittest.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/common/dwarf/$(DEPDIR)/src_common_dumper_unittest-cfi_assembler.Po@am__quote@
@@ -4956,14 +5063,18 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/common/dwarf/$(DEPDIR)/src_tools_mac_dump_syms_dump_syms_mac-dwarf2diehandler.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/common/dwarf/$(DEPDIR)/src_tools_mac_dump_syms_dump_syms_mac-dwarf2reader.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/common/dwarf/$(DEPDIR)/src_tools_mac_dump_syms_dump_syms_mac-elf_reader.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/common/linux/$(DEPDIR)/breakpad_getcontext.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/common/linux/$(DEPDIR)/elf_core_dump.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/common/linux/$(DEPDIR)/elfutils.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/common/linux/$(DEPDIR)/file_id.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/common/linux/$(DEPDIR)/guid_creator.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/common/linux/$(DEPDIR)/http_upload.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/common/linux/$(DEPDIR)/libcurl_wrapper.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/common/linux/$(DEPDIR)/linux_libc_support.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/common/linux/$(DEPDIR)/memory_mapped_file.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/common/linux/$(DEPDIR)/safe_readlink.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/common/linux/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/common/linux/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext_unittest.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/common/linux/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-elf_core_dump.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/common/linux/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-linux_libc_support_unittest.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/common/linux/$(DEPDIR)/src_common_dumper_unittest-crc32.Po@am__quote@
@@ -4994,6 +5105,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/common/linux/$(DEPDIR)/src_tools_linux_dump_syms_dump_syms-linux_libc_support.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/common/linux/$(DEPDIR)/src_tools_linux_dump_syms_dump_syms-memory_mapped_file.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/common/linux/$(DEPDIR)/src_tools_linux_dump_syms_dump_syms-safe_readlink.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/common/linux/$(DEPDIR)/symbol_collector_client.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/common/linux/$(DEPDIR)/symbol_upload.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/common/linux/tests/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-crash_generator.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/common/linux/tests/$(DEPDIR)/src_common_dumper_unittest-crash_generator.Po@am__quote@
@@ -5117,9 +5229,11 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/third_party/libdisasm/$(DEPDIR)/x86_misc.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/third_party/libdisasm/$(DEPDIR)/x86_operand_list.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/tools/linux/core2md/$(DEPDIR)/core2md.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/tools/linux/core_handler/$(DEPDIR)/core_handler.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/tools/linux/dump_syms/$(DEPDIR)/src_tools_linux_dump_syms_dump_syms-dump_syms.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/tools/linux/md2core/$(DEPDIR)/minidump-2-core.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/tools/linux/md2core/$(DEPDIR)/src_tools_linux_md2core_minidump_2_core_unittest-minidump_memory_range_unittest.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/tools/linux/pid2md/$(DEPDIR)/pid2md.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/tools/linux/symupload/$(DEPDIR)/minidump_upload.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/tools/linux/symupload/$(DEPDIR)/sym_upload.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/tools/mac/dump_syms/$(DEPDIR)/src_tools_mac_dump_syms_dump_syms_mac-dump_syms_tool.Po@am__quote@
@@ -5140,19 +5254,19 @@ distclean-compile:
 @AMDEP_TRUE@@am__fastdepCCAS_FALSE@	DEPDIR=$(DEPDIR) $(CCASDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCCAS_FALSE@	$(AM_V_CPPAS@am__nodep@)$(CPPASCOMPILE) -c -o $@ `$(CYGPATH_W) '$<'`
 
-src/common/android/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext.o: src/common/android/breakpad_getcontext.S
-@am__fastdepCCAS_TRUE@	$(AM_V_CPPAS)$(CCAS) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_client_linux_linux_client_unittest_shlib_CPPFLAGS) $(CPPFLAGS) $(AM_CCASFLAGS) $(CCASFLAGS) -MT src/common/android/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext.o -MD -MP -MF src/common/android/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext.Tpo -c -o src/common/android/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext.o `test -f 'src/common/android/breakpad_getcontext.S' || echo '$(srcdir)/'`src/common/android/breakpad_getcontext.S
-@am__fastdepCCAS_TRUE@	$(AM_V_at)$(am__mv) src/common/android/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext.Tpo src/common/android/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext.Po
-@AMDEP_TRUE@@am__fastdepCCAS_FALSE@	$(AM_V_CPPAS)source='src/common/android/breakpad_getcontext.S' object='src/common/android/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext.o' libtool=no @AMDEPBACKSLASH@
+src/common/linux/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext.o: src/common/linux/breakpad_getcontext.S
+@am__fastdepCCAS_TRUE@	$(AM_V_CPPAS)$(CCAS) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_client_linux_linux_client_unittest_shlib_CPPFLAGS) $(CPPFLAGS) $(AM_CCASFLAGS) $(CCASFLAGS) -MT src/common/linux/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext.o -MD -MP -MF src/common/linux/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext.Tpo -c -o src/common/linux/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext.o `test -f 'src/common/linux/breakpad_getcontext.S' || echo '$(srcdir)/'`src/common/linux/breakpad_getcontext.S
+@am__fastdepCCAS_TRUE@	$(AM_V_at)$(am__mv) src/common/linux/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext.Tpo src/common/linux/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext.Po
+@AMDEP_TRUE@@am__fastdepCCAS_FALSE@	$(AM_V_CPPAS)source='src/common/linux/breakpad_getcontext.S' object='src/common/linux/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCCAS_FALSE@	DEPDIR=$(DEPDIR) $(CCASDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCCAS_FALSE@	$(AM_V_CPPAS@am__nodep@)$(CCAS) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_client_linux_linux_client_unittest_shlib_CPPFLAGS) $(CPPFLAGS) $(AM_CCASFLAGS) $(CCASFLAGS) -c -o src/common/android/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext.o `test -f 'src/common/android/breakpad_getcontext.S' || echo '$(srcdir)/'`src/common/android/breakpad_getcontext.S
+@am__fastdepCCAS_FALSE@	$(AM_V_CPPAS@am__nodep@)$(CCAS) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_client_linux_linux_client_unittest_shlib_CPPFLAGS) $(CPPFLAGS) $(AM_CCASFLAGS) $(CCASFLAGS) -c -o src/common/linux/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext.o `test -f 'src/common/linux/breakpad_getcontext.S' || echo '$(srcdir)/'`src/common/linux/breakpad_getcontext.S
 
-src/common/android/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext.obj: src/common/android/breakpad_getcontext.S
-@am__fastdepCCAS_TRUE@	$(AM_V_CPPAS)$(CCAS) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_client_linux_linux_client_unittest_shlib_CPPFLAGS) $(CPPFLAGS) $(AM_CCASFLAGS) $(CCASFLAGS) -MT src/common/android/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext.obj -MD -MP -MF src/common/android/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext.Tpo -c -o src/common/android/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext.obj `if test -f 'src/common/android/breakpad_getcontext.S'; then $(CYGPATH_W) 'src/common/android/breakpad_getcontext.S'; else $(CYGPATH_W) '$(srcdir)/src/common/android/breakpad_getcontext.S'; fi`
-@am__fastdepCCAS_TRUE@	$(AM_V_at)$(am__mv) src/common/android/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext.Tpo src/common/android/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext.Po
-@AMDEP_TRUE@@am__fastdepCCAS_FALSE@	$(AM_V_CPPAS)source='src/common/android/breakpad_getcontext.S' object='src/common/android/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext.obj' libtool=no @AMDEPBACKSLASH@
+src/common/linux/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext.obj: src/common/linux/breakpad_getcontext.S
+@am__fastdepCCAS_TRUE@	$(AM_V_CPPAS)$(CCAS) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_client_linux_linux_client_unittest_shlib_CPPFLAGS) $(CPPFLAGS) $(AM_CCASFLAGS) $(CCASFLAGS) -MT src/common/linux/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext.obj -MD -MP -MF src/common/linux/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext.Tpo -c -o src/common/linux/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext.obj `if test -f 'src/common/linux/breakpad_getcontext.S'; then $(CYGPATH_W) 'src/common/linux/breakpad_getcontext.S'; else $(CYGPATH_W) '$(srcdir)/src/common/linux/breakpad_getcontext.S'; fi`
+@am__fastdepCCAS_TRUE@	$(AM_V_at)$(am__mv) src/common/linux/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext.Tpo src/common/linux/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext.Po
+@AMDEP_TRUE@@am__fastdepCCAS_FALSE@	$(AM_V_CPPAS)source='src/common/linux/breakpad_getcontext.S' object='src/common/linux/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCCAS_FALSE@	DEPDIR=$(DEPDIR) $(CCASDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCCAS_FALSE@	$(AM_V_CPPAS@am__nodep@)$(CCAS) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_client_linux_linux_client_unittest_shlib_CPPFLAGS) $(CPPFLAGS) $(AM_CCASFLAGS) $(CCASFLAGS) -c -o src/common/android/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext.obj `if test -f 'src/common/android/breakpad_getcontext.S'; then $(CYGPATH_W) 'src/common/android/breakpad_getcontext.S'; else $(CYGPATH_W) '$(srcdir)/src/common/android/breakpad_getcontext.S'; fi`
+@am__fastdepCCAS_FALSE@	$(AM_V_CPPAS@am__nodep@)$(CCAS) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_client_linux_linux_client_unittest_shlib_CPPFLAGS) $(CPPFLAGS) $(AM_CCASFLAGS) $(CCASFLAGS) -c -o src/common/linux/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext.obj `if test -f 'src/common/linux/breakpad_getcontext.S'; then $(CYGPATH_W) 'src/common/linux/breakpad_getcontext.S'; else $(CYGPATH_W) '$(srcdir)/src/common/linux/breakpad_getcontext.S'; fi`
 
 .c.o:
 @am__fastdepCC_TRUE@	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`;\
@@ -5283,6 +5397,20 @@ src/client/linux/handler/src_client_linux_linux_client_unittest_shlib-exception_
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/client/linux/handler/exception_handler_unittest.cc' object='src/client/linux/handler/src_client_linux_linux_client_unittest_shlib-exception_handler_unittest.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_client_linux_linux_client_unittest_shlib_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o src/client/linux/handler/src_client_linux_linux_client_unittest_shlib-exception_handler_unittest.obj `if test -f 'src/client/linux/handler/exception_handler_unittest.cc'; then $(CYGPATH_W) 'src/client/linux/handler/exception_handler_unittest.cc'; else $(CYGPATH_W) '$(srcdir)/src/client/linux/handler/exception_handler_unittest.cc'; fi`
+
+src/client/linux/microdump_writer/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.o: src/client/linux/microdump_writer/microdump_writer_unittest.cc
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_client_linux_linux_client_unittest_shlib_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT src/client/linux/microdump_writer/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.o -MD -MP -MF src/client/linux/microdump_writer/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.Tpo -c -o src/client/linux/microdump_writer/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.o `test -f 'src/client/linux/microdump_writer/microdump_writer_unittest.cc' || echo '$(srcdir)/'`src/client/linux/microdump_writer/microdump_writer_unittest.cc
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/client/linux/microdump_writer/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.Tpo src/client/linux/microdump_writer/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/client/linux/microdump_writer/microdump_writer_unittest.cc' object='src/client/linux/microdump_writer/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_client_linux_linux_client_unittest_shlib_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o src/client/linux/microdump_writer/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.o `test -f 'src/client/linux/microdump_writer/microdump_writer_unittest.cc' || echo '$(srcdir)/'`src/client/linux/microdump_writer/microdump_writer_unittest.cc
+
+src/client/linux/microdump_writer/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.obj: src/client/linux/microdump_writer/microdump_writer_unittest.cc
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_client_linux_linux_client_unittest_shlib_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT src/client/linux/microdump_writer/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.obj -MD -MP -MF src/client/linux/microdump_writer/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.Tpo -c -o src/client/linux/microdump_writer/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.obj `if test -f 'src/client/linux/microdump_writer/microdump_writer_unittest.cc'; then $(CYGPATH_W) 'src/client/linux/microdump_writer/microdump_writer_unittest.cc'; else $(CYGPATH_W) '$(srcdir)/src/client/linux/microdump_writer/microdump_writer_unittest.cc'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/client/linux/microdump_writer/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.Tpo src/client/linux/microdump_writer/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/client/linux/microdump_writer/microdump_writer_unittest.cc' object='src/client/linux/microdump_writer/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_client_linux_linux_client_unittest_shlib_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o src/client/linux/microdump_writer/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.obj `if test -f 'src/client/linux/microdump_writer/microdump_writer_unittest.cc'; then $(CYGPATH_W) 'src/client/linux/microdump_writer/microdump_writer_unittest.cc'; else $(CYGPATH_W) '$(srcdir)/src/client/linux/microdump_writer/microdump_writer_unittest.cc'; fi`
 
 src/client/linux/minidump_writer/src_client_linux_linux_client_unittest_shlib-directory_reader_unittest.o: src/client/linux/minidump_writer/directory_reader_unittest.cc
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_client_linux_linux_client_unittest_shlib_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT src/client/linux/minidump_writer/src_client_linux_linux_client_unittest_shlib-directory_reader_unittest.o -MD -MP -MF src/client/linux/minidump_writer/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-directory_reader_unittest.Tpo -c -o src/client/linux/minidump_writer/src_client_linux_linux_client_unittest_shlib-directory_reader_unittest.o `test -f 'src/client/linux/minidump_writer/directory_reader_unittest.cc' || echo '$(srcdir)/'`src/client/linux/minidump_writer/directory_reader_unittest.cc
@@ -5592,33 +5720,19 @@ src/processor/src_client_linux_linux_client_unittest_shlib-proc_maps_linux.obj: 
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_client_linux_linux_client_unittest_shlib_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o src/processor/src_client_linux_linux_client_unittest_shlib-proc_maps_linux.obj `if test -f 'src/processor/proc_maps_linux.cc'; then $(CYGPATH_W) 'src/processor/proc_maps_linux.cc'; else $(CYGPATH_W) '$(srcdir)/src/processor/proc_maps_linux.cc'; fi`
 
-src/client/linux/microdump_writer/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.o: src/client/linux/microdump_writer/microdump_writer_unittest.cc
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_client_linux_linux_client_unittest_shlib_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT src/client/linux/microdump_writer/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.o -MD -MP -MF src/client/linux/microdump_writer/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.Tpo -c -o src/client/linux/microdump_writer/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.o `test -f 'src/client/linux/microdump_writer/microdump_writer_unittest.cc' || echo '$(srcdir)/'`src/client/linux/microdump_writer/microdump_writer_unittest.cc
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/client/linux/microdump_writer/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.Tpo src/client/linux/microdump_writer/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/client/linux/microdump_writer/microdump_writer_unittest.cc' object='src/client/linux/microdump_writer/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.o' libtool=no @AMDEPBACKSLASH@
+src/common/linux/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext_unittest.o: src/common/linux/breakpad_getcontext_unittest.cc
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_client_linux_linux_client_unittest_shlib_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT src/common/linux/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext_unittest.o -MD -MP -MF src/common/linux/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext_unittest.Tpo -c -o src/common/linux/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext_unittest.o `test -f 'src/common/linux/breakpad_getcontext_unittest.cc' || echo '$(srcdir)/'`src/common/linux/breakpad_getcontext_unittest.cc
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/common/linux/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext_unittest.Tpo src/common/linux/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext_unittest.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/common/linux/breakpad_getcontext_unittest.cc' object='src/common/linux/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext_unittest.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_client_linux_linux_client_unittest_shlib_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o src/client/linux/microdump_writer/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.o `test -f 'src/client/linux/microdump_writer/microdump_writer_unittest.cc' || echo '$(srcdir)/'`src/client/linux/microdump_writer/microdump_writer_unittest.cc
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_client_linux_linux_client_unittest_shlib_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o src/common/linux/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext_unittest.o `test -f 'src/common/linux/breakpad_getcontext_unittest.cc' || echo '$(srcdir)/'`src/common/linux/breakpad_getcontext_unittest.cc
 
-src/client/linux/microdump_writer/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.obj: src/client/linux/microdump_writer/microdump_writer_unittest.cc
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_client_linux_linux_client_unittest_shlib_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT src/client/linux/microdump_writer/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.obj -MD -MP -MF src/client/linux/microdump_writer/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.Tpo -c -o src/client/linux/microdump_writer/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.obj `if test -f 'src/client/linux/microdump_writer/microdump_writer_unittest.cc'; then $(CYGPATH_W) 'src/client/linux/microdump_writer/microdump_writer_unittest.cc'; else $(CYGPATH_W) '$(srcdir)/src/client/linux/microdump_writer/microdump_writer_unittest.cc'; fi`
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/client/linux/microdump_writer/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.Tpo src/client/linux/microdump_writer/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/client/linux/microdump_writer/microdump_writer_unittest.cc' object='src/client/linux/microdump_writer/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.obj' libtool=no @AMDEPBACKSLASH@
+src/common/linux/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext_unittest.obj: src/common/linux/breakpad_getcontext_unittest.cc
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_client_linux_linux_client_unittest_shlib_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT src/common/linux/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext_unittest.obj -MD -MP -MF src/common/linux/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext_unittest.Tpo -c -o src/common/linux/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext_unittest.obj `if test -f 'src/common/linux/breakpad_getcontext_unittest.cc'; then $(CYGPATH_W) 'src/common/linux/breakpad_getcontext_unittest.cc'; else $(CYGPATH_W) '$(srcdir)/src/common/linux/breakpad_getcontext_unittest.cc'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/common/linux/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext_unittest.Tpo src/common/linux/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext_unittest.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/common/linux/breakpad_getcontext_unittest.cc' object='src/common/linux/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext_unittest.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_client_linux_linux_client_unittest_shlib_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o src/client/linux/microdump_writer/src_client_linux_linux_client_unittest_shlib-microdump_writer_unittest.obj `if test -f 'src/client/linux/microdump_writer/microdump_writer_unittest.cc'; then $(CYGPATH_W) 'src/client/linux/microdump_writer/microdump_writer_unittest.cc'; else $(CYGPATH_W) '$(srcdir)/src/client/linux/microdump_writer/microdump_writer_unittest.cc'; fi`
-
-src/common/android/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext_unittest.o: src/common/android/breakpad_getcontext_unittest.cc
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_client_linux_linux_client_unittest_shlib_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT src/common/android/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext_unittest.o -MD -MP -MF src/common/android/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext_unittest.Tpo -c -o src/common/android/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext_unittest.o `test -f 'src/common/android/breakpad_getcontext_unittest.cc' || echo '$(srcdir)/'`src/common/android/breakpad_getcontext_unittest.cc
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/common/android/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext_unittest.Tpo src/common/android/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext_unittest.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/common/android/breakpad_getcontext_unittest.cc' object='src/common/android/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext_unittest.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_client_linux_linux_client_unittest_shlib_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o src/common/android/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext_unittest.o `test -f 'src/common/android/breakpad_getcontext_unittest.cc' || echo '$(srcdir)/'`src/common/android/breakpad_getcontext_unittest.cc
-
-src/common/android/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext_unittest.obj: src/common/android/breakpad_getcontext_unittest.cc
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_client_linux_linux_client_unittest_shlib_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT src/common/android/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext_unittest.obj -MD -MP -MF src/common/android/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext_unittest.Tpo -c -o src/common/android/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext_unittest.obj `if test -f 'src/common/android/breakpad_getcontext_unittest.cc'; then $(CYGPATH_W) 'src/common/android/breakpad_getcontext_unittest.cc'; else $(CYGPATH_W) '$(srcdir)/src/common/android/breakpad_getcontext_unittest.cc'; fi`
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) src/common/android/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext_unittest.Tpo src/common/android/$(DEPDIR)/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext_unittest.Po
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='src/common/android/breakpad_getcontext_unittest.cc' object='src/common/android/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext_unittest.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_client_linux_linux_client_unittest_shlib_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o src/common/android/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext_unittest.obj `if test -f 'src/common/android/breakpad_getcontext_unittest.cc'; then $(CYGPATH_W) 'src/common/android/breakpad_getcontext_unittest.cc'; else $(CYGPATH_W) '$(srcdir)/src/common/android/breakpad_getcontext_unittest.cc'; fi`
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_client_linux_linux_client_unittest_shlib_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o src/common/linux/src_client_linux_linux_client_unittest_shlib-breakpad_getcontext_unittest.obj `if test -f 'src/common/linux/breakpad_getcontext_unittest.cc'; then $(CYGPATH_W) 'src/common/linux/breakpad_getcontext_unittest.cc'; else $(CYGPATH_W) '$(srcdir)/src/common/linux/breakpad_getcontext_unittest.cc'; fi`
 
 src/client/linux/minidump_writer/src_client_linux_linux_dumper_unittest_helper-linux_dumper_unittest_helper.o: src/client/linux/minidump_writer/linux_dumper_unittest_helper.cc
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(src_client_linux_linux_dumper_unittest_helper_CXXFLAGS) $(CXXFLAGS) -MT src/client/linux/minidump_writer/src_client_linux_linux_dumper_unittest_helper-linux_dumper_unittest_helper.o -MD -MP -MF src/client/linux/minidump_writer/$(DEPDIR)/src_client_linux_linux_dumper_unittest_helper-linux_dumper_unittest_helper.Tpo -c -o src/client/linux/minidump_writer/src_client_linux_linux_dumper_unittest_helper-linux_dumper_unittest_helper.o `test -f 'src/client/linux/minidump_writer/linux_dumper_unittest_helper.cc' || echo '$(srcdir)/'`src/client/linux/minidump_writer/linux_dumper_unittest_helper.cc
@@ -8750,7 +8864,7 @@ check: check-am
 all-am: Makefile $(LIBRARIES) $(PROGRAMS) $(SCRIPTS) $(DATA) \
 		$(HEADERS)
 installdirs:
-	for dir in "$(DESTDIR)$(libdir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(docdir)" "$(DESTDIR)$(pkgconfigdir)" "$(DESTDIR)$(includecdir)" "$(DESTDIR)$(includecldir)" "$(DESTDIR)$(includeclcdir)" "$(DESTDIR)$(includecldwcdir)" "$(DESTDIR)$(includeclhdir)" "$(DESTDIR)$(includeclmdir)" "$(DESTDIR)$(includegbcdir)" "$(DESTDIR)$(includelssdir)" "$(DESTDIR)$(includepdir)"; do \
+	for dir in "$(DESTDIR)$(libdir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(libexecdir)" "$(DESTDIR)$(docdir)" "$(DESTDIR)$(pkgconfigdir)" "$(DESTDIR)$(includecdir)" "$(DESTDIR)$(includecldir)" "$(DESTDIR)$(includeclcdir)" "$(DESTDIR)$(includecldwcdir)" "$(DESTDIR)$(includeclhdir)" "$(DESTDIR)$(includeclmdir)" "$(DESTDIR)$(includegbcdir)" "$(DESTDIR)$(includelssdir)" "$(DESTDIR)$(includepdir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
 install: install-am
@@ -8801,8 +8915,6 @@ distclean-generic:
 	-rm -f src/client/linux/minidump_writer/$(am__dirstamp)
 	-rm -f src/common/$(DEPDIR)/$(am__dirstamp)
 	-rm -f src/common/$(am__dirstamp)
-	-rm -f src/common/android/$(DEPDIR)/$(am__dirstamp)
-	-rm -f src/common/android/$(am__dirstamp)
 	-rm -f src/common/dwarf/$(DEPDIR)/$(am__dirstamp)
 	-rm -f src/common/dwarf/$(am__dirstamp)
 	-rm -f src/common/linux/$(DEPDIR)/$(am__dirstamp)
@@ -8824,10 +8936,14 @@ distclean-generic:
 	-rm -f src/third_party/libdisasm/$(am__dirstamp)
 	-rm -f src/tools/linux/core2md/$(DEPDIR)/$(am__dirstamp)
 	-rm -f src/tools/linux/core2md/$(am__dirstamp)
+	-rm -f src/tools/linux/core_handler/$(DEPDIR)/$(am__dirstamp)
+	-rm -f src/tools/linux/core_handler/$(am__dirstamp)
 	-rm -f src/tools/linux/dump_syms/$(DEPDIR)/$(am__dirstamp)
 	-rm -f src/tools/linux/dump_syms/$(am__dirstamp)
 	-rm -f src/tools/linux/md2core/$(DEPDIR)/$(am__dirstamp)
 	-rm -f src/tools/linux/md2core/$(am__dirstamp)
+	-rm -f src/tools/linux/pid2md/$(DEPDIR)/$(am__dirstamp)
+	-rm -f src/tools/linux/pid2md/$(am__dirstamp)
 	-rm -f src/tools/linux/symupload/$(DEPDIR)/$(am__dirstamp)
 	-rm -f src/tools/linux/symupload/$(am__dirstamp)
 	-rm -f src/tools/mac/dump_syms/$(DEPDIR)/$(am__dirstamp)
@@ -8839,12 +8955,12 @@ maintainer-clean-generic:
 clean: clean-am
 
 clean-am: clean-binPROGRAMS clean-checkLIBRARIES clean-checkPROGRAMS \
-	clean-generic clean-libLIBRARIES clean-noinstLIBRARIES \
-	clean-noinstPROGRAMS mostlyclean-am
+	clean-generic clean-libLIBRARIES clean-libexecPROGRAMS \
+	clean-noinstLIBRARIES clean-noinstPROGRAMS mostlyclean-am
 
 distclean: distclean-am
 	-rm -f $(am__CONFIG_DISTCLEAN_FILES)
-	-rm -rf src/client/$(DEPDIR) src/client/linux/crash_generation/$(DEPDIR) src/client/linux/dump_writer_common/$(DEPDIR) src/client/linux/handler/$(DEPDIR) src/client/linux/log/$(DEPDIR) src/client/linux/microdump_writer/$(DEPDIR) src/client/linux/minidump_writer/$(DEPDIR) src/common/$(DEPDIR) src/common/android/$(DEPDIR) src/common/dwarf/$(DEPDIR) src/common/linux/$(DEPDIR) src/common/linux/tests/$(DEPDIR) src/common/mac/$(DEPDIR) src/common/tests/$(DEPDIR) src/processor/$(DEPDIR) src/testing/googlemock/src/$(DEPDIR) src/testing/googletest/src/$(DEPDIR) src/third_party/libdisasm/$(DEPDIR) src/tools/linux/core2md/$(DEPDIR) src/tools/linux/dump_syms/$(DEPDIR) src/tools/linux/md2core/$(DEPDIR) src/tools/linux/symupload/$(DEPDIR) src/tools/mac/dump_syms/$(DEPDIR)
+	-rm -rf src/client/$(DEPDIR) src/client/linux/crash_generation/$(DEPDIR) src/client/linux/dump_writer_common/$(DEPDIR) src/client/linux/handler/$(DEPDIR) src/client/linux/log/$(DEPDIR) src/client/linux/microdump_writer/$(DEPDIR) src/client/linux/minidump_writer/$(DEPDIR) src/common/$(DEPDIR) src/common/dwarf/$(DEPDIR) src/common/linux/$(DEPDIR) src/common/linux/tests/$(DEPDIR) src/common/mac/$(DEPDIR) src/common/tests/$(DEPDIR) src/processor/$(DEPDIR) src/testing/googlemock/src/$(DEPDIR) src/testing/googletest/src/$(DEPDIR) src/third_party/libdisasm/$(DEPDIR) src/tools/linux/core2md/$(DEPDIR) src/tools/linux/core_handler/$(DEPDIR) src/tools/linux/dump_syms/$(DEPDIR) src/tools/linux/md2core/$(DEPDIR) src/tools/linux/pid2md/$(DEPDIR) src/tools/linux/symupload/$(DEPDIR) src/tools/mac/dump_syms/$(DEPDIR)
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-hdr distclean-tags
@@ -8872,7 +8988,8 @@ install-dvi: install-dvi-am
 
 install-dvi-am:
 
-install-exec-am: install-binPROGRAMS install-libLIBRARIES
+install-exec-am: install-binPROGRAMS install-libLIBRARIES \
+	install-libexecPROGRAMS
 
 install-html: install-html-am
 
@@ -8897,7 +9014,7 @@ installcheck-am:
 maintainer-clean: maintainer-clean-am
 	-rm -f $(am__CONFIG_DISTCLEAN_FILES)
 	-rm -rf $(top_srcdir)/autom4te.cache
-	-rm -rf src/client/$(DEPDIR) src/client/linux/crash_generation/$(DEPDIR) src/client/linux/dump_writer_common/$(DEPDIR) src/client/linux/handler/$(DEPDIR) src/client/linux/log/$(DEPDIR) src/client/linux/microdump_writer/$(DEPDIR) src/client/linux/minidump_writer/$(DEPDIR) src/common/$(DEPDIR) src/common/android/$(DEPDIR) src/common/dwarf/$(DEPDIR) src/common/linux/$(DEPDIR) src/common/linux/tests/$(DEPDIR) src/common/mac/$(DEPDIR) src/common/tests/$(DEPDIR) src/processor/$(DEPDIR) src/testing/googlemock/src/$(DEPDIR) src/testing/googletest/src/$(DEPDIR) src/third_party/libdisasm/$(DEPDIR) src/tools/linux/core2md/$(DEPDIR) src/tools/linux/dump_syms/$(DEPDIR) src/tools/linux/md2core/$(DEPDIR) src/tools/linux/symupload/$(DEPDIR) src/tools/mac/dump_syms/$(DEPDIR)
+	-rm -rf src/client/$(DEPDIR) src/client/linux/crash_generation/$(DEPDIR) src/client/linux/dump_writer_common/$(DEPDIR) src/client/linux/handler/$(DEPDIR) src/client/linux/log/$(DEPDIR) src/client/linux/microdump_writer/$(DEPDIR) src/client/linux/minidump_writer/$(DEPDIR) src/common/$(DEPDIR) src/common/dwarf/$(DEPDIR) src/common/linux/$(DEPDIR) src/common/linux/tests/$(DEPDIR) src/common/mac/$(DEPDIR) src/common/tests/$(DEPDIR) src/processor/$(DEPDIR) src/testing/googlemock/src/$(DEPDIR) src/testing/googletest/src/$(DEPDIR) src/third_party/libdisasm/$(DEPDIR) src/tools/linux/core2md/$(DEPDIR) src/tools/linux/core_handler/$(DEPDIR) src/tools/linux/dump_syms/$(DEPDIR) src/tools/linux/md2core/$(DEPDIR) src/tools/linux/pid2md/$(DEPDIR) src/tools/linux/symupload/$(DEPDIR) src/tools/mac/dump_syms/$(DEPDIR)
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 
@@ -8920,20 +9037,20 @@ uninstall-am: uninstall-binPROGRAMS uninstall-dist_docDATA \
 	uninstall-includeclhHEADERS uninstall-includeclmHEADERS \
 	uninstall-includegbcHEADERS uninstall-includelssHEADERS \
 	uninstall-includepHEADERS uninstall-libLIBRARIES \
-	uninstall-pkgconfigDATA
+	uninstall-libexecPROGRAMS uninstall-pkgconfigDATA
 
 .MAKE: check-am install-am install-strip
 
 .PHONY: CTAGS GTAGS TAGS all all-am am--refresh check check-TESTS \
 	check-am clean clean-binPROGRAMS clean-checkLIBRARIES \
 	clean-checkPROGRAMS clean-cscope clean-generic \
-	clean-libLIBRARIES clean-noinstLIBRARIES clean-noinstPROGRAMS \
-	cscope cscopelist-am ctags ctags-am dist dist-all dist-bzip2 \
-	dist-gzip dist-lzip dist-shar dist-tarZ dist-xz dist-zip \
-	distcheck distclean distclean-compile distclean-generic \
-	distclean-hdr distclean-tags distcleancheck distdir \
-	distuninstallcheck dvi dvi-am html html-am info info-am \
-	install install-am install-binPROGRAMS install-data \
+	clean-libLIBRARIES clean-libexecPROGRAMS clean-noinstLIBRARIES \
+	clean-noinstPROGRAMS cscope cscopelist-am ctags ctags-am dist \
+	dist-all dist-bzip2 dist-gzip dist-lzip dist-shar dist-tarZ \
+	dist-xz dist-zip distcheck distclean distclean-compile \
+	distclean-generic distclean-hdr distclean-tags distcleancheck \
+	distdir distuninstallcheck dvi dvi-am html html-am info \
+	info-am install install-am install-binPROGRAMS install-data \
 	install-data-am install-dist_docDATA install-dvi \
 	install-dvi-am install-exec install-exec-am install-html \
 	install-html-am install-includecHEADERS \
@@ -8941,19 +9058,20 @@ uninstall-am: uninstall-binPROGRAMS uninstall-dist_docDATA \
 	install-includecldwcHEADERS install-includeclhHEADERS \
 	install-includeclmHEADERS install-includegbcHEADERS \
 	install-includelssHEADERS install-includepHEADERS install-info \
-	install-info-am install-libLIBRARIES install-man install-pdf \
-	install-pdf-am install-pkgconfigDATA install-ps install-ps-am \
-	install-strip installcheck installcheck-am installdirs \
-	maintainer-clean maintainer-clean-generic mostlyclean \
-	mostlyclean-compile mostlyclean-generic mostlyclean-local pdf \
-	pdf-am ps ps-am recheck tags tags-am uninstall uninstall-am \
+	install-info-am install-libLIBRARIES install-libexecPROGRAMS \
+	install-man install-pdf install-pdf-am install-pkgconfigDATA \
+	install-ps install-ps-am install-strip installcheck \
+	installcheck-am installdirs maintainer-clean \
+	maintainer-clean-generic mostlyclean mostlyclean-compile \
+	mostlyclean-generic mostlyclean-local pdf pdf-am ps ps-am \
+	recheck tags tags-am uninstall uninstall-am \
 	uninstall-binPROGRAMS uninstall-dist_docDATA \
 	uninstall-includecHEADERS uninstall-includeclHEADERS \
 	uninstall-includeclcHEADERS uninstall-includecldwcHEADERS \
 	uninstall-includeclhHEADERS uninstall-includeclmHEADERS \
 	uninstall-includegbcHEADERS uninstall-includelssHEADERS \
 	uninstall-includepHEADERS uninstall-libLIBRARIES \
-	uninstall-pkgconfigDATA
+	uninstall-libexecPROGRAMS uninstall-pkgconfigDATA
 
 .PRECIOUS: Makefile
 

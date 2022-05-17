@@ -49,7 +49,7 @@ const char kFilterReturnsFalse[] = "filter_returns_false";
 const char kCallbackReturnsTrue[] = "callback_returns_true";
 const char kCallbackReturnsFalse[] = "callback_returns_false";
 
-bool DoesPathExist(const wchar_t *path_name) {
+bool DoesPathExist(const wchar_t* path_name) {
   DWORD flags = GetFileAttributes(path_name);
   if (flags == INVALID_FILE_ATTRIBUTES) {
     return false;
@@ -133,8 +133,7 @@ void DoCrash(const char *message) __attribute__((optnone)) {
     fprintf(stderr, "%s", message);
     fflush(stderr);
   }
-  // Do not optimize out this!
-  int *i = NULL;
+  int* i = NULL;
   (*i)++;
 
   ASSERT_TRUE(false);
