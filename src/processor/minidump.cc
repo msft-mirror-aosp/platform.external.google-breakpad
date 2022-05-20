@@ -4971,37 +4971,37 @@ bool MinidumpCrashpadInfo::Read(uint32_t expected_size) {
 }
 
 
-void MinidumpCrashpadInfo::Print() {
+void MinidumpCrashpadInfo::Print(FILE* fp) {
   if (!valid_) {
     BPLOG(ERROR) << "MinidumpCrashpadInfo cannot print invalid data";
     return;
   }
 
-  printf("MDRawCrashpadInfo\n");
-  printf("  version = %d\n", crashpad_info_.version);
-  printf("  report_id = %s\n",
+  fprintf(fp, "MDRawCrashpadInfo\n");
+  fprintf(fp, "  version = %d\n", crashpad_info_.version);
+  fprintf(fp, "  report_id = %s\n",
          MDGUIDToString(crashpad_info_.report_id).c_str());
-  printf("  client_id = %s\n",
+  fprintf(fp, "  client_id = %s\n",
          MDGUIDToString(crashpad_info_.client_id).c_str());
   for (std::map<std::string, std::string>::const_iterator iterator =
            simple_annotations_.begin();
        iterator != simple_annotations_.end();
        ++iterator) {
-    printf("  simple_annotations[\"%s\"] = %s\n",
+    fprintf(fp, "  simple_annotations[\"%s\"] = %s\n",
            iterator->first.c_str(), iterator->second.c_str());
   }
   for (uint32_t module_index = 0;
        module_index < module_crashpad_info_links_.size();
        ++module_index) {
-    printf("  module_list[%d].minidump_module_list_index = %d\n",
+    fprintf(fp, "  module_list[%d].minidump_module_list_index = %d\n",
            module_index, module_crashpad_info_links_[module_index]);
-    printf("  module_list[%d].version = %d\n",
+    fprintf(fp, "  module_list[%d].version = %d\n",
            module_index, module_crashpad_info_[module_index].version);
     for (uint32_t annotation_index = 0;
          annotation_index <
              module_crashpad_info_list_annotations_[module_index].size();
          ++annotation_index) {
-      printf("  module_list[%d].list_annotations[%d] = %s\n",
+      fprintf(fp, "  module_list[%d].list_annotations[%d] = %s\n",
              module_index,
              annotation_index,
              module_crashpad_info_list_annotations_
@@ -5012,12 +5012,12 @@ void MinidumpCrashpadInfo::Print() {
          iterator !=
              module_crashpad_info_simple_annotations_[module_index].end();
          ++iterator) {
-      printf("  module_list[%d].simple_annotations[\"%s\"] = %s\n",
+      fprintf(fp, "  module_list[%d].simple_annotations[\"%s\"] = %s\n",
              module_index, iterator->first.c_str(), iterator->second.c_str());
     }
   }
 
-  printf("\n");
+  fprintf(fp, "\n");
 }
 
 

@@ -194,7 +194,7 @@ static bool PrintMinidumpDump(const Options& options) {
   MinidumpCrashpadInfo *crashpad_info = minidump.GetCrashpadInfo();
   if (crashpad_info) {
     // Crashpad info is optional, so don't treat absence as an error.
-    crashpad_info->Print();
+    crashpad_info->Print(stdout);
   }
 
   DumpRawStream(&minidump,

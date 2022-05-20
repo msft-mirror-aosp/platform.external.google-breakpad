@@ -1115,7 +1115,16 @@ class MinidumpCrashpadInfo : public MinidumpStream {
   }
 
   // Print a human-readable representation of the object to stdout.
-  void Print();
+  void Print(FILE* fp);
+
+  const std::map<std::string, std::string>& simple_annotations() const {
+    return simple_annotations_;
+  }
+
+  const std::vector<std::map<std::string, std::string>>&
+  module_annotations() const {
+    return module_crashpad_info_simple_annotations_;
+  }
 
  private:
   friend class Minidump;
