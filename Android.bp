@@ -92,11 +92,6 @@ cc_library_static {
                 "src/common/android/include",
             ],
         },
-        musl: {
-            local_include_dirs: [
-                "src/common/musl/include",
-            ],
-        },
     },
     // Work around b/25435766 core2md segfault.
     arch: {
@@ -137,18 +132,9 @@ cc_binary_host {
         darwin: {
             enabled: false,
         },
-        glibc: {
+        linux_glibc: {
             cppflags: [
                 "-DHAVE_A_OUT_H",
-            ],
-        },
-        musl: {
-            local_include_dirs: [
-                "src/common/musl/include",
-            ],
-        },
-        host_linux: {
-            cppflags: [
                 "-Wno-unused-parameter",
             ],
             srcs: [
@@ -197,7 +183,7 @@ cc_binary_host {
         darwin: {
             enabled: false,
         },
-        host_linux: {
+        linux_glibc: {
             srcs: [
                 "src/common/linux/http_upload.cc",
                 "src/common/linux/libcurl_wrapper.cc",
@@ -223,7 +209,7 @@ cc_library_host_static {
         darwin: {
             enabled: false,
         },
-        host_linux: {
+        linux_glibc: {
             cflags: [
                 "-Wno-missing-field-initializers",
                 "-Wno-pointer-arith",
@@ -259,7 +245,7 @@ cc_binary_host {
         darwin: {
             enabled: false,
         },
-        host_linux: {
+        linux_glibc: {
             cppflags: [
                 "-DHAVE_A_OUT_H",
                 "-Wno-implicit-fallthrough",
