@@ -147,7 +147,7 @@ cc_binary_host {
                 "src/common/musl/include",
             ],
         },
-        linux_glibc: {
+        host_linux: {
             cppflags: [
                 "-Wno-unused-parameter",
             ],
@@ -197,7 +197,7 @@ cc_binary_host {
         darwin: {
             enabled: false,
         },
-        linux_glibc: {
+        host_linux: {
             srcs: [
                 "src/common/linux/http_upload.cc",
                 "src/common/linux/libcurl_wrapper.cc",
@@ -223,7 +223,7 @@ cc_library_host_static {
         darwin: {
             enabled: false,
         },
-        linux_glibc: {
+        host_linux: {
             cflags: [
                 "-Wno-missing-field-initializers",
                 "-Wno-pointer-arith",
@@ -259,7 +259,7 @@ cc_binary_host {
         darwin: {
             enabled: false,
         },
-        linux_glibc: {
+        host_linux: {
             cppflags: [
                 "-DHAVE_A_OUT_H",
                 "-Wno-implicit-fallthrough",
