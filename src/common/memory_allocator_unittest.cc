@@ -53,6 +53,9 @@ TEST(PageAllocatorTest, SmallObjects) {
 }
 
 TEST(PageAllocatorTest, LargeObject) {
+#if defined(__aarch64__) && defined(__APPLE__)
+    GTEST_SKIP() << "Skipping test for mac_arm_x64 bots";
+#endif
   PageAllocator allocator;
 
   EXPECT_EQ(0U, allocator.pages_allocated());
