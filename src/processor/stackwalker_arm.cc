@@ -1,5 +1,4 @@
-// Copyright (c) 2010 Google Inc.
-// All rights reserved.
+// Copyright 2010 Google LLC
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -11,7 +10,7 @@
 // copyright notice, this list of conditions and the following disclaimer
 // in the documentation and/or other materials provided with the
 // distribution.
-//     * Neither the name of Google Inc. nor the names of its
+//     * Neither the name of Google LLC nor the names of its
 // contributors may be used to endorse or promote products derived from
 // this software without specific prior written permission.
 //
@@ -78,7 +77,7 @@ StackFrame* StackwalkerARM::GetContextFrame() {
 }
 
 StackFrameARM* StackwalkerARM::GetCallerByCFIFrameInfo(
-    const vector<StackFrame*> &frames,
+    const vector<StackFrame*>& frames,
     CFIFrameInfo* cfi_frame_info) {
   StackFrameARM* last_frame = static_cast<StackFrameARM*>(frames.back());
 
@@ -162,13 +161,14 @@ StackFrameARM* StackwalkerARM::GetCallerByCFIFrameInfo(
 }
 
 StackFrameARM* StackwalkerARM::GetCallerByStackScan(
-    const vector<StackFrame*> &frames) {
+    const vector<StackFrame*>& frames) {
   StackFrameARM* last_frame = static_cast<StackFrameARM*>(frames.back());
   uint32_t last_sp = last_frame->context.iregs[MD_CONTEXT_ARM_REG_SP];
   uint32_t caller_sp, caller_pc;
 
   if (!ScanForReturnAddress(last_sp, &caller_sp, &caller_pc,
-                            frames.size() == 1 /* is_context_frame */)) {
+                            /*is_context_frame=*/last_frame->trust ==
+                                StackFrame::FRAME_TRUST_CONTEXT)) {
     // No plausible return address was found.
     return NULL;
   }
@@ -193,7 +193,7 @@ StackFrameARM* StackwalkerARM::GetCallerByStackScan(
 }
 
 StackFrameARM* StackwalkerARM::GetCallerByFramePointer(
-    const vector<StackFrame*> &frames) {
+    const vector<StackFrame*>& frames) {
   StackFrameARM* last_frame = static_cast<StackFrameARM*>(frames.back());
 
   if (!(last_frame->context_validity &
@@ -245,7 +245,7 @@ StackFrame* StackwalkerARM::GetCallerFrame(const CallStack* stack,
     return NULL;
   }
 
-  const vector<StackFrame*> &frames = *stack->frames();
+  const vector<StackFrame*>& frames = *stack->frames();
   StackFrameARM* last_frame = static_cast<StackFrameARM*>(frames.back());
   scoped_ptr<StackFrameARM> frame;
 
@@ -276,7 +276,8 @@ StackFrame* StackwalkerARM::GetCallerFrame(const CallStack* stack,
   if (TerminateWalk(frame->context.iregs[MD_CONTEXT_ARM_REG_PC],
                     frame->context.iregs[MD_CONTEXT_ARM_REG_SP],
                     last_frame->context.iregs[MD_CONTEXT_ARM_REG_SP],
-                    frames.size() == 1)) {
+                    /*first_unwind=*/last_frame->trust ==
+                        StackFrame::FRAME_TRUST_CONTEXT)) {
     return NULL;
   }
 
