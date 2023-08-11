@@ -1,5 +1,4 @@
-// Copyright (c) 2006, Google Inc.
-// All rights reserved.
+// Copyright 2006 Google LLC
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -11,7 +10,7 @@
 // copyright notice, this list of conditions and the following disclaimer
 // in the documentation and/or other materials provided with the
 // distribution.
-//     * Neither the name of Google Inc. nor the names of its
+//     * Neither the name of Google LLC nor the names of its
 // contributors may be used to endorse or promote products derived from
 // this software without specific prior written permission.
 //
@@ -65,7 +64,7 @@ namespace {
     HINTERNET handle_;
   };
 
-  wstring UTF8ToWide(const string &utf8) {
+  wstring UTF8ToWide(const string& utf8) {
     if (utf8.length() == 0) {
       return wstring();
     }
@@ -85,7 +84,7 @@ namespace {
     return result;
   }
 
-  string WideToMBCP(const wstring &wide, unsigned int cp) {
+  string WideToMBCP(const wstring& wide, unsigned int cp) {
     if (wide.length() == 0) {
       return string();
     }
@@ -107,7 +106,7 @@ namespace {
     return result;
   }
 
-  bool GetFileContents(const wstring &filename, vector<char> *contents) {
+  bool GetFileContents(const wstring& filename, vector<char>* contents) {
     bool rv = false;
     // The "open" method on pre-MSVC8 ifstream implementations doesn't accept a
     // wchar_t* filename, so use _wfopen directly in that case.  For VC8 and
@@ -141,10 +140,10 @@ namespace {
     return rv;
   }
 
-  bool CheckParameters(const map<wstring, wstring> &parameters) {
+  bool CheckParameters(const map<wstring, wstring>& parameters) {
     for (map<wstring, wstring>::const_iterator pos = parameters.begin();
           pos != parameters.end(); ++pos) {
-      const wstring &str = pos->first;
+      const wstring& str = pos->first;
       if (str.size() == 0) {
         return false;  // disallow empty parameter names
       }
@@ -159,7 +158,7 @@ namespace {
   }
 
   // Converts a UTF16 string to UTF8.
-  string WideToUTF8(const wstring &wide) {
+  string WideToUTF8(const wstring& wide) {
     return WideToMBCP(wide, CP_UTF8);
   }
 
@@ -262,7 +261,7 @@ namespace {
         NULL,    // password
         INTERNET_SERVICE_HTTP,
         0,       // flags
-        NULL));  // context
+        0));  // context
     if (!connection.get()) {
       return false;
     }
@@ -276,7 +275,7 @@ namespace {
         NULL,    // referer
         NULL,    // agent type
         http_open_flags,
-        NULL));  // context
+        0));  // context
     if (!request.get()) {
       return false;
     }
@@ -305,7 +304,7 @@ namespace {
     }
 
     if (!HttpSendRequest(request.get(), NULL, 0,
-        const_cast<char *>(request_body.data()),
+        const_cast<char*>(request_body.data()),
         static_cast<DWORD>(request_body.size()))) {
       return false;
     }
@@ -351,16 +350,16 @@ namespace {
     return wstring(temp);
   }
 
-  wstring GenerateMultipartPostRequestHeader(const wstring &boundary) {
+  wstring GenerateMultipartPostRequestHeader(const wstring& boundary) {
     wstring header = L"Content-Type: multipart/form-data; boundary=";
     header += boundary;
     return header;
   }
 
-  bool AppendFileToRequestBody(
-      const wstring& file_part_name,
-      const wstring& filename,
-      string* request_body) {
+  bool AppendFileToRequestBody(const wstring& file_part_name,
+                               const wstring& filename,
+                               string* request_body,
+                               bool set_content_type = true) {
     string file_part_name_utf8 = WideToUTF8(file_part_name);
     if (file_part_name_utf8.empty()) {
       return false;
@@ -371,11 +370,17 @@ namespace {
       return false;
     }
 
-    request_body->append("Content-Disposition: form-data; "
-        "name=\"" + file_part_name_utf8 + "\"; "
-        "filename=\"" + filename_utf8 + "\"\r\n");
-    request_body->append("Content-Type: application/octet-stream\r\n");
-    request_body->append("\r\n");
+    if (set_content_type) {
+      request_body->append(
+          "Content-Disposition: form-data; "
+          "name=\"" +
+          file_part_name_utf8 +
+          "\"; "
+          "filename=\"" +
+          filename_utf8 + "\"\r\n");
+      request_body->append("Content-Type: application/octet-stream\r\n");
+      request_body->append("\r\n");
+    }
 
     vector<char> contents;
     if (!GetFileContents(filename, &contents)) {
@@ -385,14 +390,13 @@ namespace {
     if (!contents.empty()) {
       request_body->append(&(contents[0]), contents.size());
     }
-    request_body->append("\r\n");
 
     return true;
   }
 
-  bool GenerateRequestBody(const map<wstring, wstring> &parameters,
-      const map<wstring, wstring> &files,
-      const wstring &boundary,
+  bool GenerateRequestBody(const map<wstring, wstring>& parameters,
+      const map<wstring, wstring>& files,
+      const wstring& boundary,
       string *request_body) {
     string boundary_str = WideToUTF8(boundary);
     if (boundary_str.empty()) {
@@ -432,7 +436,11 @@ namespace google_breakpad {
       wstring* response_body,
       int* response_code) {
     string request_body;
-    if (!AppendFileToRequestBody(L"symbol_file", path, &request_body)) {
+    // Turn off content-type in the body. If content-type is set then binary
+    // files uploaded to GCS end up with the it prepended to the file
+    // contents.
+    if (!AppendFileToRequestBody(L"symbol_file", path, &request_body,
+                                 /*set_content_type=*/false)) {
       return false;
     }
 

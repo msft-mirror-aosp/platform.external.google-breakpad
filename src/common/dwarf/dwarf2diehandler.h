@@ -1,6 +1,6 @@
 // -*- mode: c++ -*-
 
-// Copyright (c) 2010 Google Inc. All Rights Reserved.
+// Copyright 2010 Google LLC
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -12,7 +12,7 @@
 // copyright notice, this list of conditions and the following disclaimer
 // in the documentation and/or other materials provided with the
 // distribution.
-//     * Neither the name of Google Inc. nor the names of its
+//     * Neither the name of Google LLC nor the names of its
 // contributors may be used to endorse or promote products derived from
 // this software without specific prior written permission.
 //
@@ -166,7 +166,7 @@
 #include "common/dwarf/dwarf2reader.h"
 #include "common/using_std_string.h"
 
-namespace dwarf2reader {
+namespace google_breakpad {
 
 // A base class for handlers for specific DIE types.  The series of
 // calls made on a DIE handler is as follows:
@@ -208,7 +208,7 @@ class DIEHandler {
                                          uint64_t data) { }
   virtual void ProcessAttributeBuffer(enum DwarfAttribute attr,
                                       enum DwarfForm form,
-                                      const uint8_t *data,
+                                      const uint8_t* data,
                                       uint64_t len) { }
   virtual void ProcessAttributeString(enum DwarfAttribute attr,
                                       enum DwarfForm form,
@@ -244,7 +244,7 @@ class DIEHandler {
   // it is.
   //
   // The default definition skips all children.
-  virtual DIEHandler *FindChildHandler(uint64_t offset, enum DwarfTag tag) {
+  virtual DIEHandler* FindChildHandler(uint64_t offset, enum DwarfTag tag) {
     return NULL;
   }
 
@@ -258,10 +258,13 @@ class DIEHandler {
 
 // A subclass of DIEHandler, with additional kludges for handling the
 // compilation unit's root die.
-class RootDIEHandler: public DIEHandler {
+class RootDIEHandler : public DIEHandler {
  public:
-  RootDIEHandler() { }
-  virtual ~RootDIEHandler() { }
+  bool handle_inline;
+
+  explicit RootDIEHandler(bool handle_inline = false)
+      : handle_inline(handle_inline) {}
+  virtual ~RootDIEHandler() {}
 
   // We pass the values reported via Dwarf2Handler::StartCompilationUnit
   // to this member function, and skip the entire compilation unit if it
@@ -288,7 +291,7 @@ class DIEDispatcher: public Dwarf2Handler {
   // Create a Dwarf2Handler which uses ROOT_HANDLER as the handler for
   // the compilation unit's root die, as described for the DIEHandler
   // class.
-  DIEDispatcher(RootDIEHandler *root_handler) : root_handler_(root_handler) { }
+  DIEDispatcher(RootDIEHandler* root_handler) : root_handler_(root_handler) { }
   // Destroying a DIEDispatcher destroys all active handler objects
   // except the root handler.
   ~DIEDispatcher();
@@ -311,12 +314,12 @@ class DIEDispatcher: public Dwarf2Handler {
   void ProcessAttributeBuffer(uint64_t offset,
                               enum DwarfAttribute attr,
                               enum DwarfForm form,
-                              const uint8_t *data,
+                              const uint8_t* data,
                               uint64_t len);
   void ProcessAttributeString(uint64_t offset,
                               enum DwarfAttribute attr,
                               enum DwarfForm form,
-                              const string &data);
+                              const string& data);
   void ProcessAttributeSignature(uint64_t offset,
                                  enum DwarfAttribute attr,
                                  enum DwarfForm form,
@@ -335,7 +338,7 @@ class DIEDispatcher: public Dwarf2Handler {
 
     // The handler object interested in this DIE's attributes and
     // children.  If NULL, we're not interested in either.
-    DIEHandler *handler_;
+    DIEHandler* handler_;
 
     // Have we reported the end of this DIE's attributes to the handler?
     bool reported_attributes_end_;
@@ -358,8 +361,8 @@ class DIEDispatcher: public Dwarf2Handler {
 
   // The root handler.  We don't push it on die_handlers_ until we
   // actually get the StartDIE call for the root.
-  RootDIEHandler *root_handler_;
+  RootDIEHandler* root_handler_;
 };
 
-} // namespace dwarf2reader
+} // namespace google_breakpad
 #endif  // COMMON_DWARF_DWARF2DIEHANDLER_H__
