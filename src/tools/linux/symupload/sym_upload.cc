@@ -1,5 +1,4 @@
-// Copyright (c) 2006, Google Inc.
-// All rights reserved.
+// Copyright 2006 Google LLC
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -11,7 +10,7 @@
 // copyright notice, this list of conditions and the following disclaimer
 // in the documentation and/or other materials provided with the
 // distribution.
-//     * Neither the name of Google Inc. nor the names of its
+//     * Neither the name of Google LLC nor the names of its
 // contributors may be used to endorse or promote products derived from
 // this software without specific prior written permission.
 //
@@ -47,6 +46,7 @@
 #include <locale>
 
 #include "common/linux/symbol_upload.h"
+#include "common/path_helper.h"
 
 using google_breakpad::sym_upload::UploadProtocol;
 using google_breakpad::sym_upload::Options;
@@ -66,10 +66,11 @@ static void
 Usage(int argc, const char *argv[]) {
   fprintf(stderr, "Submit symbol information.\n");
   fprintf(stderr, "Usage: %s [options...] <symbol-file> <upload-URL>\n",
-      argv[0]);
+          google_breakpad::BaseName(argv[0]).c_str());
   fprintf(stderr, "Options:\n");
-  fprintf(stderr, "<symbol-file> should be created by using the dump_syms"
-      "tool.\n");
+  fprintf(stderr,
+          "<symbol-file> should be created by using the dump_syms "
+          "tool.\n");
   fprintf(stderr, "<upload-URL> is the destination for the upload\n");
   fprintf(stderr, "-p:\t <protocol> One of ['sym-upload-v1',"
     " 'sym-upload-v2'], defaults to 'sym-upload-v1'.\n");
@@ -111,17 +112,20 @@ Usage(int argc, const char *argv[]) {
 //=============================================================================
 static void
 SetupOptions(int argc, const char *argv[], Options *options) {
-  extern int optind;
+  extern int optind, optopt;
   int ch;
   constexpr char flag_pattern[] = "u:v:x:p:k:t:c:i:hf?";
 
-  while ((ch = getopt(argc, (char * const *)argv, flag_pattern)) != -1) {
+  while ((ch = getopt(argc, (char * const*)argv, flag_pattern)) != -1) {
     switch (ch) {
       case 'h':
       case '?':
         Usage(argc, argv);
-        exit(0);
-        break;
+        // ch might be '?' because getopt found an error while parsing args (as
+        // opposed to finding "-?" as an arg), in which case optopt is set to
+        // the bad arg value, so return an error code if optopt is set,
+        // otherwise exit cleanly.
+        exit(optopt == 0 ? 0 : 1);
       case 'u':
         options->proxy_user_pwd = optarg;
         break;
@@ -166,7 +170,6 @@ SetupOptions(int argc, const char *argv[], Options *options) {
         fprintf(stderr, "Invalid option '%c'\n", ch);
         Usage(argc, argv);
         exit(1);
-        break;
     }
   }
 

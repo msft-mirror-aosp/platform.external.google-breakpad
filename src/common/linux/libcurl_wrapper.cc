@@ -1,5 +1,4 @@
-// Copyright (c) 2009, Google Inc.
-// All rights reserved.
+// Copyright 2009 Google LLC
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -11,7 +10,7 @@
 // copyright notice, this list of conditions and the following disclaimer
 // in the documentation and/or other materials provided with the
 // distribution.
-//     * Neither the name of Google Inc. nor the names of its
+//     * Neither the name of Google LLC nor the names of its
 // contributors may be used to endorse or promote products derived from
 // this software without specific prior written permission.
 //
@@ -48,6 +47,7 @@ LibcurlWrapper::LibcurlWrapper()
 LibcurlWrapper::~LibcurlWrapper() {
   if (init_ok_) {
     (*easy_cleanup_)(curl_);
+    (*global_cleanup_)();
     dlclose(curl_lib_);
   }
 }
@@ -88,14 +88,14 @@ bool LibcurlWrapper::AddFile(const string& upload_file_path,
 }
 
 // Callback to get the response data from server.
-static size_t WriteCallback(void *ptr, size_t size,
-                            size_t nmemb, void *userp) {
+static size_t WriteCallback(void* ptr, size_t size,
+                            size_t nmemb, void* userp) {
   if (!userp)
     return 0;
 
-  string *response = reinterpret_cast<string *>(userp);
+  string* response = reinterpret_cast<string*>(userp);
   size_t real_size = size * nmemb;
-  response->append(reinterpret_cast<char *>(ptr), real_size);
+  response->append(reinterpret_cast<char*>(ptr), real_size);
   return real_size;
 }
 
@@ -250,7 +250,7 @@ bool LibcurlWrapper::SetFunctionPointers() {
 
   SET_AND_CHECK_FUNCTION_POINTER(easy_getinfo_,
                                  "curl_easy_getinfo",
-                                 CURLcode(*)(CURL *, CURLINFO info, ...));
+                                 CURLcode(*)(CURL*, CURLINFO info, ...));
 
   SET_AND_CHECK_FUNCTION_POINTER(easy_reset_,
                                  "curl_easy_reset",
@@ -263,6 +263,10 @@ bool LibcurlWrapper::SetFunctionPointers() {
   SET_AND_CHECK_FUNCTION_POINTER(formfree_,
                                  "curl_formfree",
                                  void(*)(curl_httppost*));
+
+  SET_AND_CHECK_FUNCTION_POINTER(global_cleanup_,
+                                 "curl_global_cleanup",
+                                 void(*)(void));
   return true;
 }
 

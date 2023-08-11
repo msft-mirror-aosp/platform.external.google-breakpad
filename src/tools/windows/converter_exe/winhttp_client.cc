@@ -1,4 +1,4 @@
-// Copyright 2019 Google Inc. All rights reserved.
+// Copyright 2019 Google LLC
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -10,7 +10,7 @@
 // copyright notice, this list of conditions and the following disclaimer
 // in the documentation and/or other materials provided with the
 // distribution.
-//     * Neither the name of Google Inc. nor the names of its
+//     * Neither the name of Google LLC nor the names of its
 // contributors may be used to endorse or promote products derived from
 // this software without specific prior written permission.
 //
@@ -197,7 +197,7 @@ bool WinHttpClient::GetHttpStatusCode(HttpHandle request_handle,
   if (!::WinHttpQueryHeaders(ToHINTERNET(request_handle),
                              WINHTTP_QUERY_STATUS_CODE,
                              WINHTTP_HEADER_NAME_BY_INDEX,
-                             static_cast<void *>(&http_status_string),
+                             static_cast<void*>(&http_status_string),
                              &http_status_string_size, 0)) {
     return false;
   }
@@ -216,7 +216,7 @@ bool WinHttpClient::GetContentLength(HttpHandle request_handle,
   if (!::WinHttpQueryHeaders(ToHINTERNET(request_handle),
                              WINHTTP_QUERY_CONTENT_LENGTH,
                              WINHTTP_HEADER_NAME_BY_INDEX,
-                             static_cast<void *>(&content_length_string),
+                             static_cast<void*>(&content_length_string),
                              &content_length_string_size, 0)) {
     *content_length = kUnknownContentLength;
   } else {
