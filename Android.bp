@@ -67,6 +67,7 @@ cc_library_static {
         "src/client/linux/minidump_writer/linux_dumper.cc",
         "src/client/linux/minidump_writer/linux_ptrace_dumper.cc",
         "src/client/linux/minidump_writer/minidump_writer.cc",
+        "src/client/linux/minidump_writer/pe_file.cc",
         "src/client/minidump_file_writer.cc",
         "src/common/convert_UTF.cc",
         "src/common/linux/breakpad_getcontext.S",
@@ -83,8 +84,9 @@ cc_library_static {
     cflags: [
         "-Wall",
         "-Werror",
-        "-Wno-unused-parameter",
+        "-Wno-missing-field-initializers",
         "-Wno-tautological-compare",
+        "-Wno-unused-parameter",
     ],
     target: {
         bionic: {
@@ -140,6 +142,7 @@ cc_binary_host {
         glibc: {
             cppflags: [
                 "-DHAVE_A_OUT_H",
+                "-DSHF_COMPRESSED=0x800",
             ],
         },
         musl: {
@@ -149,6 +152,7 @@ cc_binary_host {
         },
         host_linux: {
             cppflags: [
+                "-Wno-implicit-fallthrough",
                 "-Wno-unused-parameter",
             ],
             srcs: [
@@ -179,6 +183,9 @@ cc_binary_host {
         "src/common/stabs_reader.cc",
         "src/common/stabs_to_module.cc",
     ],
+    shared_libs: [
+        "libz",
+    ],
 
     cflags: [
         "-Wall",
@@ -199,6 +206,7 @@ cc_binary_host {
         },
         host_linux: {
             srcs: [
+                "src/common/path_helper.cc",
                 "src/common/linux/http_upload.cc",
                 "src/common/linux/libcurl_wrapper.cc",
                 "src/common/linux/symbol_collector_client.cc",
@@ -262,8 +270,9 @@ cc_binary_host {
         host_linux: {
             cppflags: [
                 "-DHAVE_A_OUT_H",
-                "-Wno-implicit-fallthrough",
                 // minidump_processor.cc:853, minidump.cc:4228 have fallthrough.
+                "-Wno-implicit-fallthrough",
+                "-Wno-missing-field-initializers",
                 "-Wno-unused-function",
                 "-Wno-unused-parameter",
             ],
@@ -274,6 +283,7 @@ cc_binary_host {
                 "src/processor/call_stack.cc",
                 "src/processor/cfi_frame_info.cc",
                 "src/processor/convert_old_arm64_context.cc",
+                "src/processor/disassembler_objdump.cc",
                 "src/processor/disassembler_x86.cc",
                 "src/processor/dump_context.cc",
                 "src/processor/dump_object.cc",
@@ -300,6 +310,8 @@ cc_binary_host {
                 "src/processor/stackwalker_mips.cc",
                 "src/processor/stackwalker_ppc.cc",
                 "src/processor/stackwalker_ppc64.cc",
+                "src/processor/stackwalker_riscv.cc",
+                "src/processor/stackwalker_riscv64.cc",
                 "src/processor/stackwalker_sparc.cc",
                 "src/processor/stackwalker_x86.cc",
                 "src/processor/symbolic_constants_win.cc",
