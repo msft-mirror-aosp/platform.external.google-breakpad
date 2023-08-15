@@ -1,5 +1,4 @@
-// Copyright (c) 2010 Google Inc.
-// All rights reserved.
+// Copyright 2010 Google LLC
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -11,7 +10,7 @@
 // copyright notice, this list of conditions and the following disclaimer
 // in the documentation and/or other materials provided with the
 // distribution.
-//     * Neither the name of Google Inc. nor the names of its
+//     * Neither the name of Google LLC nor the names of its
 // contributors may be used to endorse or promote products derived from
 // this software without specific prior written permission.
 //
@@ -291,7 +290,7 @@ class MinidumpThread : public MinidumpObject {
   // so a special getter is provided to retrieve this data from the
   // MDRawThread structure.  Returns false if the thread ID cannot be
   // determined.
-  virtual bool GetThreadID(uint32_t *thread_id) const;
+  virtual bool GetThreadID(uint32_t* thread_id) const;
 
   // Print a human-readable representation of the object to stdout.
   void Print();
@@ -370,6 +369,86 @@ class MinidumpThreadList : public MinidumpStream {
   DISALLOW_COPY_AND_ASSIGN(MinidumpThreadList);
 };
 
+// MinidumpThreadName contains the name of a thread.
+class MinidumpThreadName : public MinidumpObject {
+ public:
+  virtual ~MinidumpThreadName();
+
+  const MDRawThreadName* thread_name() const {
+    return valid_ ? &thread_name_ : NULL;
+  }
+
+  // Gets the thread ID.
+  virtual bool GetThreadID(uint32_t* thread_id) const;
+
+  // Print a human-readable representation of the object to stdout.
+  void Print();
+
+  // Returns the name of the thread.
+  virtual std::string GetThreadName() const;
+
+ protected:
+  explicit MinidumpThreadName(Minidump* minidump);
+
+ private:
+  // These objects are managed by MinidumpThreadNameList.
+  friend class MinidumpThreadNameList;
+
+  // This works like MinidumpStream::Read, but is driven by
+  // MinidumpThreadNameList.  No size checking is done, because
+  // MinidumpThreadNameList handles that directly.
+  bool Read();
+
+  // Reads indirectly-referenced data, including the thread name.
+  bool ReadAuxiliaryData();
+
+  // True after a successful Read.  This is different from valid_, which is not
+  // set true until ReadAuxiliaryData also completes successfully.
+  // thread_name_valid_ is only used by ReadAuxiliaryData and the functions it
+  // calls to determine whether the object is ready for auxiliary data to be
+  // read.
+  bool thread_name_valid_;
+
+  MDRawThreadName thread_name_;
+
+  // Cached thread name.
+  const string* name_;
+};
+
+// MinidumpThreadNameList contains all of the names of the threads (as
+// MinidumpThreadNames) in a process.
+class MinidumpThreadNameList : public MinidumpStream {
+ public:
+  virtual ~MinidumpThreadNameList();
+
+  virtual unsigned int thread_name_count() const {
+    return valid_ ? thread_name_count_ : 0;
+  }
+
+  // Sequential access to thread names.
+  virtual MinidumpThreadName* GetThreadNameAtIndex(unsigned int index) const;
+
+  // Print a human-readable representation of the object to stdout.
+  void Print();
+
+ protected:
+  explicit MinidumpThreadNameList(Minidump* aMinidump);
+
+ private:
+  friend class Minidump;
+
+  typedef vector<MinidumpThreadName> MinidumpThreadNames;
+
+  static const uint32_t kStreamType = MD_THREAD_NAME_LIST_STREAM;
+
+  bool Read(uint32_t aExpectedSize) override;
+
+  // The list of thread names.
+  MinidumpThreadNames* thread_names_;
+  uint32_t thread_name_count_;
+
+  DISALLOW_COPY_AND_ASSIGN(MinidumpThreadNameList);
+};
 
 // MinidumpModule wraps MDRawModule, which contains information about loaded
 // code modules.  Access is provided to various data referenced indirectly
@@ -549,9 +628,9 @@ class MinidumpModuleList : public MinidumpStream,
   static uint32_t max_modules_;
 
   // Access to modules using addresses as the key.
-  RangeMap<uint64_t, unsigned int> *range_map_;
+  RangeMap<uint64_t, unsigned int>* range_map_;
 
-  MinidumpModules *modules_;
+  MinidumpModules* modules_;
   uint32_t module_count_;
 
   DISALLOW_COPY_AND_ASSIGN(MinidumpModuleList);
@@ -606,16 +685,16 @@ class MinidumpMemoryList : public MinidumpStream {
   static uint32_t max_regions_;
 
   // Access to memory regions using addresses as the key.
-  RangeMap<uint64_t, unsigned int> *range_map_;
+  RangeMap<uint64_t, unsigned int>* range_map_;
 
   // The list of descriptors.  This is maintained separately from the list
   // of regions, because MemoryRegion doesn't own its MemoryDescriptor, it
   // maintains a pointer to it.  descriptors_ provides the storage for this
   // purpose.
-  MemoryDescriptors *descriptors_;
+  MemoryDescriptors* descriptors_;
 
   // The list of regions.
-  MemoryRegions *regions_;
+  MemoryRegions* regions_;
   uint32_t region_count_;
 
   DISALLOW_COPY_AND_ASSIGN(MinidumpMemoryList);
@@ -640,7 +719,7 @@ class MinidumpException : public MinidumpStream {
   // so a special getter is provided to retrieve this data from the
   // MDRawExceptionStream structure.  Returns false if the thread ID cannot
   // be determined.
-  bool GetThreadID(uint32_t *thread_id) const;
+  bool GetThreadID(uint32_t* thread_id) const;
 
   MinidumpContext* GetContext();
 
@@ -862,9 +941,9 @@ class MinidumpUnloadedModuleList : public MinidumpStream,
   static uint32_t max_modules_;
 
   // Access to module indices using addresses as the key.
-  RangeMap<uint64_t, unsigned int> *range_map_;
+  RangeMap<uint64_t, unsigned int>* range_map_;
 
-  MinidumpUnloadedModules *unloaded_modules_;
+  MinidumpUnloadedModules* unloaded_modules_;
   uint32_t module_count_;
 
   DISALLOW_COPY_AND_ASSIGN(MinidumpUnloadedModuleList);
@@ -919,8 +998,8 @@ class MinidumpBreakpadInfo : public MinidumpStream {
   // treatment, so special getters are provided to retrieve this data from
   // the MDRawBreakpadInfo structure.  The getters return false if the thread
   // IDs cannot be determined.
-  bool GetDumpThreadID(uint32_t *thread_id) const;
-  bool GetRequestingThreadID(uint32_t *thread_id) const;
+  bool GetDumpThreadID(uint32_t* thread_id) const;
+  bool GetRequestingThreadID(uint32_t* thread_id) const;
 
   // Print a human-readable representation of the object to stdout.
   void Print();
@@ -1003,7 +1082,7 @@ class MinidumpMemoryInfoList : public MinidumpStream {
   bool Read(uint32_t expected_size) override;
 
   // Access to memory info using addresses as the key.
-  RangeMap<uint64_t, unsigned int> *range_map_;
+  RangeMap<uint64_t, unsigned int>* range_map_;
 
   MinidumpMemoryInfos* infos_;
   uint32_t info_count_;
@@ -1056,7 +1135,7 @@ class MinidumpLinuxMaps : public MinidumpObject {
   friend class MinidumpLinuxMapsList;
 
   // This caller owns the pointer.
-  explicit MinidumpLinuxMaps(Minidump *minidump);
+  explicit MinidumpLinuxMaps(Minidump* minidump);
 
   // The memory region struct that this class wraps.
   MappedMemoryRegion region_;
@@ -1075,9 +1154,9 @@ class MinidumpLinuxMapsList : public MinidumpStream {
   unsigned int get_maps_count() const { return valid_ ? maps_count_ : 0; }
 
   // Get mapping at the given memory address. The caller owns the pointer.
-  const MinidumpLinuxMaps *GetLinuxMapsForAddress(uint64_t address) const;
+  const MinidumpLinuxMaps* GetLinuxMapsForAddress(uint64_t address) const;
   // Get mapping at the given index. The caller owns the pointer.
-  const MinidumpLinuxMaps *GetLinuxMapsAtIndex(unsigned int index) const;
+  const MinidumpLinuxMaps* GetLinuxMapsAtIndex(unsigned int index) const;
 
   // Print the contents of /proc/self/maps to stdout.
   void Print() const;
@@ -1085,12 +1164,12 @@ class MinidumpLinuxMapsList : public MinidumpStream {
  private:
   friend class Minidump;
 
-  typedef vector<MinidumpLinuxMaps *> MinidumpLinuxMappings;
+  typedef vector<MinidumpLinuxMaps*> MinidumpLinuxMappings;
 
   static const uint32_t kStreamType = MD_LINUX_MAPS;
 
   // The caller owns the pointer.
-  explicit MinidumpLinuxMapsList(Minidump *minidump);
+  explicit MinidumpLinuxMapsList(Minidump* minidump);
 
   // Read and load the contents of the process mapping data.
   // The stream should have data in the form of /proc/self/maps.
@@ -1098,7 +1177,7 @@ class MinidumpLinuxMapsList : public MinidumpStream {
   bool Read(uint32_t expected_size) override;
 
   // The list of individual mappings.
-  MinidumpLinuxMappings *maps_;
+  MinidumpLinuxMappings* maps_;
   // The number of mappings.
   uint32_t maps_count_;
 
@@ -1110,8 +1189,19 @@ class MinidumpLinuxMapsList : public MinidumpStream {
 // at the time the minidump was generated.
 class MinidumpCrashpadInfo : public MinidumpStream {
  public:
+  struct AnnotationObject {
+    uint16_t type;
+    std::string name;
+    std::vector<uint8_t> value;
+  };
+
   const MDRawCrashpadInfo* crashpad_info() const {
     return valid_ ? &crashpad_info_ : NULL;
+  }
+
+  const std::vector<std::vector<AnnotationObject>>*
+  GetModuleCrashpadInfoAnnotationObjects() const {
+    return valid_ ? &module_crashpad_info_annotation_objects_ : NULL;
   }
 
   // Print a human-readable representation of the object to stdout.
@@ -1132,6 +1222,9 @@ class MinidumpCrashpadInfo : public MinidumpStream {
   std::vector<std::vector<std::string>> module_crashpad_info_list_annotations_;
   std::vector<std::map<std::string, std::string>>
       module_crashpad_info_simple_annotations_;
+  std::vector<std::vector<AnnotationObject>>
+      module_crashpad_info_annotation_objects_;
+
   std::map<std::string, std::string> simple_annotations_;
 };
 
@@ -1188,6 +1281,7 @@ class Minidump {
   // to avoid exposing an ugly API (GetStream needs to accept a garbage
   // parameter).
   virtual MinidumpThreadList* GetThreadList();
+  virtual MinidumpThreadNameList* GetThreadNameList();
   virtual MinidumpModuleList* GetModuleList();
   virtual MinidumpMemoryList* GetMemoryList();
   virtual MinidumpException* GetException();
@@ -1200,7 +1294,7 @@ class Minidump {
   MinidumpCrashpadInfo* GetCrashpadInfo();
 
   // The next method also calls GetStream, but is exclusive for Linux dumps.
-  virtual MinidumpLinuxMapsList *GetLinuxMapsList();
+  virtual MinidumpLinuxMapsList* GetLinuxMapsList();
 
   // The next set of methods are provided for users who wish to access
   // data in minidump files directly, while leveraging the rest of
@@ -1239,6 +1333,10 @@ class Minidump {
   bool ReadSimpleStringDictionary(
       off_t offset,
       std::map<std::string, std::string>* simple_string_dictionary);
+
+  bool ReadCrashpadAnnotationsList(
+      off_t offset,
+      std::vector<MinidumpCrashpadInfo::AnnotationObject>* annotations_list);
 
   // SeekToStreamType positions the file at the beginning of a stream
   // identified by stream_type, and informs the caller of the stream's
