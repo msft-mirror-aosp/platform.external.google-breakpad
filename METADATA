@@ -13,12 +13,12 @@ third_party {
     type: GIT
     value: "https://chromium.googlesource.com/breakpad/breakpad"
   }
-  version: "v2023.01.27"
+  version: "922d49bdfe3c92e5d35c406f87f2c354637a2f8b"
   license_type: RECIPROCAL
   license_note: "would be NOTICE save for APSL in:\n   src/third_party/mac_handler/breakpad_nlist_64.cc\n   src/third_party/mac_headers/"
   last_upgrade_date {
     year: 2023
     month: 8
-    day: 10
+    day: 21
   }
 }
