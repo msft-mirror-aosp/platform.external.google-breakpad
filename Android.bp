@@ -277,6 +277,8 @@ cc_binary_host {
                 "-Wno-unused-parameter",
             ],
             srcs: [
+                "src/common/linux/scoped_pipe.cc",
+                "src/common/linux/scoped_tmpfile.cc",
                 "src/common/path_helper.cc",
                 "src/processor/basic_code_modules.cc",
                 "src/processor/basic_source_line_resolver.cc",
