@@ -1,4 +1,4 @@
-// Copyright (c) 2010 Google Inc. All Rights Reserved.
+// Copyright 2010 Google LLC
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -10,7 +10,7 @@
 // copyright notice, this list of conditions and the following disclaimer
 // in the documentation and/or other materials provided with the
 // distribution.
-//     * Neither the name of Google Inc. nor the names of its
+//     * Neither the name of Google LLC nor the names of its
 // contributors may be used to endorse or promote products derived from
 // this software without specific prior written permission.
 //
@@ -31,6 +31,10 @@
 // dwarf2diehandler.cc: Implement the dwarf2reader::DieDispatcher class.
 // See dwarf2diehandler.h for details.
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>  // Must come first
+#endif
+
 #include <assert.h>
 #include <stdint.h>
 
@@ -39,11 +43,11 @@
 #include "common/dwarf/dwarf2diehandler.h"
 #include "common/using_std_string.h"
 
-namespace dwarf2reader {
+namespace google_breakpad {
 
 DIEDispatcher::~DIEDispatcher() {
   while (!die_handlers_.empty()) {
-    HandlerStack &entry = die_handlers_.top();
+    HandlerStack& entry = die_handlers_.top();
     if (entry.handler_ != root_handler_)
       delete entry.handler_;
     die_handlers_.pop();
@@ -60,7 +64,7 @@ bool DIEDispatcher::StartCompilationUnit(uint64_t offset, uint8_t address_size,
 
 bool DIEDispatcher::StartDIE(uint64_t offset, enum DwarfTag tag) {
   // The stack entry for the parent of this DIE, if there is one.
-  HandlerStack *parent = die_handlers_.empty() ? NULL : &die_handlers_.top();
+  HandlerStack* parent = die_handlers_.empty() ? NULL : &die_handlers_.top();
 
   // Does this call indicate that we're done receiving the parent's
   // attributes' values?  If so, call its EndAttributes member function.
@@ -78,7 +82,7 @@ bool DIEDispatcher::StartDIE(uint64_t offset, enum DwarfTag tag) {
   }
 
   // Find a handler for this DIE.
-  DIEHandler *handler;
+  DIEHandler* handler;
   if (parent) {
     if (parent->handler_)
       // Ask the parent to find a handler.
@@ -115,7 +119,7 @@ bool DIEDispatcher::StartDIE(uint64_t offset, enum DwarfTag tag) {
 
 void DIEDispatcher::EndDIE(uint64_t offset) {
   assert(!die_handlers_.empty());
-  HandlerStack *entry = &die_handlers_.top();
+  HandlerStack* entry = &die_handlers_.top();
   if (entry->handler_) {
     // This entry had better be the handler for this DIE.
     assert(entry->offset_ == offset);
@@ -139,7 +143,7 @@ void DIEDispatcher::ProcessAttributeUnsigned(uint64_t offset,
                                              enum DwarfAttribute attr,
                                              enum DwarfForm form,
                                              uint64_t data) {
-  HandlerStack &current = die_handlers_.top();
+  HandlerStack& current = die_handlers_.top();
   // This had better be an attribute of the DIE we were meant to handle.
   assert(offset == current.offset_);
   current.handler_->ProcessAttributeUnsigned(attr, form, data);
@@ -149,7 +153,7 @@ void DIEDispatcher::ProcessAttributeSigned(uint64_t offset,
                                            enum DwarfAttribute attr,
                                            enum DwarfForm form,
                                            int64_t data) {
-  HandlerStack &current = die_handlers_.top();
+  HandlerStack& current = die_handlers_.top();
   // This had better be an attribute of the DIE we were meant to handle.
   assert(offset == current.offset_);
   current.handler_->ProcessAttributeSigned(attr, form, data);
@@ -159,7 +163,7 @@ void DIEDispatcher::ProcessAttributeReference(uint64_t offset,
                                               enum DwarfAttribute attr,
                                               enum DwarfForm form,
                                               uint64_t data) {
-  HandlerStack &current = die_handlers_.top();
+  HandlerStack& current = die_handlers_.top();
   // This had better be an attribute of the DIE we were meant to handle.
   assert(offset == current.offset_);
   current.handler_->ProcessAttributeReference(attr, form, data);
@@ -168,9 +172,9 @@ void DIEDispatcher::ProcessAttributeReference(uint64_t offset,
 void DIEDispatcher::ProcessAttributeBuffer(uint64_t offset,
                                            enum DwarfAttribute attr,
                                            enum DwarfForm form,
-                                           const uint8_t *data,
+                                           const uint8_t* data,
                                            uint64_t len) {
-  HandlerStack &current = die_handlers_.top();
+  HandlerStack& current = die_handlers_.top();
   // This had better be an attribute of the DIE we were meant to handle.
   assert(offset == current.offset_);
   current.handler_->ProcessAttributeBuffer(attr, form, data, len);
@@ -180,7 +184,7 @@ void DIEDispatcher::ProcessAttributeString(uint64_t offset,
                                            enum DwarfAttribute attr,
                                            enum DwarfForm form,
                                            const string& data) {
-  HandlerStack &current = die_handlers_.top();
+  HandlerStack& current = die_handlers_.top();
   // This had better be an attribute of the DIE we were meant to handle.
   assert(offset == current.offset_);
   current.handler_->ProcessAttributeString(attr, form, data);
@@ -190,10 +194,10 @@ void DIEDispatcher::ProcessAttributeSignature(uint64_t offset,
                                               enum DwarfAttribute attr,
                                               enum DwarfForm form,
                                               uint64_t signature) {
-  HandlerStack &current = die_handlers_.top();
+  HandlerStack& current = die_handlers_.top();
   // This had better be an attribute of the DIE we were meant to handle.
   assert(offset == current.offset_);
   current.handler_->ProcessAttributeSignature(attr, form, signature);
 }
 
-} // namespace dwarf2reader
+} // namespace google_breakpad
