@@ -1,5 +1,4 @@
-// Copyright (c) 2010, Google Inc.
-// All rights reserved.
+// Copyright 2010 Google LLC
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -11,7 +10,7 @@
 // copyright notice, this list of conditions and the following disclaimer
 // in the documentation and/or other materials provided with the
 // distribution.
-//     * Neither the name of Google Inc. nor the names of its
+//     * Neither the name of Google LLC nor the names of its
 // contributors may be used to endorse or promote products derived from
 // this software without specific prior written permission.
 //
@@ -35,6 +34,10 @@
 // rules apply as detailed at the top of minidump_writer.h: no libc calls and
 // use the alternative allocator.
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>  // Must come first
+#endif
+
 #include "client/linux/minidump_writer/linux_dumper.h"
 
 #include <assert.h>
@@ -52,6 +55,8 @@
 #include "common/linux/safe_readlink.h"
 #include "google_breakpad/common/minidump_exception_linux.h"
 #include "third_party/lss/linux_syscall_support.h"
+
+using google_breakpad::elf::FileID;
 
 #if defined(__ANDROID__)
 
@@ -135,7 +140,7 @@ const size_t kHpageMask = (~(kHpageSize - 1));
 //   next is backed by some file.
 //   curr and next are contiguous.
 //   offset(next) == sizeof(curr)
-void TryRecoverMappings(MappingInfo *curr, MappingInfo *next) {
+void TryRecoverMappings(MappingInfo* curr, MappingInfo* next) {
   // Merged segments are marked with size = 0.
   if (curr->size == 0 || next->size == 0)
     return;
@@ -167,8 +172,8 @@ void TryRecoverMappings(MappingInfo *curr, MappingInfo *next) {
 //   next and prev are backed by the same file.
 //   prev, curr and next are contiguous.
 //   offset(next) == offset(prev) + sizeof(prev) + sizeof(curr)
-void TryRecoverMappings(MappingInfo *prev, MappingInfo *curr,
-    MappingInfo *next) {
+void TryRecoverMappings(MappingInfo* prev, MappingInfo* curr,
+                        MappingInfo* next) {
   // Merged segments are marked with size = 0.
   if (prev->size == 0 || curr->size == 0 || next->size == 0)
     return;
@@ -341,7 +346,7 @@ LinuxDumper::ElfFileIdentifierForMapping(const MappingInfo& mapping,
     return false;
   bool filename_modified = HandleDeletedFileInMapping(filename);
 
-  MemoryMappedFile mapped_file(filename, mapping.offset);
+  MemoryMappedFile mapped_file(filename, 0);
   if (!mapped_file.data() || mapped_file.size() < SELFMAG)
     return false;
 
@@ -454,7 +459,7 @@ bool ElfFileSoName(const LinuxDumper& dumper,
   if (!dumper.GetMappingAbsolutePath(mapping, filename))
     return false;
 
-  MemoryMappedFile mapped_file(filename, mapping.offset);
+  MemoryMappedFile mapped_file(filename, 0);
   if (!mapped_file.data() || mapped_file.size() < SELFMAG) {
     // mmap failed
     return false;
@@ -551,11 +556,11 @@ bool LinuxDumper::EnumerateMappings() {
   // See http://www.trilithium.com/johan/2005/08/linux-gate/ for more
   // information.
   const void* linux_gate_loc =
-      reinterpret_cast<void *>(auxv_[AT_SYSINFO_EHDR]);
+      reinterpret_cast<void*>(auxv_[AT_SYSINFO_EHDR]);
   // Although the initial executable is usually the first mapping, it's not
   // guaranteed (see http://crosbug.com/25355); therefore, try to use the
   // actual entry point to find the mapping.
-  const void* entry_point_loc = reinterpret_cast<void *>(auxv_[AT_ENTRY]);
+  const void* entry_point_loc = reinterpret_cast<void*>(auxv_[AT_ENTRY]);
 
   const int fd = sys_open(maps_path, O_RDONLY, 0);
   if (fd < 0)
@@ -943,7 +948,7 @@ bool LinuxDumper::HandleDeletedFileInMapping(char* path) const {
   char exe_link[NAME_MAX];
   if (!BuildProcPath(exe_link, pid_, "exe"))
     return false;
-  MappingInfo new_mapping = {};
+  MappingInfo new_mapping = {0};
   if (!SafeReadLink(exe_link, new_mapping.name))
     return false;
   char new_path[PATH_MAX];

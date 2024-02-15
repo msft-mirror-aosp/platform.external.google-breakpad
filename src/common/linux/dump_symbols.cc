@@ -1,5 +1,4 @@
-// Copyright (c) 2011 Google Inc.
-// All rights reserved.
+// Copyright 2011 Google LLC
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -11,7 +10,7 @@
 // copyright notice, this list of conditions and the following disclaimer
 // in the documentation and/or other materials provided with the
 // distribution.
-//     * Neither the name of Google Inc. nor the names of its
+//     * Neither the name of Google LLC nor the names of its
 // contributors may be used to endorse or promote products derived from
 // this software without specific prior written permission.
 //
@@ -32,6 +31,10 @@
 // dump_symbols.cc: implement google_breakpad::WriteSymbolFile:
 // Find all the debugging info in a file and dump it as a Breakpad symbol file.
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>  // Must come first
+#endif
+
 #include "common/linux/dump_symbols.h"
 
 #include <assert.h>
@@ -47,8 +50,11 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <zlib.h>
+#ifdef HAVE_LIBZSTD
+#include <zstd.h>
+#endif
 
-#include <iostream>
 #include <set>
 #include <string>
 #include <utility>
@@ -87,11 +93,11 @@ using google_breakpad::DwarfRangeListHandler;
 using google_breakpad::ElfClass;
 using google_breakpad::ElfClass32;
 using google_breakpad::ElfClass64;
-using google_breakpad::FileID;
+using google_breakpad::elf::FileID;
 using google_breakpad::FindElfSectionByName;
 using google_breakpad::GetOffset;
 using google_breakpad::IsValidElf;
-using google_breakpad::kDefaultBuildIdSize;
+using google_breakpad::elf::kDefaultBuildIdSize;
 using google_breakpad::Module;
 using google_breakpad::PageAllocator;
 #ifndef NO_STABS_SUPPORT
@@ -103,6 +109,11 @@ using google_breakpad::wasteful_vector;
 // Define AARCH64 ELF architecture if host machine does not include this define.
 #ifndef EM_AARCH64
 #define EM_AARCH64      183
+#endif
+
+// Define ZStd compression if host machine does not include this define.
+#ifndef ELFCOMPRESS_ZSTD
+#define ELFCOMPRESS_ZSTD 2
 #endif
 
 //
@@ -144,7 +155,7 @@ class MmapWrapper {
       munmap(base_, size_);
     }
   }
-  void set(void *mapped_address, size_t mapped_size) {
+  void set(void* mapped_address, size_t mapped_size) {
     is_set_ = true;
     base_ = mapped_address;
     size_ = mapped_size;
@@ -228,62 +239,205 @@ bool LoadStabs(const typename ElfClass::Ehdr* elf_header,
 #endif  // NO_STABS_SUPPORT
 
 // A range handler that accepts rangelist data parsed by
-// dwarf2reader::RangeListReader and populates a range vector (typically
+// google_breakpad::RangeListReader and populates a range vector (typically
 // owned by a function) with the results.
 class DumperRangesHandler : public DwarfCUToModule::RangesHandler {
  public:
-  DumperRangesHandler(const uint8_t *buffer, uint64_t size,
-                      dwarf2reader::ByteReader* reader)
-      : buffer_(buffer), size_(size), reader_(reader) { }
+  DumperRangesHandler(google_breakpad::ByteReader* reader) :
+      reader_(reader) { }
 
-  bool ReadRanges(uint64_t offset, Module::Address base_address,
-                  vector<Module::Range>* ranges) {
-    DwarfRangeListHandler handler(base_address, ranges);
-    dwarf2reader::RangeListReader rangelist_reader(buffer_, size_, reader_,
-                                                   &handler);
-
-    return rangelist_reader.ReadRangeList(offset);
+  bool ReadRanges(
+      enum google_breakpad::DwarfForm form, uint64_t data,
+      google_breakpad::RangeListReader::CURangesInfo* cu_info,
+      vector<Module::Range>* ranges) {
+    DwarfRangeListHandler handler(ranges);
+    google_breakpad::RangeListReader range_list_reader(reader_, cu_info,
+                                                    &handler);
+    return range_list_reader.ReadRanges(form, data);
   }
 
  private:
-  const uint8_t *buffer_;
-  uint64_t size_;
-  dwarf2reader::ByteReader* reader_;
+  google_breakpad::ByteReader* reader_;
 };
 
 // A line-to-module loader that accepts line number info parsed by
-// dwarf2reader::LineInfo and populates a Module and a line vector
+// google_breakpad::LineInfo and populates a Module and a line vector
 // with the results.
 class DumperLineToModule: public DwarfCUToModule::LineToModuleHandler {
  public:
   // Create a line-to-module converter using BYTE_READER.
-  explicit DumperLineToModule(dwarf2reader::ByteReader *byte_reader)
+  explicit DumperLineToModule(google_breakpad::ByteReader* byte_reader)
       : byte_reader_(byte_reader) { }
   void StartCompilationUnit(const string& compilation_dir) {
     compilation_dir_ = compilation_dir;
   }
-  void ReadProgram(const uint8_t *program, uint64_t length,
-                   Module* module, std::vector<Module::Line>* lines) {
-    DwarfLineToModule handler(module, compilation_dir_, lines);
-    dwarf2reader::LineInfo parser(program, length, byte_reader_, &handler);
+  void ReadProgram(const uint8_t* program,
+                   uint64_t length,
+                   const uint8_t* string_section,
+                   uint64_t string_section_length,
+                   const uint8_t* line_string_section,
+                   uint64_t line_string_section_length,
+                   Module* module,
+                   std::vector<Module::Line>* lines,
+                   std::map<uint32_t, Module::File*>* files) {
+    DwarfLineToModule handler(module, compilation_dir_, lines, files);
+    google_breakpad::LineInfo parser(program, length, byte_reader_,
+                                  string_section, string_section_length,
+                                  line_string_section,
+                                  line_string_section_length,
+                                  &handler);
     parser.Start();
   }
  private:
   string compilation_dir_;
-  dwarf2reader::ByteReader *byte_reader_;
+  google_breakpad::ByteReader* byte_reader_;
 };
+
+template<typename ElfClass>
+bool IsCompressedHeader(const typename ElfClass::Shdr* section) {
+  return (section->sh_flags & SHF_COMPRESSED) != 0;
+}
+
+template<typename ElfClass>
+uint32_t GetCompressionHeader(
+    typename ElfClass::Chdr& compression_header,
+    const uint8_t* content, uint64_t size) {
+  const typename ElfClass::Chdr* header =
+      reinterpret_cast<const typename ElfClass::Chdr *>(content);
+
+  if (size < sizeof (*header)) {
+    return 0;
+  }
+
+  compression_header = *header;
+  return sizeof (*header);
+}
+
+std::pair<uint8_t *, uint64_t> UncompressZlibSectionContents(
+    const uint8_t* compressed_buffer, uint64_t compressed_size, uint64_t uncompressed_size) {
+  z_stream stream;
+  memset(&stream, 0, sizeof stream);
+
+  stream.avail_in = compressed_size;
+  stream.avail_out = uncompressed_size;
+  stream.next_in = const_cast<uint8_t *>(compressed_buffer);
+
+  google_breakpad::scoped_array<uint8_t> uncompressed_buffer(
+    new uint8_t[uncompressed_size]);
+
+  int status = inflateInit(&stream);
+  while (stream.avail_in != 0 && status == Z_OK) {
+    stream.next_out =
+      uncompressed_buffer.get() + uncompressed_size - stream.avail_out;
+
+    if ((status = inflate(&stream, Z_FINISH)) != Z_STREAM_END) {
+      break;
+    }
+
+    status = inflateReset(&stream);
+  }
+
+  return inflateEnd(&stream) != Z_OK || status != Z_OK || stream.avail_out != 0
+    ? std::make_pair(nullptr, 0)
+    : std::make_pair(uncompressed_buffer.release(), uncompressed_size);
+}
+
+#ifdef HAVE_LIBZSTD
+std::pair<uint8_t *, uint64_t> UncompressZstdSectionContents(
+    const uint8_t* compressed_buffer, uint64_t compressed_size,uint64_t uncompressed_size) {
+
+  google_breakpad::scoped_array<uint8_t> uncompressed_buffer(new uint8_t[uncompressed_size]);
+  size_t out_size = ZSTD_decompress(uncompressed_buffer.get(), uncompressed_size,
+    compressed_buffer, compressed_size);
+  if (ZSTD_isError(out_size)) {
+    return std::make_pair(nullptr, 0);
+  }
+  assert(out_size == uncompressed_size);
+  return std::make_pair(uncompressed_buffer.release(), uncompressed_size);
+}
+#endif
+
+std::pair<uint8_t *, uint64_t> UncompressSectionContents(
+    uint64_t compression_type, const uint8_t* compressed_buffer,
+    uint64_t compressed_size, uint64_t uncompressed_size) {
+  if (compression_type == ELFCOMPRESS_ZLIB) {
+    return UncompressZlibSectionContents(compressed_buffer, compressed_size, uncompressed_size);
+  }
+
+#ifdef HAVE_LIBZSTD
+  if (compression_type == ELFCOMPRESS_ZSTD) {
+    return UncompressZstdSectionContents(compressed_buffer, compressed_size, uncompressed_size);
+  }
+#endif
+
+  return std::make_pair(nullptr, 0);
+}
+
+void StartProcessSplitDwarf(google_breakpad::CompilationUnit* reader,
+                            Module* module,
+                            google_breakpad::Endianness endianness,
+                            bool handle_inter_cu_refs,
+                            bool handle_inline) {
+  std::string split_file;
+  google_breakpad::SectionMap split_sections;
+  google_breakpad::ByteReader split_byte_reader(endianness);
+  uint64_t cu_offset = 0;
+  if (!reader->ProcessSplitDwarf(split_file, split_sections, split_byte_reader,
+                                 cu_offset))
+    return;
+  DwarfCUToModule::FileContext file_context(split_file, module,
+                                            handle_inter_cu_refs);
+  for (auto section : split_sections)
+    file_context.AddSectionToSectionMap(section.first, section.second.first,
+                                        section.second.second);
+  // Because DWP/DWO file doesn't have .debug_addr/.debug_line/.debug_line_str,
+  // its debug info will refer to .debug_addr/.debug_line in the main binary.
+  if (file_context.section_map().find(".debug_addr") ==
+      file_context.section_map().end())
+    file_context.AddSectionToSectionMap(".debug_addr", reader->GetAddrBuffer(),
+                                        reader->GetAddrBufferLen());
+  if (file_context.section_map().find(".debug_line") ==
+      file_context.section_map().end())
+    file_context.AddSectionToSectionMap(".debug_line", reader->GetLineBuffer(),
+                                        reader->GetLineBufferLen());
+  if (file_context.section_map().find(".debug_line_str") ==
+      file_context.section_map().end())
+    file_context.AddSectionToSectionMap(".debug_line_str",
+                                        reader->GetLineStrBuffer(),
+                                        reader->GetLineStrBufferLen());
+
+  DumperRangesHandler ranges_handler(&split_byte_reader);
+  DumperLineToModule line_to_module(&split_byte_reader);
+  DwarfCUToModule::WarningReporter reporter(split_file, cu_offset);
+  DwarfCUToModule root_handler(
+      &file_context, &line_to_module, &ranges_handler, &reporter, handle_inline,
+      reader->GetLowPC(), reader->GetAddrBase(), reader->HasSourceLineInfo(),
+      reader->GetSourceLineOffset());
+  google_breakpad::DIEDispatcher die_dispatcher(&root_handler);
+  google_breakpad::CompilationUnit split_reader(
+      split_file, file_context.section_map(), cu_offset, &split_byte_reader,
+      &die_dispatcher);
+  split_reader.SetSplitDwarf(reader->GetAddrBase(), reader->GetDWOID());
+  split_reader.Start();
+  // Normally, it won't happen unless we have transitive reference.
+  if (split_reader.ShouldProcessSplitDwarf()) {
+    StartProcessSplitDwarf(&split_reader, module, endianness,
+                           handle_inter_cu_refs, handle_inline);
+  }
+}
 
 template<typename ElfClass>
 bool LoadDwarf(const string& dwarf_filename,
                const typename ElfClass::Ehdr* elf_header,
                const bool big_endian,
                bool handle_inter_cu_refs,
+               bool handle_inline,
                Module* module) {
   typedef typename ElfClass::Shdr Shdr;
 
-  const dwarf2reader::Endianness endianness = big_endian ?
-      dwarf2reader::ENDIANNESS_BIG : dwarf2reader::ENDIANNESS_LITTLE;
-  dwarf2reader::ByteReader byte_reader(endianness);
+  const google_breakpad::Endianness endianness = big_endian ?
+      google_breakpad::ENDIANNESS_BIG : google_breakpad::ENDIANNESS_LITTLE;
+  google_breakpad::ByteReader byte_reader(endianness);
 
   // Construct a context for this file.
   DwarfCUToModule::FileContext file_context(dwarf_filename,
@@ -300,29 +454,44 @@ bool LoadDwarf(const string& dwarf_filename,
     string name = GetOffset<ElfClass, char>(elf_header,
                                             section_names->sh_offset) +
                   section->sh_name;
-    const uint8_t *contents = GetOffset<ElfClass, uint8_t>(elf_header,
+    const uint8_t* contents = GetOffset<ElfClass, uint8_t>(elf_header,
                                                            section->sh_offset);
-    file_context.AddSectionToSectionMap(name, contents, section->sh_size);
+    uint64_t size = section->sh_size;
+
+    if (!IsCompressedHeader<ElfClass>(section)) {
+      file_context.AddSectionToSectionMap(name, contents, size);
+      continue;
+    }
+
+    typename ElfClass::Chdr chdr;
+
+    uint32_t compression_header_size =
+      GetCompressionHeader<ElfClass>(chdr, contents, size);
+
+    if (compression_header_size == 0 || chdr.ch_size == 0) {
+      continue;
+    }
+
+    contents += compression_header_size;
+    size -= compression_header_size;
+
+    std::pair<uint8_t *, uint64_t> uncompressed =
+      UncompressSectionContents(chdr.ch_type, contents, size, chdr.ch_size);
+
+    if (uncompressed.first != nullptr && uncompressed.second != 0) {
+      file_context.AddManagedSectionToSectionMap(name, uncompressed.first, uncompressed.second);
+    }
   }
 
-  // Optional .debug_ranges reader
-  scoped_ptr<DumperRangesHandler> ranges_handler;
-  dwarf2reader::SectionMap::const_iterator ranges_entry =
-      file_context.section_map().find(".debug_ranges");
-  if (ranges_entry != file_context.section_map().end()) {
-    const std::pair<const uint8_t *, uint64_t>& ranges_section =
-      ranges_entry->second;
-    ranges_handler.reset(
-      new DumperRangesHandler(ranges_section.first, ranges_section.second,
-                              &byte_reader));
-  }
+  // .debug_ranges and .debug_rnglists reader
+  DumperRangesHandler ranges_handler(&byte_reader);
 
   // Parse all the compilation units in the .debug_info section.
   DumperLineToModule line_to_module(&byte_reader);
-  dwarf2reader::SectionMap::const_iterator debug_info_entry =
+  google_breakpad::SectionMap::const_iterator debug_info_entry =
       file_context.section_map().find(".debug_info");
   assert(debug_info_entry != file_context.section_map().end());
-  const std::pair<const uint8_t *, uint64_t>& debug_info_section =
+  const std::pair<const uint8_t*, uint64_t>& debug_info_section =
       debug_info_entry->second;
   // This should never have been called if the file doesn't have a
   // .debug_info section.
@@ -333,17 +502,22 @@ bool LoadDwarf(const string& dwarf_filename,
     // data that was found.
     DwarfCUToModule::WarningReporter reporter(dwarf_filename, offset);
     DwarfCUToModule root_handler(&file_context, &line_to_module,
-                                 ranges_handler.get(), &reporter);
+                                 &ranges_handler, &reporter, handle_inline);
     // Make a Dwarf2Handler that drives the DIEHandler.
-    dwarf2reader::DIEDispatcher die_dispatcher(&root_handler);
+    google_breakpad::DIEDispatcher die_dispatcher(&root_handler);
     // Make a DWARF parser for the compilation unit at OFFSET.
-    dwarf2reader::CompilationUnit reader(dwarf_filename,
+    google_breakpad::CompilationUnit reader(dwarf_filename,
                                          file_context.section_map(),
                                          offset,
                                          &byte_reader,
                                          &die_dispatcher);
     // Process the entire compilation unit; get the offset of the next.
     offset += reader.Start();
+    // Start to process split dwarf file.
+    if (reader.ShouldProcessSplitDwarf()) {
+      StartProcessSplitDwarf(&reader, module, endianness, handle_inter_cu_refs,
+                             handle_inline);
+    }
   }
   return true;
 }
@@ -372,6 +546,9 @@ bool DwarfCFIRegisterNames(const typename ElfClass::Ehdr* elf_header,
     case EM_X86_64:
       *register_names = DwarfCFIToModule::RegisterNames::X86_64();
       return true;
+    case EM_RISCV:
+      *register_names = DwarfCFIToModule::RegisterNames::RISCV();
+      return true;
     default:
       return false;
   }
@@ -397,18 +574,18 @@ bool LoadDwarfCFI(const string& dwarf_filename,
     return false;
   }
 
-  const dwarf2reader::Endianness endianness = big_endian ?
-      dwarf2reader::ENDIANNESS_BIG : dwarf2reader::ENDIANNESS_LITTLE;
+  const google_breakpad::Endianness endianness = big_endian ?
+      google_breakpad::ENDIANNESS_BIG : google_breakpad::ENDIANNESS_LITTLE;
 
   // Find the call frame information and its size.
-  const uint8_t *cfi =
+  const uint8_t* cfi =
       GetOffset<ElfClass, uint8_t>(elf_header, section->sh_offset);
   size_t cfi_size = section->sh_size;
 
   // Plug together the parser, handler, and their entourages.
   DwarfCFIToModule::Reporter module_reporter(dwarf_filename, section_name);
   DwarfCFIToModule handler(module, register_names, &module_reporter);
-  dwarf2reader::ByteReader byte_reader(endianness);
+  google_breakpad::ByteReader byte_reader(endianness);
 
   byte_reader.SetAddressSize(ElfClass::kAddrSize);
 
@@ -420,11 +597,44 @@ bool LoadDwarfCFI(const string& dwarf_filename,
   if (text_section)
     byte_reader.SetTextBase(text_section->sh_addr);
 
-  dwarf2reader::CallFrameInfo::Reporter dwarf_reporter(dwarf_filename,
+  google_breakpad::CallFrameInfo::Reporter dwarf_reporter(dwarf_filename,
                                                        section_name);
-  dwarf2reader::CallFrameInfo parser(cfi, cfi_size,
-                                     &byte_reader, &handler, &dwarf_reporter,
-                                     eh_frame);
+  if (!IsCompressedHeader<ElfClass>(section)) {
+    google_breakpad::CallFrameInfo parser(cfi, cfi_size,
+                                          &byte_reader, &handler,
+                                          &dwarf_reporter, eh_frame);
+    parser.Start();
+    return true;
+  }
+
+  typename ElfClass::Chdr chdr;
+  uint32_t compression_header_size =
+    GetCompressionHeader<ElfClass>(chdr, cfi, cfi_size);
+
+  if (compression_header_size == 0 || chdr.ch_size == 0) {
+    fprintf(stderr, "%s: decompression failed at header\n",
+            dwarf_filename.c_str());
+    return false;
+  }
+  if (compression_header_size > cfi_size) {
+    fprintf(stderr, "%s: decompression error, compression_header too large\n",
+            dwarf_filename.c_str());
+    return false;
+  }
+
+  cfi += compression_header_size;
+  cfi_size -= compression_header_size;
+
+  std::pair<uint8_t *, uint64_t> uncompressed =
+    UncompressSectionContents(chdr.ch_type, cfi, cfi_size, chdr.ch_size);
+
+  if (uncompressed.first == nullptr || uncompressed.second == 0) {
+    fprintf(stderr, "%s: decompression failed\n", dwarf_filename.c_str());
+    return false;
+  }
+  google_breakpad::CallFrameInfo parser(uncompressed.first, uncompressed.second,
+                                        &byte_reader, &handler, &dwarf_reporter,
+                                        eh_frame);
   parser.Start();
   return true;
 }
@@ -489,13 +699,13 @@ bool IsSameFile(const char* left_abspath, const string& right_path) {
 
 // Read the .gnu_debuglink and get the debug file name. If anything goes
 // wrong, return an empty string.
-string ReadDebugLink(const uint8_t *debuglink,
+string ReadDebugLink(const uint8_t* debuglink,
                      const size_t debuglink_size,
                      const bool big_endian,
                      const string& obj_file,
                      const std::vector<string>& debug_dirs) {
   // Include '\0' + CRC32 (4 bytes).
-  size_t debuglink_len = strlen(reinterpret_cast<const char *>(debuglink)) + 5;
+  size_t debuglink_len = strlen(reinterpret_cast<const char*>(debuglink)) + 5;
   debuglink_len = 4 * ((debuglink_len + 3) / 4);  // Round up to 4 bytes.
 
   // Sanity check.
@@ -517,7 +727,7 @@ string ReadDebugLink(const uint8_t *debuglink,
   for (it = debug_dirs.begin(); it < debug_dirs.end(); ++it) {
     const string& debug_dir = *it;
     debuglink_path = debug_dir + "/" +
-                     reinterpret_cast<const char *>(debuglink);
+                     reinterpret_cast<const char*>(debuglink);
 
     // There is the annoying case of /path/to/foo.so having foo.so as the
     // debug link file name. Thus this may end up opening /path/to/foo.so again,
@@ -533,9 +743,9 @@ string ReadDebugLink(const uint8_t *debuglink,
     FDWrapper debuglink_fd_wrapper(debuglink_fd);
 
     // The CRC is the last 4 bytes in |debuglink|.
-    const dwarf2reader::Endianness endianness = big_endian ?
-        dwarf2reader::ENDIANNESS_BIG : dwarf2reader::ENDIANNESS_LITTLE;
-    dwarf2reader::ByteReader byte_reader(endianness);
+    const google_breakpad::Endianness endianness = big_endian ?
+        google_breakpad::ENDIANNESS_BIG : google_breakpad::ENDIANNESS_LITTLE;
+    google_breakpad::ByteReader byte_reader(endianness);
     uint32_t expected_crc =
         byte_reader.ReadFourBytes(&debuglink[debuglink_size - 4]);
 
@@ -591,7 +801,7 @@ class LoadSymbolsInfo {
 
   // Keeps track of which sections have been loaded so sections don't
   // accidentally get loaded twice from two different files.
-  void LoadedSection(const string &section) {
+  void LoadedSection(const string& section) {
     if (loaded_sections_.count(section) == 0) {
       loaded_sections_.insert(section);
     } else {
@@ -602,7 +812,7 @@ class LoadSymbolsInfo {
 
   // The ELF file and linked debug file are expected to have the same preferred
   // loading address.
-  void set_loading_addr(Addr addr, const string &filename) {
+  void set_loading_addr(Addr addr, const string& filename) {
     if (!has_loading_addr_) {
       loading_addr_ = addr;
       loaded_file_ = filename;
@@ -679,11 +889,12 @@ bool LoadSymbols(const string& obj_file,
   const Shdr* section_names = sections + elf_header->e_shstrndx;
   const char* names =
       GetOffset<ElfClass, char>(elf_header, section_names->sh_offset);
-  const char *names_end = names + section_names->sh_size;
+  const char* names_end = names + section_names->sh_size;
   bool found_debug_info_section = false;
   bool found_usable_info = false;
 
-  if (options.symbol_data != ONLY_CFI) {
+  if ((options.symbol_data & SYMBOLS_AND_FILES) ||
+      (options.symbol_data & INLINES)) {
 #ifndef NO_STABS_SUPPORT
     // Look for STABS debugging information, and load it if present.
     const Shdr* stab_section =
@@ -704,32 +915,6 @@ bool LoadSymbols(const string& obj_file,
       }
     }
 #endif  // NO_STABS_SUPPORT
-
-    // Look for DWARF debugging information, and load it if present.
-    const Shdr* dwarf_section =
-      FindElfSectionByName<ElfClass>(".debug_info", SHT_PROGBITS,
-                                     sections, names, names_end,
-                                     elf_header->e_shnum);
-
-    // .debug_info section type is SHT_PROGBITS for mips on pnacl toolchains,
-    // but MIPS_DWARF for regular gnu toolchains, so both need to be checked
-    if (elf_header->e_machine == EM_MIPS && !dwarf_section) {
-      dwarf_section =
-        FindElfSectionByName<ElfClass>(".debug_info", SHT_MIPS_DWARF,
-                                       sections, names, names_end,
-                                       elf_header->e_shnum);
-    }
-
-    if (dwarf_section) {
-      found_debug_info_section = true;
-      found_usable_info = true;
-      info->LoadedSection(".debug_info");
-      if (!LoadDwarf<ElfClass>(obj_file, elf_header, big_endian,
-                               options.handle_inter_cu_refs, module)) {
-        fprintf(stderr, "%s: \".debug_info\" section found, but failed to load "
-                "DWARF debugging information\n", obj_file.c_str());
-      }
-    }
 
     // See if there are export symbols available.
     const Shdr* symtab_section =
@@ -788,9 +973,38 @@ bool LoadSymbols(const string& obj_file,
         found_usable_info = found_usable_info || result;
       }
     }
+
+    // Only Load .debug_info after loading symbol table to avoid duplicate
+    // PUBLIC records.
+    // Look for DWARF debugging information, and load it if present.
+    const Shdr* dwarf_section =
+      FindElfSectionByName<ElfClass>(".debug_info", SHT_PROGBITS,
+                                     sections, names, names_end,
+                                     elf_header->e_shnum);
+
+    // .debug_info section type is SHT_PROGBITS for mips on pnacl toolchains,
+    // but MIPS_DWARF for regular gnu toolchains, so both need to be checked
+    if (elf_header->e_machine == EM_MIPS && !dwarf_section) {
+      dwarf_section =
+        FindElfSectionByName<ElfClass>(".debug_info", SHT_MIPS_DWARF,
+                                       sections, names, names_end,
+                                       elf_header->e_shnum);
+    }
+
+    if (dwarf_section) {
+      found_debug_info_section = true;
+      found_usable_info = true;
+      info->LoadedSection(".debug_info");
+      if (!LoadDwarf<ElfClass>(obj_file, elf_header, big_endian,
+                               options.handle_inter_cu_refs,
+                               options.symbol_data & INLINES, module)) {
+        fprintf(stderr, "%s: \".debug_info\" section found, but failed to load "
+                "DWARF debugging information\n", obj_file.c_str());
+      }
+    }
   }
 
-  if (options.symbol_data != NO_CFI) {
+  if (options.symbol_data & CFI) {
     // Dwarf Call Frame Information (CFI) is actually independent from
     // the other DWARF debugging information, and can be used alone.
     const Shdr* dwarf_cfi_section =
@@ -859,7 +1073,7 @@ bool LoadSymbols(const string& obj_file,
                                            names_end, elf_header->e_shnum);
       if (gnu_debuglink_section) {
         if (!info->debug_dirs().empty()) {
-          const uint8_t *debuglink_contents =
+          const uint8_t* debuglink_contents =
               GetOffset<ElfClass, uint8_t>(elf_header,
                                            gnu_debuglink_section->sh_offset);
           string debuglink_file =
@@ -908,6 +1122,7 @@ const char* ElfArchitecture(const typename ElfClass::Ehdr* elf_header) {
     case EM_SPARC:      return "sparc";
     case EM_SPARCV9:    return "sparcv9";
     case EM_X86_64:     return "x86_64";
+    case EM_RISCV:      return "riscv";
     default: return NULL;
   }
 }
@@ -947,7 +1162,8 @@ template<typename ElfClass>
 bool InitModuleForElfClass(const typename ElfClass::Ehdr* elf_header,
                            const string& obj_filename,
                            const string& obj_os,
-                           scoped_ptr<Module>& module) {
+                           scoped_ptr<Module>& module,
+                           bool enable_multiple_field) {
   PageAllocator allocator;
   wasteful_vector<uint8_t> identifier(&allocator, kDefaultBuildIdSize);
   if (!FileID::ElfFileIdentifierFromMappedFile(elf_header, identifier)) {
@@ -956,7 +1172,7 @@ bool InitModuleForElfClass(const typename ElfClass::Ehdr* elf_header,
     return false;
   }
 
-  const char *architecture = ElfArchitecture<ElfClass>(elf_header);
+  const char* architecture = ElfArchitecture<ElfClass>(elf_header);
   if (!architecture) {
     fprintf(stderr, "%s: unrecognized ELF machine architecture: %d\n",
             obj_filename.c_str(), elf_header->e_machine);
@@ -976,7 +1192,8 @@ bool InitModuleForElfClass(const typename ElfClass::Ehdr* elf_header,
   // This is just the raw Build ID in hex.
   string code_id = FileID::ConvertIdentifierToString(identifier);
 
-  module.reset(new Module(name, obj_os, architecture, id, code_id));
+  module.reset(new Module(name, obj_os, architecture, id, code_id,
+                          enable_multiple_field));
 
   return true;
 }
@@ -993,8 +1210,8 @@ bool ReadSymbolDataElfClass(const typename ElfClass::Ehdr* elf_header,
   *out_module = NULL;
 
   scoped_ptr<Module> module;
-  if (!InitModuleForElfClass<ElfClass>(elf_header, obj_filename, obj_os,
-                                       module)) {
+  if (!InitModuleForElfClass<ElfClass>(elf_header, obj_filename, obj_os, module,
+                                       options.enable_multiple_field)) {
     return false;
   }
 
@@ -1066,12 +1283,12 @@ bool ReadSymbolDataInternal(const uint8_t* obj_file,
   return false;
 }
 
-bool WriteSymbolFile(const string &load_path,
-                     const string &obj_file,
-                     const string &obj_os,
+bool WriteSymbolFile(const string& load_path,
+                     const string& obj_file,
+                     const string& obj_os,
                      const std::vector<string>& debug_dirs,
                      const DumpOptions& options,
-                     std::ostream &sym_stream) {
+                     std::ostream& sym_stream) {
   Module* module;
   if (!ReadSymbolData(load_path, obj_file, obj_os, debug_dirs, options,
                       &module))
@@ -1088,7 +1305,7 @@ bool WriteSymbolFile(const string &load_path,
 bool WriteSymbolFileHeader(const string& load_path,
                            const string& obj_file,
                            const string& obj_os,
-                           std::ostream &sym_stream) {
+                           std::ostream& sym_stream) {
   MmapWrapper map_wrapper;
   void* elf_header = NULL;
   if (!LoadELF(load_path, &map_wrapper, &elf_header)) {
@@ -1106,14 +1323,14 @@ bool WriteSymbolFileHeader(const string& load_path,
   if (elfclass == ELFCLASS32) {
     if (!InitModuleForElfClass<ElfClass32>(
         reinterpret_cast<const Elf32_Ehdr*>(elf_header), obj_file, obj_os,
-        module)) {
+        module, /*enable_multiple_field=*/false)) {
       fprintf(stderr, "Failed to load ELF module: %s\n", obj_file.c_str());
       return false;
     }
   } else if (elfclass == ELFCLASS64) {
     if (!InitModuleForElfClass<ElfClass64>(
         reinterpret_cast<const Elf64_Ehdr*>(elf_header), obj_file, obj_os,
-        module)) {
+        module, /*enable_multiple_field=*/false)) {
       fprintf(stderr, "Failed to load ELF module: %s\n", obj_file.c_str());
       return false;
     }
