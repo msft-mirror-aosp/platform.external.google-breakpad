@@ -1,5 +1,4 @@
-// Copyright (c) 2011 Google Inc.
-// All rights reserved.
+// Copyright 2011 Google LLC
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -11,7 +10,7 @@
 // copyright notice, this list of conditions and the following disclaimer
 // in the documentation and/or other materials provided with the
 // distribution.
-//     * Neither the name of Google Inc. nor the names of its
+//     * Neither the name of Google LLC nor the names of its
 // contributors may be used to endorse or promote products derived from
 // this software without specific prior written permission.
 //
@@ -30,6 +29,10 @@
 // symbol_upload.cc: implemented google_breakpad::sym_upload::Start, a helper
 // function for linux symbol upload tool.
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>  // Must come first
+#endif
+
 #include "common/linux/symbol_upload.h"
 
 #include <assert.h>
@@ -46,8 +49,8 @@
 namespace google_breakpad {
 namespace sym_upload {
 
-void TokenizeByChar(const string &source_string, int c,
-                    std::vector<string> *results) {
+void TokenizeByChar(const string& source_string, int c,
+                    std::vector<string>* results) {
   assert(results);
   string::size_type cur_pos = 0, next_pos = 0;
   while ((next_pos = source_string.find(c, cur_pos)) != string::npos) {
@@ -62,8 +65,8 @@ void TokenizeByChar(const string &source_string, int c,
 //=============================================================================
 // Parse out the module line which have 5 parts.
 // MODULE <os> <cpu> <uuid> <module-name>
-bool ModuleDataForSymbolFile(const string &file,
-                             std::vector<string> *module_parts) {
+bool ModuleDataForSymbolFile(const string& file,
+                             std::vector<string>* module_parts) {
   assert(module_parts);
   const size_t kModulePartNumber = 5;
   FILE* fp = fopen(file.c_str(), "r");
@@ -90,7 +93,7 @@ bool ModuleDataForSymbolFile(const string &file,
 }
 
 //=============================================================================
-string CompactIdentifier(const string &uuid) {
+string CompactIdentifier(const string& uuid) {
   std::vector<string> components;
   TokenizeByChar(uuid, '-', &components);
   string result;

@@ -1,5 +1,4 @@
-// Copyright (c) 2007, Google Inc.
-// All rights reserved.
+// Copyright 2007 Google LLC
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -11,7 +10,7 @@
 // copyright notice, this list of conditions and the following disclaimer
 // in the documentation and/or other materials provided with the
 // distribution.
-//     * Neither the name of Google Inc. nor the names of its
+//     * Neither the name of Google LLC nor the names of its
 // contributors may be used to endorse or promote products derived from
 // this software without specific prior written permission.
 //
@@ -33,6 +32,10 @@
 // See ms_symbol_server_converter.h for documentation.
 //
 // Author: Mark Mentovai
+
+#ifdef HAVE_CONFIG_H
+#include <config.h>  // Must come first
+#endif
 
 #include <windows.h>
 #include <dbghelp.h>
@@ -92,7 +95,7 @@ namespace google_breakpad {
 #endif  // _MSC_VER >= 1400
 
 bool GUIDOrSignatureIdentifier::InitializeFromString(
-    const string &identifier) {
+    const string& identifier) {
   type_ = TYPE_NONE;
 
   size_t length = identifier.length();
@@ -128,11 +131,15 @@ bool GUIDOrSignatureIdentifier::InitializeFromString(
 #undef SSCANF
 
 MSSymbolServerConverter::MSSymbolServerConverter(
-    const string &local_cache, const vector<string> &symbol_servers)
+    const string& local_cache,
+    const vector<string>& symbol_servers,
+    bool trace_symsrv)
     : symbol_path_(),
       fail_dns_(false),
       fail_timeout_(false),
-      fail_not_found_(false) {
+      fail_http_https_redir_(false),
+      fail_not_found_(false),
+      trace_symsrv_(trace_symsrv) {
   // Setting local_cache can be done without verifying that it exists because
   // SymSrv will create it if it is missing - any creation failures will occur
   // at that time, so there's nothing to check here, making it safe to
@@ -184,7 +191,7 @@ class AutoSymSrv {
     }
   }
 
-  bool Initialize(HANDLE process, char *path, bool invade_process) {
+  bool Initialize(HANDLE process, char* path, bool invade_process) {
     process_ = process;
 
     // TODO(nbilling): Figure out why dbghelp.dll is being loaded from
@@ -240,7 +247,7 @@ class AutoSymSrv {
 // are supported by calling Delete().
 class AutoDeleter {
  public:
-  explicit AutoDeleter(const string &path) : path_(path) {}
+  explicit AutoDeleter(const string& path) : path_(path) {}
 
   ~AutoDeleter() {
     int error;
@@ -270,10 +277,10 @@ class AutoDeleter {
 };
 
 MSSymbolServerConverter::LocateResult
-MSSymbolServerConverter::LocateFile(const string &debug_or_code_file,
-                                    const string &debug_or_code_id,
-                                    const string &version,
-                                    string *file_name) {
+MSSymbolServerConverter::LocateFile(const string& debug_or_code_file,
+                                    const string& debug_or_code_id,
+                                    const string& version,
+                                    string* file_name) {
   assert(file_name);
   file_name->clear();
 
@@ -290,7 +297,7 @@ MSSymbolServerConverter::LocateFile(const string &debug_or_code_file,
   HANDLE process = GetCurrentProcess();  // CloseHandle is not needed.
   AutoSymSrv symsrv;
   if (!symsrv.Initialize(process,
-                         const_cast<char *>(symbol_path_.c_str()),
+                         const_cast<char*>(symbol_path_.c_str()),
                          false)) {
     fprintf(stderr, "LocateFile: SymInitialize: error %lu for %s %s %s\n",
             GetLastError(),
@@ -326,8 +333,8 @@ MSSymbolServerConverter::LocateFile(const string &debug_or_code_file,
   char path[MAX_PATH];
   if (!SymFindFileInPath(
           process, NULL,
-          const_cast<char *>(debug_or_code_file.c_str()),
-          const_cast<void *>(identifier.guid_or_signature_pointer()),
+          const_cast<char*>(debug_or_code_file.c_str()),
+          const_cast<void*>(identifier.guid_or_signature_pointer()),
           identifier.age(), 0,
           identifier.type() == GUIDOrSignatureIdentifier::TYPE_GUID ?
               SSRVOPT_GUIDPTR : SSRVOPT_DWORDPTR,
@@ -340,6 +347,10 @@ MSSymbolServerConverter::LocateFile(const string &debug_or_code_file,
       // These errors are possibly transient.
       if (fail_dns_ || fail_timeout_) {
         return LOCATE_RETRY;
+      }
+
+      if (fail_http_https_redir_) {
+        return LOCATE_HTTP_HTTPS_REDIR;
       }
 
       // This is an authoritiative file-not-found message.
@@ -393,15 +404,15 @@ MSSymbolServerConverter::LocateFile(const string &debug_or_code_file,
 
 
 MSSymbolServerConverter::LocateResult
-MSSymbolServerConverter::LocatePEFile(const MissingSymbolInfo &missing,
-                                      string *pe_file) {
+MSSymbolServerConverter::LocatePEFile(const MissingSymbolInfo& missing,
+                                      string* pe_file) {
   return LocateFile(missing.code_file, missing.code_identifier,
                     missing.version, pe_file);
 }
 
 MSSymbolServerConverter::LocateResult
-MSSymbolServerConverter::LocateSymbolFile(const MissingSymbolInfo &missing,
-                                          string *symbol_file) {
+MSSymbolServerConverter::LocateSymbolFile(const MissingSymbolInfo& missing,
+                                          string* symbol_file) {
   return LocateFile(missing.debug_file, missing.debug_identifier,
                     missing.version, symbol_file);
 }
@@ -412,51 +423,58 @@ BOOL CALLBACK MSSymbolServerConverter::SymCallback(HANDLE process,
                                                    ULONG action,
                                                    ULONG64 data,
                                                    ULONG64 context) {
-  MSSymbolServerConverter *self =
-      reinterpret_cast<MSSymbolServerConverter *>(context);
+  MSSymbolServerConverter* self =
+      reinterpret_cast<MSSymbolServerConverter*>(context);
 
   switch (action) {
     case CBA_EVENT: {
-      IMAGEHLP_CBA_EVENT *cba_event =
-          reinterpret_cast<IMAGEHLP_CBA_EVENT *>(data);
+      IMAGEHLP_CBA_EVENT* cba_event =
+          reinterpret_cast<IMAGEHLP_CBA_EVENT*>(data);
 
       // Put the string into a string object to be able to use string::find
       // for substring matching.  This is important because the not-found
       // message does not use the entire string but is appended to the URL
       // that SymSrv attempted to retrieve.
       string desc(cba_event->desc);
+      if (self->trace_symsrv_) {
+        fprintf(stderr, "LocateFile: SymCallback: action desc '%s'\n",
+                desc.c_str());
+      }
 
       // desc_action maps strings (in desc) to boolean pointers that are to
       // be set to true if the string matches.
       struct desc_action {
-        const char *desc;  // The substring to match.
-        bool *action;      // On match, this pointer will be set to true.
+        const char* desc;  // The substring to match.
+        bool* action;      // On match, this pointer will be set to true.
       };
 
       static const desc_action desc_actions[] = {
-        // When a DNS error occurs, it could be indiciative of network
-        // problems.
-        { "SYMSRV:  The server name or address could not be resolved\n",
-          &self->fail_dns_ },
+          // When a DNS error occurs, it could be indiciative of network
+          // problems.
+          {"SYMSRV:  The server name or address could not be resolved\n",
+           &self->fail_dns_},
 
-        // This message is produced if no connection is opened.
-        { "SYMSRV:  A connection with the server could not be established\n",
-          &self->fail_timeout_ },
+          // This message is produced if no connection is opened.
+          {"SYMSRV:  A connection with the server could not be established\n",
+           &self->fail_timeout_},
 
-        // This message is produced if a connection is established but the
-        // server fails to respond to the HTTP request.
-        { "SYMSRV:  The operation timed out\n",
-          &self->fail_timeout_ },
+          // This message is produced if a connection is established but the
+          // server fails to respond to the HTTP request.
+          {"SYMSRV:  The operation timed out\n", &self->fail_timeout_},
 
-        // This message is produced when the requested file is not found,
-        // even if one or more of the above messages are also produced.
-        // It's trapped to distinguish between not-found and unknown-failure
-        // conditions.  Note that this message will not be produced if a
-        // connection is established and the server begins to respond to the
-        // HTTP request but does not finish transmitting the file.
-        { " not found\n",
-          &self->fail_not_found_ }
-      };
+          // This message is produced if the server is redirecting us from http
+          // to https. When this happens SymSrv will fail and we need to use
+          // the https URL in our call-- we've made a mistake.
+          {"ERROR_INTERNET_HTTP_TO_HTTPS_ON_REDIR\n",
+           &self->fail_http_https_redir_},
+
+          // This message is produced when the requested file is not found,
+          // even if one or more of the above messages are also produced.
+          // It's trapped to distinguish between not-found and unknown-failure
+          // conditions.  Note that this message will not be produced if a
+          // connection is established and the server begins to respond to the
+          // HTTP request but does not finish transmitting the file.
+          {" not found\n", &self->fail_not_found_}};
 
       for (int desc_action_index = 0;
            desc_action_index <
@@ -478,7 +496,7 @@ BOOL CALLBACK MSSymbolServerConverter::SymCallback(HANDLE process,
 
 // static
 BOOL CALLBACK MSSymbolServerConverter::SymFindFileInPathCallback(
-    const char *filename, void *context) {
+    const char* filename, void* context) {
   // FALSE ends the search, indicating that the located symbol file is
   // satisfactory.
   return FALSE;
@@ -486,12 +504,12 @@ BOOL CALLBACK MSSymbolServerConverter::SymFindFileInPathCallback(
 
 MSSymbolServerConverter::LocateResult
 MSSymbolServerConverter::LocateAndConvertSymbolFile(
-    const MissingSymbolInfo &missing,
+    const MissingSymbolInfo& missing,
     bool keep_symbol_file,
     bool keep_pe_file,
-    string *converted_symbol_file,
-    string *symbol_file,
-    string *out_pe_file) {
+    string* converted_symbol_file,
+    string* symbol_file,
+    string* out_pe_file) {
   assert(converted_symbol_file);
   converted_symbol_file->clear();
   if (symbol_file) {
@@ -580,7 +598,7 @@ MSSymbolServerConverter::LocateAndConvertSymbolFile(
 
   *converted_symbol_file = pdb_file.substr(0, pdb_file.length() - 4) + ".sym";
 
-  FILE *converted_output = NULL;
+  FILE* converted_output = NULL;
 #if _MSC_VER >= 1400  // MSVC 2005/8
   errno_t err;
   if ((err = fopen_s(&converted_output, converted_symbol_file->c_str(), "w"))
@@ -634,10 +652,10 @@ MSSymbolServerConverter::LocateAndConvertSymbolFile(
 
 MSSymbolServerConverter::LocateResult
 MSSymbolServerConverter::LocateAndConvertPEFile(
-    const MissingSymbolInfo &missing,
+    const MissingSymbolInfo& missing,
     bool keep_pe_file,
-    string *converted_symbol_file,
-    string *out_pe_file) {
+    string* converted_symbol_file,
+    string* out_pe_file) {
   assert(converted_symbol_file);
   converted_symbol_file->clear();
 
@@ -676,7 +694,7 @@ MSSymbolServerConverter::LocateAndConvertPEFile(
 
   *converted_symbol_file = pe_file.substr(0, pe_file.length() - 4) + ".sym";
 
-  FILE *converted_output = NULL;
+  FILE* converted_output = NULL;
 #if _MSC_VER >= 1400  // MSVC 2005/8
   errno_t err;
   if ((err = fopen_s(&converted_output, converted_symbol_file->c_str(), "w"))

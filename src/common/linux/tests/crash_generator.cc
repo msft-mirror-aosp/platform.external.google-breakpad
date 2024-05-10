@@ -1,5 +1,4 @@
-// Copyright (c) 2011, Google Inc.
-// All rights reserved.
+// Copyright 2011 Google LLC
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -11,7 +10,7 @@
 // copyright notice, this list of conditions and the following disclaimer
 // in the documentation and/or other materials provided with the
 // distribution.
-//     * Neither the name of Google Inc. nor the names of its
+//     * Neither the name of Google LLC nor the names of its
 // contributors may be used to endorse or promote products derived from
 // this software without specific prior written permission.
 //
@@ -29,6 +28,10 @@
 
 // crash_generator.cc: Implement google_breakpad::CrashGenerator.
 // See crash_generator.h for details.
+
+#ifdef HAVE_CONFIG_H
+#include <config.h>  // Must come first
+#endif
 
 #include "common/linux/tests/crash_generator.h"
 
@@ -79,7 +82,7 @@ int tkill(pid_t tid, int sig) {
 // Core file size limit set to 1 MB, which is big enough for test purposes.
 const rlim_t kCoreSizeLimit = 1024 * 1024;
 
-void *thread_function(void *data) {
+void* thread_function(void* data) {
   ThreadData* thread_data = reinterpret_cast<ThreadData*>(data);
   volatile pid_t thread_id = gettid();
   *(thread_data->thread_id_ptr) = thread_id;
@@ -167,6 +170,15 @@ bool CrashGenerator::SetCoreFileSizeLimit(rlim_t limit) const {
     return false;
   }
   return true;
+}
+
+bool CrashGenerator::HasResourceLimitsAmenableToCrashCollection() const {
+  struct rlimit limits;
+  if (getrlimit(RLIMIT_CORE, &limits) == -1) {
+    perror("CrashGenerator: Failed to get core file size limit");
+    return false;
+  }
+  return limits.rlim_max >= kCoreSizeLimit;
 }
 
 bool CrashGenerator::CreateChildCrash(
