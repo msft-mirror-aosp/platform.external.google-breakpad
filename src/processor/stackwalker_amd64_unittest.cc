@@ -1,5 +1,4 @@
-// Copyright (c) 2010, Google Inc.
-// All rights reserved.
+// Copyright 2010 Google LLC
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -11,7 +10,7 @@
 // copyright notice, this list of conditions and the following disclaimer
 // in the documentation and/or other materials provided with the
 // distribution.
-//     * Neither the name of Google Inc. nor the names of its
+//     * Neither the name of Google LLC nor the names of its
 // contributors may be used to endorse or promote products derived from
 // this software without specific prior written permission.
 //
@@ -30,6 +29,10 @@
 // Original author: Jim Blandy <jimb@mozilla.com> <jimb@red-bean.com>
 
 // stackwalker_amd64_unittest.cc: Unit tests for StackwalkerAMD64 class.
+
+#ifdef HAVE_CONFIG_H
+#include <config.h>  // Must come first
+#endif
 
 #include <string.h>
 #include <string>
@@ -104,7 +107,7 @@ class StackwalkerAMD64Fixture {
 
   // Set the Breakpad symbol information that supplier should return for
   // MODULE to INFO.
-  void SetModuleSymbols(MockCodeModule *module, const string &info) {
+  void SetModuleSymbols(MockCodeModule* module, const string& info) {
     size_t buffer_size;
     char *buffer = supplier.CopySymbolDataAndOwnTheCopy(info, &buffer_size);
     EXPECT_CALL(supplier, GetCStringSymbolData(module, &system_info, _, _, _))
@@ -125,7 +128,7 @@ class StackwalkerAMD64Fixture {
   void BrandContext(MDRawContextAMD64 *raw_context) {
     uint8_t x = 173;
     for (size_t i = 0; i < sizeof(*raw_context); i++)
-      reinterpret_cast<uint8_t *>(raw_context)[i] = (x += 17);
+      reinterpret_cast<uint8_t*>(raw_context)[i] = (x += 17);
   }
 
   SystemInfo system_info;
@@ -138,7 +141,7 @@ class StackwalkerAMD64Fixture {
   MockSymbolSupplier supplier;
   BasicSourceLineResolver resolver;
   CallStack call_stack;
-  const vector<StackFrame *> *frames;
+  const vector<StackFrame*>* frames;
 };
 
 class GetContextFrame: public StackwalkerAMD64Fixture, public Test { };
@@ -166,7 +169,7 @@ TEST_F(SanityCheck, NoResolver) {
   ASSERT_EQ(0U, modules_with_corrupt_symbols.size());
   frames = call_stack.frames();
   ASSERT_GE(1U, frames->size());
-  StackFrameAMD64 *frame = static_cast<StackFrameAMD64 *>(frames->at(0));
+  StackFrameAMD64 *frame = static_cast<StackFrameAMD64*>(frames->at(0));
   // Check that the values from the original raw context made it
   // through to the context in the stack frame.
   EXPECT_EQ(0, memcmp(&raw_context, &frame->context, sizeof(raw_context)));
@@ -192,7 +195,7 @@ TEST_F(GetContextFrame, Simple) {
   ASSERT_EQ(0U, modules_with_corrupt_symbols.size());
   frames = call_stack.frames();
   ASSERT_GE(1U, frames->size());
-  StackFrameAMD64 *frame = static_cast<StackFrameAMD64 *>(frames->at(0));
+  StackFrameAMD64 *frame = static_cast<StackFrameAMD64*>(frames->at(0));
   // Check that the values from the original raw context made it
   // through to the context in the stack frame.
   EXPECT_EQ(0, memcmp(&raw_context, &frame->context, sizeof(raw_context)));
@@ -216,7 +219,7 @@ TEST_F(GetContextFrame, NoStackMemory) {
   ASSERT_EQ(0U, modules_with_corrupt_symbols.size());
   frames = call_stack.frames();
   ASSERT_GE(1U, frames->size());
-  StackFrameAMD64 *frame = static_cast<StackFrameAMD64 *>(frames->at(0));
+  StackFrameAMD64 *frame = static_cast<StackFrameAMD64*>(frames->at(0));
   // Check that the values from the original raw context made it
   // through to the context in the stack frame.
   EXPECT_EQ(0, memcmp(&raw_context, &frame->context, sizeof(raw_context)));
@@ -279,12 +282,12 @@ TEST_F(GetCallerFrame, ScanWithoutSymbols) {
   frames = call_stack.frames();
   ASSERT_EQ(3U, frames->size());
 
-  StackFrameAMD64 *frame0 = static_cast<StackFrameAMD64 *>(frames->at(0));
+  StackFrameAMD64 *frame0 = static_cast<StackFrameAMD64*>(frames->at(0));
   EXPECT_EQ(StackFrame::FRAME_TRUST_CONTEXT, frame0->trust);
   ASSERT_EQ(StackFrameAMD64::CONTEXT_VALID_ALL, frame0->context_validity);
   EXPECT_EQ(0, memcmp(&raw_context, &frame0->context, sizeof(raw_context)));
 
-  StackFrameAMD64 *frame1 = static_cast<StackFrameAMD64 *>(frames->at(1));
+  StackFrameAMD64 *frame1 = static_cast<StackFrameAMD64*>(frames->at(1));
   EXPECT_EQ(StackFrame::FRAME_TRUST_SCAN, frame1->trust);
   ASSERT_EQ((StackFrameAMD64::CONTEXT_VALID_RIP |
              StackFrameAMD64::CONTEXT_VALID_RSP |
@@ -294,7 +297,7 @@ TEST_F(GetCallerFrame, ScanWithoutSymbols) {
   EXPECT_EQ(frame1_sp.Value(), frame1->context.rsp);
   EXPECT_EQ(frame1_rbp.Value(), frame1->context.rbp);
 
-  StackFrameAMD64 *frame2 = static_cast<StackFrameAMD64 *>(frames->at(2));
+  StackFrameAMD64 *frame2 = static_cast<StackFrameAMD64*>(frames->at(2));
   EXPECT_EQ(StackFrame::FRAME_TRUST_SCAN, frame2->trust);
   ASSERT_EQ((StackFrameAMD64::CONTEXT_VALID_RIP |
              StackFrameAMD64::CONTEXT_VALID_RSP),
@@ -352,13 +355,13 @@ TEST_F(GetCallerFrame, ScanWithFunctionSymbols) {
   frames = call_stack.frames();
   ASSERT_EQ(2U, frames->size());
 
-  StackFrameAMD64 *frame0 = static_cast<StackFrameAMD64 *>(frames->at(0));
+  StackFrameAMD64 *frame0 = static_cast<StackFrameAMD64*>(frames->at(0));
   EXPECT_EQ(StackFrame::FRAME_TRUST_CONTEXT, frame0->trust);
   ASSERT_EQ(StackFrameAMD64::CONTEXT_VALID_ALL, frame0->context_validity);
   EXPECT_EQ("platypus", frame0->function_name);
   EXPECT_EQ(0x00007400c0000100ULL, frame0->function_base);
 
-  StackFrameAMD64 *frame1 = static_cast<StackFrameAMD64 *>(frames->at(1));
+  StackFrameAMD64 *frame1 = static_cast<StackFrameAMD64*>(frames->at(1));
   EXPECT_EQ(StackFrame::FRAME_TRUST_SCAN, frame1->trust);
   ASSERT_EQ((StackFrameAMD64::CONTEXT_VALID_RIP |
              StackFrameAMD64::CONTEXT_VALID_RSP |
@@ -464,7 +467,7 @@ TEST_F(GetCallerFrame, GetCallerByFramePointerRecovery) {
   ASSERT_EQ(3U, frames->size());
 
   {  // To avoid reusing locals by mistake
-    StackFrameAMD64 *frame = static_cast<StackFrameAMD64 *>(frames->at(0));
+    StackFrameAMD64 *frame = static_cast<StackFrameAMD64*>(frames->at(0));
     EXPECT_EQ(StackFrame::FRAME_TRUST_CONTEXT, frame->trust);
     ASSERT_EQ(StackFrameAMD64::CONTEXT_VALID_ALL, frame->context_validity);
     EXPECT_EQ("", frame->function_name);
@@ -475,7 +478,7 @@ TEST_F(GetCallerFrame, GetCallerByFramePointerRecovery) {
   }
 
   {  // To avoid reusing locals by mistake
-    StackFrameAMD64 *frame = static_cast<StackFrameAMD64 *>(frames->at(1));
+    StackFrameAMD64 *frame = static_cast<StackFrameAMD64*>(frames->at(1));
     EXPECT_EQ(StackFrame::FRAME_TRUST_SCAN, frame->trust);
     ASSERT_EQ((StackFrameAMD64::CONTEXT_VALID_RIP |
                StackFrameAMD64::CONTEXT_VALID_RSP |
@@ -489,7 +492,7 @@ TEST_F(GetCallerFrame, GetCallerByFramePointerRecovery) {
   }
 
   {  // To avoid reusing locals by mistake
-    StackFrameAMD64 *frame = static_cast<StackFrameAMD64 *>(frames->at(2));
+    StackFrameAMD64 *frame = static_cast<StackFrameAMD64*>(frames->at(2));
     EXPECT_EQ(StackFrame::FRAME_TRUST_CFI, frame->trust);
     ASSERT_EQ((StackFrameAMD64::CONTEXT_VALID_RIP |
                StackFrameAMD64::CONTEXT_VALID_RSP |
@@ -540,12 +543,12 @@ TEST_F(GetCallerFrame, FramePointerNotAligned) {
   frames = call_stack.frames();
   ASSERT_EQ(2U, frames->size());
 
-  StackFrameAMD64 *frame0 = static_cast<StackFrameAMD64 *>(frames->at(0));
+  StackFrameAMD64 *frame0 = static_cast<StackFrameAMD64*>(frames->at(0));
   EXPECT_EQ(StackFrame::FRAME_TRUST_CONTEXT, frame0->trust);
   ASSERT_EQ(StackFrameAMD64::CONTEXT_VALID_ALL, frame0->context_validity);
   EXPECT_EQ(0, memcmp(&raw_context, &frame0->context, sizeof(raw_context)));
 
-  StackFrameAMD64 *frame1 = static_cast<StackFrameAMD64 *>(frames->at(1));
+  StackFrameAMD64 *frame1 = static_cast<StackFrameAMD64*>(frames->at(1));
   EXPECT_EQ(StackFrame::FRAME_TRUST_SCAN, frame1->trust);
   ASSERT_EQ((StackFrameAMD64::CONTEXT_VALID_RIP |
              StackFrameAMD64::CONTEXT_VALID_RSP),
@@ -590,12 +593,12 @@ TEST_F(GetCallerFrame, NonCanonicalInstructionPointerFromFramePointer) {
   frames = call_stack.frames();
   ASSERT_EQ(2U, frames->size());
 
-  StackFrameAMD64 *frame0 = static_cast<StackFrameAMD64 *>(frames->at(0));
+  StackFrameAMD64 *frame0 = static_cast<StackFrameAMD64*>(frames->at(0));
   EXPECT_EQ(StackFrame::FRAME_TRUST_CONTEXT, frame0->trust);
   ASSERT_EQ(StackFrameAMD64::CONTEXT_VALID_ALL, frame0->context_validity);
   EXPECT_EQ(0, memcmp(&raw_context, &frame0->context, sizeof(raw_context)));
 
-  StackFrameAMD64 *frame1 = static_cast<StackFrameAMD64 *>(frames->at(1));
+  StackFrameAMD64 *frame1 = static_cast<StackFrameAMD64*>(frames->at(1));
   EXPECT_EQ(StackFrame::FRAME_TRUST_SCAN, frame1->trust);
   ASSERT_EQ((StackFrameAMD64::CONTEXT_VALID_RIP |
              StackFrameAMD64::CONTEXT_VALID_RSP),
@@ -660,7 +663,7 @@ TEST_F(GetCallerFrame, ScanningNotAllowed) {
   frames = call_stack.frames();
   ASSERT_EQ(1U, frames->size());
 
-  StackFrameAMD64 *frame0 = static_cast<StackFrameAMD64 *>(frames->at(0));
+  StackFrameAMD64 *frame0 = static_cast<StackFrameAMD64*>(frames->at(0));
   EXPECT_EQ(StackFrame::FRAME_TRUST_CONTEXT, frame0->trust);
   ASSERT_EQ(StackFrameAMD64::CONTEXT_VALID_ALL, frame0->context_validity);
   EXPECT_EQ(0, memcmp(&raw_context, &frame0->context, sizeof(raw_context)));
@@ -718,14 +721,14 @@ TEST_F(GetCallerFrame, CallerPushedRBP) {
   frames = call_stack.frames();
   ASSERT_EQ(2U, frames->size());
 
-  StackFrameAMD64 *frame0 = static_cast<StackFrameAMD64 *>(frames->at(0));
+  StackFrameAMD64 *frame0 = static_cast<StackFrameAMD64*>(frames->at(0));
   EXPECT_EQ(StackFrame::FRAME_TRUST_CONTEXT, frame0->trust);
   ASSERT_EQ(StackFrameAMD64::CONTEXT_VALID_ALL, frame0->context_validity);
   EXPECT_EQ(frame0_rbp.Value(), frame0->context.rbp);
   EXPECT_EQ("sasquatch", frame0->function_name);
   EXPECT_EQ(0x00007400c0000100ULL, frame0->function_base);
 
-  StackFrameAMD64 *frame1 = static_cast<StackFrameAMD64 *>(frames->at(1));
+  StackFrameAMD64 *frame1 = static_cast<StackFrameAMD64*>(frames->at(1));
   EXPECT_EQ(StackFrame::FRAME_TRUST_FP, frame1->trust);
   ASSERT_EQ((StackFrameAMD64::CONTEXT_VALID_RIP |
              StackFrameAMD64::CONTEXT_VALID_RSP |
@@ -799,13 +802,13 @@ struct CFIFixture: public StackwalkerAMD64Fixture {
     frames = call_stack.frames();
     ASSERT_EQ(2U, frames->size());
 
-    StackFrameAMD64 *frame0 = static_cast<StackFrameAMD64 *>(frames->at(0));
+    StackFrameAMD64 *frame0 = static_cast<StackFrameAMD64*>(frames->at(0));
     EXPECT_EQ(StackFrame::FRAME_TRUST_CONTEXT, frame0->trust);
     ASSERT_EQ(StackFrameAMD64::CONTEXT_VALID_ALL, frame0->context_validity);
     EXPECT_EQ("enchiridion", frame0->function_name);
     EXPECT_EQ(0x00007400c0004000ULL, frame0->function_base);
 
-    StackFrameAMD64 *frame1 = static_cast<StackFrameAMD64 *>(frames->at(1));
+    StackFrameAMD64 *frame1 = static_cast<StackFrameAMD64*>(frames->at(1));
     EXPECT_EQ(StackFrame::FRAME_TRUST_CFI, frame1->trust);
     ASSERT_EQ((StackFrameAMD64::CONTEXT_VALID_RIP |
                StackFrameAMD64::CONTEXT_VALID_RSP |

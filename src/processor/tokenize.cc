@@ -1,5 +1,4 @@
-// Copyright (c) 2010, Google Inc.
-// All rights reserved.
+// Copyright 2010 Google LLC
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -11,7 +10,7 @@
 // copyright notice, this list of conditions and the following disclaimer
 // in the documentation and/or other materials provided with the
 // distribution.
-//     * Neither the name of Google Inc. nor the names of its
+//     * Neither the name of Google LLC nor the names of its
 // contributors may be used to endorse or promote products derived from
 // this software without specific prior written permission.
 //
@@ -26,6 +25,10 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+#ifdef HAVE_CONFIG_H
+#include <config.h>  // Must come first
+#endif
 
 #include <string.h>
 
@@ -42,10 +45,10 @@ namespace google_breakpad {
 
 using std::vector;
 
-bool Tokenize(char *line,
-	      const char *separators,
-	      int max_tokens,
-	      vector<char*> *tokens) {
+bool Tokenize(char* line,
+              const char* separators,
+              int max_tokens,
+              vector<char*>* tokens) {
   tokens->clear();
   tokens->reserve(max_tokens);
 
@@ -53,8 +56,8 @@ bool Tokenize(char *line,
 
   // Split tokens on the separator character.
   // strip them out before exhausting max_tokens.
-  char *save_ptr;
-  char *token = strtok_r(line, separators, &save_ptr);
+  char* save_ptr;
+  char* token = strtok_r(line, separators, &save_ptr);
   while (token && --remaining > 0) {
     tokens->push_back(token);
     if (remaining > 1)
@@ -69,10 +72,9 @@ bool Tokenize(char *line,
   return tokens->size() == static_cast<unsigned int>(max_tokens);
 }
 
-void StringToVector(const string &str, vector<char> &vec) {
+void StringToVector(const string& str, vector<char>& vec) {
   vec.resize(str.length() + 1);
-  std::copy(str.begin(), str.end(),
-	    vec.begin());
+  std::copy(str.begin(), str.end(), vec.begin());
   vec[str.length()] = '\0';
 }
 

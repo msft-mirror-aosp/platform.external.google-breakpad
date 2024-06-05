@@ -1,5 +1,4 @@
-// Copyright (c) 2010, Google Inc.
-// All rights reserved.
+// Copyright 2010 Google LLC
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -11,7 +10,7 @@
 // copyright notice, this list of conditions and the following disclaimer
 // in the documentation and/or other materials provided with the
 // distribution.
-//     * Neither the name of Google Inc. nor the names of its
+//     * Neither the name of Google LLC nor the names of its
 // contributors may be used to endorse or promote products derived from
 // this software without specific prior written permission.
 //
@@ -31,6 +30,10 @@
 
 // macho_reader.cc: Implementation of google_breakpad::Mach_O::FatReader and
 // google_breakpad::Mach_O::Reader. See macho_reader.h for details.
+
+#ifdef HAVE_CONFIG_H
+#include <config.h>  // Must come first
+#endif
 
 #include "common/mac/macho_reader.h"
 
@@ -81,7 +84,7 @@ void FatReader::Reporter::MisplacedObjectFile() {
           " to contain\n", filename_.c_str());
 }
 
-bool FatReader::Read(const uint8_t *buffer, size_t size) {
+bool FatReader::Read(const uint8_t* buffer, size_t size) {
   buffer_.start = buffer;
   buffer_.end = buffer + size;
   ByteCursor cursor(&buffer_);
@@ -196,19 +199,19 @@ void Reader::Reporter::LoadCommandTooShort(size_t i, LoadCommandType type) {
           filename_.c_str(), i, type);
 }
 
-void Reader::Reporter::SectionsMissing(const string &name) {
+void Reader::Reporter::SectionsMissing(const string& name) {
   fprintf(stderr, "%s: the load command for segment '%s'"
           " is too short to hold the section headers it claims to have\n",
           filename_.c_str(), name.c_str());
 }
 
-void Reader::Reporter::MisplacedSegmentData(const string &name) {
+void Reader::Reporter::MisplacedSegmentData(const string& name) {
   fprintf(stderr, "%s: the segment '%s' claims its contents lie beyond"
           " the end of the file\n", filename_.c_str(), name.c_str());
 }
 
-void Reader::Reporter::MisplacedSectionData(const string &section,
-                                            const string &segment) {
+void Reader::Reporter::MisplacedSectionData(const string& section,
+                                            const string& segment) {
   fprintf(stderr, "%s: the section '%s' in segment '%s'"
           " claims its contents lie outside the segment's contents\n",
           filename_.c_str(), section.c_str(), segment.c_str());
@@ -225,7 +228,7 @@ void Reader::Reporter::UnsupportedCPUType(cpu_type_t cpu_type) {
           filename_.c_str(), cpu_type);
 }
 
-bool Reader::Read(const uint8_t *buffer,
+bool Reader::Read(const uint8_t* buffer,
                   size_t size,
                   cpu_type_t expected_cpu_type,
                   cpu_subtype_t expected_cpu_subtype) {
@@ -309,7 +312,7 @@ bool Reader::Read(const uint8_t *buffer,
   return true;
 }
 
-bool Reader::WalkLoadCommands(Reader::LoadCommandHandler *handler) const {
+bool Reader::WalkLoadCommands(Reader::LoadCommandHandler* handler) const {
   ByteCursor list_cursor(&load_commands_, big_endian_);
 
   for (size_t index = 0; index < load_command_count_; ++index) {
@@ -422,13 +425,13 @@ class Reader::SegmentFinder : public LoadCommandHandler {
  public:
   // Create a load command handler that looks for a segment named NAME,
   // and sets SEGMENT to describe it if found.
-  SegmentFinder(const string &name, Segment *segment)
+  SegmentFinder(const string& name, Segment* segment)
       : name_(name), segment_(segment), found_() { }
 
   // Return true if the traversal found the segment, false otherwise.
   bool found() const { return found_; }
 
-  bool SegmentCommand(const Segment &segment) {
+  bool SegmentCommand(const Segment& segment) {
     if (segment.name == name_) {
       *segment_ = segment;
       found_ = true;
@@ -439,23 +442,23 @@ class Reader::SegmentFinder : public LoadCommandHandler {
 
  private:
   // The name of the segment our creator is looking for.
-  const string &name_;
+  const string& name_;
 
   // Where we should store the segment if found. (WEAK)
-  Segment *segment_;
+  Segment* segment_;
 
   // True if we found the segment.
   bool found_;
 };
 
-bool Reader::FindSegment(const string &name, Segment *segment) const {
+bool Reader::FindSegment(const string& name, Segment* segment) const {
   SegmentFinder finder(name, segment);
   WalkLoadCommands(&finder);
   return finder.found();
 }
 
-bool Reader::WalkSegmentSections(const Segment &segment,
-                                 SectionHandler *handler) const {
+bool Reader::WalkSegmentSections(const Segment& segment,
+                                 SectionHandler* handler) const {
   size_t word_size = segment.bits_64 ? 8 : 4;
   ByteCursor cursor(&segment.section_list, big_endian_);
 
@@ -518,12 +521,21 @@ bool Reader::WalkSegmentSections(const Segment &segment,
       if (offset < size_t(segment.contents.start - buffer_.start) ||
           offset > size_t(segment.contents.end - buffer_.start) ||
           size > size_t(segment.contents.end - buffer_.start - offset)) {
-        reporter_->MisplacedSectionData(section.section_name,
-                                        section.segment_name);
-        return false;
+        if (offset > 0) {
+          reporter_->MisplacedSectionData(section.section_name,
+                                          section.segment_name);
+          return false;
+        } else {
+          // Mach-O files in .dSYM bundles have the contents of the loaded
+          // segments partially removed. The removed sections will have zero as
+          // their offset. MisplacedSectionData should not be called in this
+          // case.
+          section.contents.start = section.contents.end = NULL;
+        }
+      } else {
+        section.contents.start = buffer_.start + offset;
+        section.contents.end = section.contents.start + size;
       }
-      section.contents.start = buffer_.start + offset;
-      section.contents.end = section.contents.start + size;
     }
     if (!handler->HandleSection(section))
       return false;
@@ -537,18 +549,18 @@ class Reader::SectionMapper: public SectionHandler {
  public:
   // Create a SectionHandler that populates MAP with an entry for
   // each section it is given.
-  SectionMapper(SectionMap *map) : map_(map) { }
-  bool HandleSection(const Section &section) {
+  SectionMapper(SectionMap* map) : map_(map) { }
+  bool HandleSection(const Section& section) {
     (*map_)[section.section_name] = section;
     return true;
   }
  private:
   // The map under construction. (WEAK)
-  SectionMap *map_;
+  SectionMap* map_;
 };
 
-bool Reader::MapSegmentSections(const Segment &segment,
-                                SectionMap *section_map) const {
+bool Reader::MapSegmentSections(const Segment& segment,
+                                SectionMap* section_map) const {
   section_map->clear();
   SectionMapper mapper(section_map);
   return WalkSegmentSections(segment, &mapper);

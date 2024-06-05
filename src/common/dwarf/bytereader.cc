@@ -1,4 +1,4 @@
-// Copyright (c) 2010 Google Inc. All Rights Reserved.
+// Copyright 2010 Google LLC
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -10,7 +10,7 @@
 // copyright notice, this list of conditions and the following disclaimer
 // in the documentation and/or other materials provided with the
 // distribution.
-//     * Neither the name of Google Inc. nor the names of its
+//     * Neither the name of Google LLC nor the names of its
 // contributors may be used to endorse or promote products derived from
 // this software without specific prior written permission.
 //
@@ -26,6 +26,10 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>  // Must come first
+#endif
+
 #include <assert.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -33,7 +37,7 @@
 #include "common/dwarf/bytereader-inl.h"
 #include "common/dwarf/bytereader.h"
 
-namespace dwarf2reader {
+namespace google_breakpad {
 
 ByteReader::ByteReader(enum Endianness endian)
     :offset_reader_(NULL), address_reader_(NULL), endian_(endian),
@@ -63,7 +67,7 @@ void ByteReader::SetAddressSize(uint8_t size) {
   }
 }
 
-uint64_t ByteReader::ReadInitialLength(const uint8_t *start, size_t* len) {
+uint64_t ByteReader::ReadInitialLength(const uint8_t* start, size_t* len) {
   const uint64_t initial_length = ReadFourBytes(start);
   start += 4;
 
@@ -101,9 +105,9 @@ bool ByteReader::UsableEncoding(DwarfPointerEncoding encoding) const {
   }
 }
 
-uint64_t ByteReader::ReadEncodedPointer(const uint8_t *buffer,
+uint64_t ByteReader::ReadEncodedPointer(const uint8_t* buffer,
                                       DwarfPointerEncoding encoding,
-                                      size_t *len) const {
+                                      size_t* len) const {
   // UsableEncoding doesn't approve of DW_EH_PE_omit, so we shouldn't
   // see it here.
   assert(encoding != DW_EH_PE_omit);
@@ -130,7 +134,7 @@ uint64_t ByteReader::ReadEncodedPointer(const uint8_t *buffer,
     // Round up to the next boundary.
     uint64_t aligned = (offset + AddressSize() - 1) & -AddressSize();
     // Convert back to a pointer.
-    const uint8_t *aligned_buffer = buffer_base_ + (aligned - skew);
+    const uint8_t* aligned_buffer = buffer_base_ + (aligned - skew);
     // Finally, store the length and actually fetch the pointer.
     *len = aligned_buffer - buffer + AddressSize();
     return ReadAddress(aligned_buffer);
@@ -247,4 +251,4 @@ Endianness ByteReader::GetEndianness() const {
   return endian_;
 }
 
-}  // namespace dwarf2reader
+}  // namespace google_breakpad

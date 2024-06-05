@@ -1,5 +1,4 @@
-// Copyright (c) 2012, Google Inc.
-// All rights reserved.
+// Copyright 2012 Google LLC
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -11,7 +10,7 @@
 // copyright notice, this list of conditions and the following disclaimer
 // in the documentation and/or other materials provided with the
 // distribution.
-//     * Neither the name of Google Inc. nor the names of its
+//     * Neither the name of Google LLC nor the names of its
 // contributors may be used to endorse or promote products derived from
 // this software without specific prior written permission.
 //
@@ -27,6 +26,10 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>  // Must come first
+#endif
+
 #include "common/linux/elfutils.h"
 
 #include <assert.h>
@@ -40,11 +43,11 @@ namespace google_breakpad {
 namespace {
 
 template<typename ElfClass>
-void FindElfClassSection(const char *elf_base,
-                         const char *section_name,
+void FindElfClassSection(const char* elf_base,
+                         const char* section_name,
                          typename ElfClass::Word section_type,
-                         const void **section_start,
-                         size_t *section_size) {
+                         const void** section_start,
+                         size_t* section_size) {
   typedef typename ElfClass::Ehdr Ehdr;
   typedef typename ElfClass::Shdr Shdr;
 
@@ -57,12 +60,18 @@ void FindElfClassSection(const char *elf_base,
   const Ehdr* elf_header = reinterpret_cast<const Ehdr*>(elf_base);
   assert(elf_header->e_ident[EI_CLASS] == ElfClass::kClass);
 
+  if (elf_header->e_shoff == 0) {
+    *section_start = NULL;
+    *section_size = 0;
+    return;
+  }
+
   const Shdr* sections =
     GetOffset<ElfClass, Shdr>(elf_header, elf_header->e_shoff);
   const Shdr* section_names = sections + elf_header->e_shstrndx;
   const char* names =
     GetOffset<ElfClass, char>(elf_header, section_names->sh_offset);
-  const char *names_end = names + section_names->sh_size;
+  const char* names_end = names + section_names->sh_size;
 
   const Shdr* section =
     FindElfSectionByName<ElfClass>(section_name, section_type,
@@ -76,9 +85,9 @@ void FindElfClassSection(const char *elf_base,
 }
 
 template<typename ElfClass>
-void FindElfClassSegment(const char *elf_base,
+void FindElfClassSegment(const char* elf_base,
                          typename ElfClass::Word segment_type,
-                         wasteful_vector<ElfSegment> *segments) {
+                         wasteful_vector<ElfSegment>* segments) {
   typedef typename ElfClass::Ehdr Ehdr;
   typedef typename ElfClass::Phdr Phdr;
 
@@ -117,11 +126,11 @@ int ElfClass(const void* elf_base) {
   return elf_header->e_ident[EI_CLASS];
 }
 
-bool FindElfSection(const void *elf_mapped_base,
-                    const char *section_name,
+bool FindElfSection(const void* elf_mapped_base,
+                    const char* section_name,
                     uint32_t section_type,
-                    const void **section_start,
-                    size_t *section_size) {
+                    const void** section_start,
+                    size_t* section_size) {
   assert(elf_mapped_base);
   assert(section_start);
   assert(section_size);
