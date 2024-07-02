@@ -135,6 +135,7 @@ cc_binary {
 // =================================================
 cc_binary_host {
     name: "dump_syms",
+    rtti: true,
     target: {
         darwin: {
             enabled: false,
