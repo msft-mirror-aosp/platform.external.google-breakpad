@@ -1,0 +1,263 @@
+# Copyright 2024 - The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the',  help='License');
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an',  help='AS IS' BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Description:
+#   Breakpad contains tools to create symbols that can be uploaded to
+#   the a crash server.
+load("//:copts.bzl", "BREAKPAD_COMMON_COPTS", "BREAKPAD_COMMON_DEFS")
+
+package(
+    default_visibility = ["//:__subpackages__"],
+)
+
+cc_library(
+    name = "hdrs",
+    hdrs = glob([
+        "**/*.h",
+    ]),
+    include_prefix = "common",
+    visibility = ["//visibility:public"],
+)
+
+objc_library(
+    name = "net_mac",
+    srcs = [
+        "mac/HTTPGetRequest.m",
+        "mac/HTTPMultipartUpload.m",
+        "mac/HTTPPutRequest.m",
+        "mac/HTTPRequest.m",
+        "mac/HTTPSimplePostRequest.m",
+        "mac/SymbolCollectorClient.m",
+        "mac/encoding_util.m",
+    ],
+    hdrs = [
+        "mac/GTMDefines.h",
+        "mac/HTTPGetRequest.h",
+        "mac/HTTPMultipartUpload.h",
+        "mac/HTTPPutRequest.h",
+        "mac/HTTPRequest.h",
+        "mac/HTTPSimplePostRequest.h",
+        "mac/SymbolCollectorClient.h",
+        "mac/encoding_util.h",
+    ],
+    copts = [
+        "-fno-objc-arc",
+        "-Wno-shorten-64-to-32",
+    ],
+    includes = ["mac"],
+)
+
+objc_library(
+    name = "common_mac",
+    srcs = [
+        "mac/GTMLogger.m",
+        "mac/MachIPC.mm",
+    ],
+    copts = BREAKPAD_COMMON_COPTS,
+)
+
+cc_library(
+    name = "common",
+    srcs = [
+        "convert_UTF.cc",
+        "long_string_dictionary.cc",
+        "md5.cc",
+        "module.cc",
+        "simple_string_dictionary.cc",
+        "string_conversion.cc",
+        "test_assembler.cc",
+    ] + select({
+        "@platforms//os:windows": [
+            "windows/dia_util.cc",
+            "windows/guid_string.cc",
+            "windows/http_upload.cc",
+            "windows/omap.cc",
+            "windows/pdb_source_line_writer.cc",
+            "windows/pe_source_line_writer.cc",
+            "windows/pe_util.cc",
+            "windows/string_utils.cc",
+            "windows/sym_upload_v2_protocol.cc",
+            "windows/symbol_collector_client.cc",
+        ],
+        "@platforms//os:linux": [
+            "dwarf/bytereader.cc",
+            "dwarf/cfi_assembler.cc",
+            "dwarf/dwarf2diehandler.cc",
+            "dwarf/dwarf2reader.cc",
+            "dwarf/elf_reader.cc",
+            "dwarf_cfi_to_module.cc",
+            "dwarf_cu_to_module.cc",
+            "dwarf_line_to_module.cc",
+            "dwarf_range_list_handler.cc",
+            "language.cc",
+            "linux/crc32.cc",
+            "linux/dump_symbols.cc",
+            "linux/elf_core_dump.cc",
+            "linux/elf_symbols_to_module.cc",
+            "linux/elfutils.cc",
+            "linux/file_id.cc",
+            "linux/google_crashdump_uploader.cc",
+            "linux/guid_creator.cc",
+            "linux/http_upload.cc",
+            "linux/libcurl_wrapper.cc",
+            "linux/linux_libc_support.cc",
+            "linux/memory_mapped_file.cc",
+            "linux/safe_readlink.cc",
+            "linux/scoped_pipe.cc",
+            "linux/scoped_tmpfile.cc",
+            "linux/synth_elf.cc",
+            "path_helper.cc",
+            "stabs_reader.cc",
+            "stabs_to_module.cc",
+        ],
+        "@platforms//os:macos": [
+            "dwarf/bytereader.cc",
+            "dwarf/cfi_assembler.cc",
+            "dwarf/dwarf2diehandler.cc",
+            "dwarf/dwarf2reader.cc",
+            "dwarf/elf_reader.cc",
+            "dwarf_cfi_to_module.cc",
+            "dwarf_cu_to_module.cc",
+            "dwarf_line_to_module.cc",
+            "dwarf_range_list_handler.cc",
+            "language.cc",
+            "mac/arch_utilities.cc",
+            "mac/bootstrap_compat.cc",
+            "mac/dump_syms.cc",
+            "mac/file_id.cc",
+            "mac/macho_id.cc",
+            "mac/macho_reader.cc",
+            "mac/macho_utilities.cc",
+            "mac/macho_walker.cc",
+            "mac/string_utilities.cc",
+            "path_helper.cc",
+            "stabs_reader.cc",
+            "stabs_to_module.cc",
+        ],
+        "//conditions:default": [],
+    }),
+    copts = BREAKPAD_COMMON_COPTS,
+    linkopts = select({
+        "@platforms//os:windows": [
+            "-defaultlib:wininet.lib",
+            "-defaultlib:diaguids.lib",
+            "-defaultlib:atls.lib",
+            "-defaultlib:dbghelp.lib",
+            "-defaultlib:imagehlp.lib",
+        ],
+        "@platforms//os:linux": [
+        ],
+        "@platforms//os:macos": [
+            "-framework Foundation",
+            "-framework CoreFoundation",
+        ],
+        "//conditions:default": [],
+    }),
+    local_defines = BREAKPAD_COMMON_DEFS,
+    visibility = ["//visibility:public"],
+    deps = [
+        ":hdrs",
+        "//src/google_breakpad",
+        "//src/third_party/curl",
+        "//src/third_party/lss",
+        "//src/third_party/musl",
+        "@zlib",
+    ],
+)
+
+cc_test(
+    name = "breakpad_common_unittests",
+    srcs = [
+        "byte_cursor_unittest.cc",
+        "long_string_dictionary_unittest.cc",
+        "memory_range_unittest.cc",
+        "module_unittest.cc",
+        "simple_string_dictionary_unittest.cc",
+    ] + select({
+        "@platforms//os:windows": [
+            "windows/omap_unittest.cc",
+        ],
+        "@platforms//os:macos": [
+            "dwarf/bytereader_unittest.cc",
+            "dwarf/dwarf2reader_die_unittest.cc",
+            "dwarf_cu_to_module_unittest.cc",
+            "dwarf_line_to_module_unittest.cc",
+            "memory_allocator_unittest.cc",
+        ],
+        "@platforms//os:linux": [
+            "dwarf/bytereader_unittest.cc",
+            "dwarf/dwarf2reader_cfi_unittest.cc",
+            "dwarf_cfi_to_module_unittest.cc",
+            "dwarf_cu_to_module_unittest.cc",
+            "dwarf_line_to_module_unittest.cc",
+            "linux/dump_symbols_unittest.cc",
+            "linux/elf_symbols_to_module_unittest.cc",
+            "linux/file_id_unittest.cc",
+            "linux/google_crashdump_uploader_test.cc",
+            "linux/linux_libc_support_unittest.cc",
+            "linux/memory_mapped_file_unittest.cc",
+            "linux/safe_readlink_unittest.cc",
+            "linux/synth_elf_unittest.cc",
+            "linux/tests/crash_generator.cc",
+            "memory_allocator_unittest.cc",
+            "stabs_reader_unittest.cc",
+            "stabs_to_module_unittest.cc",
+            "tests/file_utils.cc",
+        ],
+        "//conditions:default": [],
+    }),
+    deps = [
+        ":common",
+        "//src:test_headers",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+objc_library(
+    name = "symupload_macos",
+    srcs = [
+        "mac/HTTPGetRequest.m",
+        "mac/HTTPMultipartUpload.m",
+        "mac/HTTPPutRequest.m",
+        "mac/HTTPRequest.m",
+        "mac/HTTPSimplePostRequest.m",
+        "mac/SymbolCollectorClient.m",
+        "mac/encoding_util.m",
+        "tools/mac/symupload/symupload.mm",
+    ],
+    copts = BREAKPAD_COMMON_COPTS,
+    defines = [""],
+    deps = [":common"],
+)
+
+cc_binary(
+    name = "sym_upload",
+    srcs = select({
+        "@platforms//os:linux": [
+            "linux/http_upload.cc",
+            "linux/symbol_collector_client.cc",
+            "linux/symbol_upload.cc",
+            "path_helper.cc",
+            "tools/linux/symupload/sym_upload.cc",
+        ],
+        "@platforms//os:macos": [],
+        "@platforms//os:windows": [
+            "tools/windows/symupload/symupload.cc",
+        ],
+    }),
+    copts = BREAKPAD_COMMON_COPTS,
+    deps = [
+        ":common",
+    ],
+)

@@ -1,0 +1,101 @@
+# Copyright 2024 - The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the',  help='License');
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an',  help='AS IS' BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Description:
+#   Breakpad is a set of client and server components which implement a
+#   crash-reporting system.
+load("//:copts.bzl", "BREAKPAD_COMMON_COPTS")
+load(
+    "@build_bazel_rules_apple//apple:macos.bzl",
+    "macos_command_line_application",
+)
+
+package(
+    default_visibility = ["//:__subpackages__"],
+)
+
+objc_library(
+    name = "symupload_macos",
+    srcs = [
+        "mac/symupload/symupload.mm",
+    ],
+    copts = BREAKPAD_COMMON_COPTS + [
+        "-fno-objc-arc",
+        "-Wno-shorten-64-to-32",
+    ],
+    deps = [
+        "//src/common",
+        "//src/common:net_mac",
+    ],
+)
+
+cc_binary(
+    name = "dump_syms",
+    srcs = select({
+        "@platforms//os:linux": [
+            "linux/dump_syms/dump_syms.cc",
+        ],
+        "@platforms//os:macos": ["mac/dump_syms/dump_syms_tool.cc"],
+        "@platforms//os:windows": [
+            "windows/symupload/symupload.cc",
+        ],
+        "//conditions:default": [],
+    }),
+    copts = BREAKPAD_COMMON_COPTS,
+    linkopts = select({
+        "//conditions:default": [],
+        "@platforms//os:windows": [
+            "-defaultlib:shell32.lib",
+            "-defaultlib:diaguids.lib",
+            "-defaultlib:atls.lib",
+        ],
+    }),
+    deps = ["//src/common"],
+)
+
+macos_command_line_application(
+    name = "sym_upload_mac",
+    bundle_id = "com.google.symbol_upload-line",
+    minimum_os_version = "10.13",
+    deps = [":symupload_macos"],
+)
+
+cc_binary(
+    name = "sym_upload_exe",
+    srcs = select({
+        "@platforms//os:linux": [
+            "linux/http_upload.cc",
+            "linux/symbol_collector_client.cc",
+            "linux/symbol_upload.cc",
+            "path_helper.cc",
+            "tools/linux/symupload/sym_upload.cc",
+        ],
+        "@platforms//os:windows": [
+            "tools/windows/symupload/symupload.cc",
+        ],
+        "//conditions:default": [],
+    }),
+    copts = BREAKPAD_COMMON_COPTS,
+    deps = [
+        "//src/common",
+    ],
+)
+
+alias(
+    name = "sym_upload",
+    actual = select({
+        "@platforms//os:macos": ":sym_upload_mac",
+        "//conditions:default": ":sym_upload_exe",
+    }),
+)

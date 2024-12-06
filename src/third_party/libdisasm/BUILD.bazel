@@ -1,0 +1,51 @@
+# Copyright 2024 - The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the',  help='License');
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an',  help='AS IS' BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+load("@rules_license//rules:license.bzl", "license")
+load("//:copts.bzl", "BREAKPAD_COMMON_COPTS", "BREAKPAD_COMMON_DEFS")
+
+package(
+    default_applicable_licenses = [":license"],
+    default_visibility = ["//:__subpackages__"],
+)
+
+license(
+    name = "license",
+    license_kinds = [
+        "@rules_license//licenses/spdx:ClArtistic",
+    ],
+)
+
+cc_library(
+    name = "libdisasm",
+    srcs = [
+        "ia32_implicit.c",
+        "ia32_insn.c",
+        "ia32_invariant.c",
+        "ia32_modrm.c",
+        "ia32_opcode_tables.c",
+        "ia32_operand.c",
+        "ia32_reg.c",
+        "ia32_settings.c",
+        "x86_disasm.c",
+        "x86_format.c",
+        "x86_imm.c",
+        "x86_insn.c",
+        "x86_misc.c",
+        "x86_operand_list.c",
+    ] + glob(["*.h"]),
+    hdrs = ["libdis.h"],
+    include_prefix = "third_party/libdisasm",
+    copts = ["-Wno-format"],
+    local_defines = BREAKPAD_COMMON_DEFS,
+)

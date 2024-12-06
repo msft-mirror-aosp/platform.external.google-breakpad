@@ -29,7 +29,7 @@
 # Ignore other VCSs.
 .repo/
 .svn/
-
+bazel-*
 # Ignore common compiled artifacts.
 *~
 *.dwo
