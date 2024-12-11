@@ -1,0 +1,81 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "crashpad: Build crashpad test suite",
+            "type": "shell",
+            "command": "bazel build --verbose_failures --compilation_mode=dbg  //:breakpad_tests",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [
+                {
+                    "base": "$gcc",
+                    "owner": "cpp",
+                    "fileLocation": [
+                        "relative",
+                        "${workspaceFolder}"
+                    ],
+                    "pattern": {
+                        "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
+                        "file": 1,
+                        "line": 2,
+                        "column": 3,
+                        "severity": 4,
+                        "message": 5
+                    }
+                }
+            ]
+        },
+        {
+            "label": "crashpad: Run crashpad test suite",
+            "type": "shell",
+            "command": "bazel test  --compilation_mode=dbg --test_output=errors  //:breakpad_tests",
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            },
+            "problemMatcher": [
+                {
+                    "base": "$gcc",
+                    "owner": "cpp",
+                    "fileLocation": [
+                        "relative",
+                        "${workspaceFolder}"
+                    ],
+                    "pattern": {
+                        "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
+                        "file": 1,
+                        "line": 2,
+                        "column": 3,
+                        "severity": 4,
+                        "message": 5
+                    }
+                },
+                {
+                    "base": "$gcc",
+                    "owner": "cpp",
+                    "fileLocation": [
+                        "relative",
+                        "${workspaceFolder}"
+                    ],
+                    "pattern": [
+                        {
+                            "regexp": "^(.*):(\\d+):\\s+Failure$",
+                            "file": 1,
+                            "line": 2
+                        },
+                        {
+                            "regexp": "^(?!.*:(\\d+):\\s+Failure$)(.*)",
+                            "message": 2,
+                            "loop": true
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

@@ -67,6 +67,10 @@ using google_breakpad::test_assembler::kBigEndian;
 using google_breakpad::test_assembler::kLittleEndian;
 using std::map;
 
+#if !defined (N_UNDF)
+#define N_UNDF 0
+#endif
+
 namespace {
 
 // A StringAssembler is a class for generating .stabstr sections to present
