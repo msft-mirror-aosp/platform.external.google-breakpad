@@ -1,0 +1,62 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "lldb-dap",
+      "request": "launch",
+      "name": "Debug Unit Test",
+      // Replace <path_to_your_binary> with the actual path to your
+      // binary. If you want to debug BUILD target
+      // `//path/to:my_test`, the path to your binary will be
+      // `${workspaceFolder}/bazel-bin/path/to/my_test`.
+      "program": "${workspaceFolder}/bazel-bin//snapshot/crashpad_snapshot_test",
+      // Set any program arguments here.
+      "args": ["--gtest_filter=ElfImageReader.MainExecutableSelf"],
+      // Set any environment values here, not you would likely want to keep at least these
+      "env": [
+        // We are pretending to be a bazel run..
+        "BUILD_WORKSPACE_DIRECTORY=${workspaceFolder}",
+        "BUILD_WORKING_DIRECTORY=${workspaceFolder}",
+        // Asan configuration.
+        "ASAN_OPTIONS=detect_odr_violation=0"
+      ],
+      "cwd": "${workspaceFolder}",
+      "debuggerRoot": "${workspaceFolder}",
+      "sourceMap": [
+        ["/proc/self/cwd", "${workspaceFolder}"],
+        // Down below you will find all the "local_repositories"
+        // that we are using. If new repositories are introduced
+        // you will have to add them here, or else symbols will
+        // not be found.
+        ["../com_google_googletest", "${workspaceFolder}/external/googletest"],
+        ["../boringssl", "${workspaceFolder}/external/boringssl/src"],
+        ["../zlib", "${workspaceFolder}/external/zlib"]
+      ],
+      "preLaunchTask": "crashpad: Build crashpad test suite",
+      "stopOnEntry": false
+    },
+    {
+      "type": "cppvsdbg",
+      "request": "launch",
+      "name": "Debug Unit Test (Windows)",
+      // Replace <path_to_your_binary> with the actual path to your
+      // binary. If you want to debug BUILD target
+      // `//path/to:my_test`, the path to your binary will be
+      // `${workspaceFolder}/bazel-bin/path/to/my_test`.
+      "program": "${workspaceFolder}/bazel-bin//snapshot/crashpad_snapshot_test",
+      // Set any program arguments here.
+      "args": ["--gtest_filter=SystemSnapshotWinTest.TimeZone"],
+      // Set any environment values here, not you would likely want to keep at least these
+      "environment": [
+        // We are pretending to be a bazel run.
+        { "name": "BUILD_WORKSPACE_DIRECTORY", "value": "${workspaceFolder}" },
+        { "name": "BUILD_WORKING_DIRECTORY", "value": "${workspaceFolder}" }
+      ],
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "crashpad: Build crashpad test suite"
+    }
+  ]
+}
