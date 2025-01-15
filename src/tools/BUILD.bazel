@@ -75,14 +75,10 @@ cc_binary(
     name = "sym_upload_exe",
     srcs = select({
         "@platforms//os:linux": [
-            "linux/http_upload.cc",
-            "linux/symbol_collector_client.cc",
-            "linux/symbol_upload.cc",
-            "path_helper.cc",
-            "tools/linux/symupload/sym_upload.cc",
+            "linux/symupload/sym_upload.cc",
         ],
         "@platforms//os:windows": [
-            "tools/windows/symupload/symupload.cc",
+            "windows/symupload/symupload.cc",
         ],
         "//conditions:default": [],
     }),
