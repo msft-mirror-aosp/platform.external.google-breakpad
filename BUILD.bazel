@@ -1,0 +1,54 @@
+# Copyright 2024 - The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the',  help='License');
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an',  help='AS IS' BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+load("@rules_license//rules:license.bzl", "license")
+
+package(
+    default_applicable_licenses = [":license"],
+    default_visibility = ["//visibility:public"],
+)
+
+license(
+    name = "license",
+    license_kinds = [
+        "@rules_license//licenses/spdx:BSD-3-Clause",
+    ],
+)
+
+test_suite(
+    name = "breakpad_tests",
+    tests = [
+        "//src/common:breakpad_common_unittests",
+        "//src/processor:processor_tests",
+    ],
+)
+# Library for decoding symbols, walking the stack, etc.
+alias(
+    name = "breakpad",
+    actual = "//src/processor",
+)
+
+# Tool for uploading symbols to a crash server.
+# On POSIX, this requires extracting symbols first.
+# On Windows, you will need to upload the PDB directly.
+alias(
+    name = "sym_upload",
+    actual = "//src/tools:sym_upload",
+)
+
+# Tool to extract symbols from a binary for upload to a crash server.
+# Use this on a *non-stripped* binary.
+alias(
+    name = "dump_syms",
+    actual = "//src/tools:dump_syms",
+)

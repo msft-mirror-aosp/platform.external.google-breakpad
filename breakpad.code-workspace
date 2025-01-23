@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"files.exclude": {
+			"**/.git": true, // this is a default value
+			"**/.DS_Store": true, // this is a default value
+			"**/bazel-*": true,
+			"../../..repo": true,
+			"**/.cache": true,
+			"../../..cache": true,
+		},
+	}
+}

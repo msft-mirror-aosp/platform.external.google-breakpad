@@ -1208,8 +1208,21 @@ class MinidumpCrashpadInfo : public MinidumpStream {
     return valid_ ? &module_crashpad_info_annotation_objects_ : nullptr;
   }
 
-  // Print a human-readable representation of the object to stdout.
+  // Print a human-readable representation of the object.
   void Print();
+
+  // Emulator version to print to FILE* fp
+  void Print(FILE* fp);
+
+
+  const std::map<std::string, std::string>& simple_annotations() const {
+    return simple_annotations_;
+  }
+
+  const std::vector<std::map<std::string, std::string>>&
+  module_annotations() const {
+    return module_crashpad_info_simple_annotations_;
+  }
 
  private:
   friend class Minidump;

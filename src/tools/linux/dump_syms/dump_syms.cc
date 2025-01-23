@@ -36,6 +36,7 @@
 #include <unistd.h>
 
 #include <iostream>
+#include <fstream>
 #include <string>
 #include <vector>
 
@@ -66,6 +67,8 @@ int usage(const char* self) {
   fprintf(stderr, "  -m          Enable writing the optional 'm' field on FUNC "
                                  "and PUBLIC, denoting multiple symbols for "
                                  "the address.\n");
+   fprintf(stderr, "  -f <file>   Write symbols to <file>\n");
+
   return 1;
 }
 
@@ -82,6 +85,7 @@ int main(int argc, char** argv) {
   std::string obj_name;
   std::string module_id;
   const char* obj_os = "Linux";
+  const char* outfile = NULL;
   int arg_index = 1;
   while (arg_index < argc && strlen(argv[arg_index]) > 0 &&
          argv[arg_index][0] == '-') {
@@ -118,6 +122,13 @@ int main(int argc, char** argv) {
       }
       obj_os = argv[arg_index + 1];
       ++arg_index;
+    } else if (strcmp("-f", argv[arg_index]) == 0) {
+      if (arg_index + 1 >= argc) {
+        fprintf(stderr, "Missing argument to -f\n");
+        return usage(argv[0]);
+      }
+      outfile = argv[arg_index + 1];
+      ++arg_index;
     } else if (strcmp("-m", argv[arg_index]) == 0) {
       enable_multiple_field = true;
     } else {
@@ -148,8 +159,17 @@ int main(int argc, char** argv) {
   if (obj_name.empty())
     obj_name = binary;
 
+  std::ofstream outputFileStream;
+  if (outfile) {
+      outputFileStream.open(outfile);
+      if (!outputFileStream.is_open()) {
+          std::cerr << "Error opening output file: " << outfile << std::endl;
+          return 1;
+      }
+  }
+  std::ostream& out = outputFileStream.is_open() ? outputFileStream : std::cout;
   if (header_only) {
-    if (!WriteSymbolFileHeader(binary, obj_name, obj_os, module_id, std::cout)) {
+    if (!WriteSymbolFileHeader(binary, obj_name, obj_os, module_id, out)) {
       fprintf(saved_stderr, "Failed to process file.\n");
       return 1;
     }
@@ -159,11 +179,10 @@ int main(int argc, char** argv) {
     google_breakpad::DumpOptions options(symbol_data, handle_inter_cu_refs,
                                          enable_multiple_field, preserve_load_address);
     if (!WriteSymbolFile(binary, obj_name, obj_os, module_id, debug_dirs, options,
-                         std::cout)) {
+                         out)) {
       fprintf(saved_stderr, "Failed to write symbol file.\n");
       return 1;
     }
   }
-
   return 0;
 }
