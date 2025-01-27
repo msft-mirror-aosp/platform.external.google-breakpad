@@ -40,6 +40,7 @@
 
 #include <algorithm>
 #include <iostream>
+#include <fstream>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -69,6 +70,7 @@ struct Options {
 
   string srcPath;
   string dsymPath;
+  string out;
   std::optional<ArchInfo> arch;
   bool header_only;
   bool cfi;
@@ -239,14 +241,25 @@ static bool Start(const Options& options) {
     CopyCFIDataBetweenModules(module, cfi_module);
   }
 
-  return module->Write(std::cout, symbol_data);
+  if (options.out.empty())
+    return module->Write(std::cout, symbol_data);
+
+
+  std::ofstream outputFileStream;
+  outputFileStream.open(options.out);
+  if (!outputFileStream.is_open()) {
+      std::cerr << "Error opening output file: " << options.out << std::endl;
+      return false;
+  }
+
+  return module->Write(outputFileStream, symbol_data);
 }
 
 //=============================================================================
 static void Usage(int argc, const char *argv[]) {
   fprintf(stderr, "Output a Breakpad symbol file from a Mach-o file.\n");
   fprintf(stderr,
-          "Usage: %s [-a ARCHITECTURE] [-c] [-g dSYM path] "
+          "Usage: %s [-a ARCHITECTURE] [-c] [-g dSYM path] [-f output] "
           "[-n MODULE] [-x] <Mach-o file>\n",
           argv[0]);
   fprintf(stderr, "\t-i: Output module header information only.\n");
@@ -254,6 +267,7 @@ static void Usage(int argc, const char *argv[]) {
   fprintf(stderr, "\t    in the file, if it contains only one architecture]\n");
   fprintf(stderr, "\t-g: Debug symbol file (dSYM) to dump in addition to the "
                   "Mach-o file\n");
+  fprintf(stderr, "\t-f: Output file to write the symbols to\n");
   fprintf(stderr, "\t-c: Do not generate CFI section\n");
   fprintf(stderr, "\t-r: Do not handle inter-compilation unit references\n");
   fprintf(stderr, "\t-d: Generate INLINE and INLINE_ORIGIN records\n");
@@ -275,7 +289,7 @@ static void SetupOptions(int argc, const char *argv[], Options *options) {
   extern int optind;
   signed char ch;
 
-  while ((ch = getopt(argc, (char* const*)argv, "ia:g:crdm?hn:x")) != -1) {
+  while ((ch = getopt(argc, (char* const*)argv, "ia:g:f:crdm?hn:x")) != -1) {
     switch (ch) {
       case 'i':
         options->header_only = true;
@@ -290,6 +304,9 @@ static void SetupOptions(int argc, const char *argv[], Options *options) {
         options->arch = arch_info;
         break;
       }
+      case 'f':
+        options->out = optarg;
+        break;
       case 'g':
         options->dsymPath = optarg;
         break;

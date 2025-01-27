@@ -116,6 +116,8 @@ cc_library(
             "linux/safe_readlink.cc",
             "linux/scoped_pipe.cc",
             "linux/scoped_tmpfile.cc",
+            "linux/symbol_collector_client.cc",
+            "linux/symbol_upload.cc",
             "linux/synth_elf.cc",
             "path_helper.cc",
             "stabs_reader.cc",
