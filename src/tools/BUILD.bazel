@@ -15,11 +15,7 @@
 # Description:
 #   Breakpad is a set of client and server components which implement a
 #   crash-reporting system.
-load("//:copts.bzl", "BREAKPAD_COMMON_COPTS")
-load(
-    "@build_bazel_rules_apple//apple:macos.bzl",
-    "macos_command_line_application",
-)
+load("//:copts.bzl", "BREAKPAD_COMMON_COPTS", "BREAKPAD_COMMON_DEFS")
 
 package(
     default_visibility = ["//:__subpackages__"],
@@ -48,7 +44,7 @@ cc_binary(
         ],
         "@platforms//os:macos": ["mac/dump_syms/dump_syms_tool.cc"],
         "@platforms//os:windows": [
-            "windows/symupload/symupload.cc",
+            "windows/dump_syms/dump_syms.cc",
         ],
         "//conditions:default": [],
     }),
@@ -61,13 +57,12 @@ cc_binary(
             "-defaultlib:atls.lib",
         ],
     }),
+    local_defines = BREAKPAD_COMMON_DEFS,
     deps = ["//src/common"],
 )
 
-macos_command_line_application(
+cc_binary(
     name = "sym_upload_mac",
-    bundle_id = "com.google.symbol_upload-line",
-    minimum_os_version = "10.13",
     deps = [":symupload_macos"],
 )
 
@@ -83,6 +78,13 @@ cc_binary(
         "//conditions:default": [],
     }),
     copts = BREAKPAD_COMMON_COPTS,
+    linkopts = select({
+        "@platforms//os:windows": [
+            "-defaultlib:Version.lib",
+        ],
+        "//conditions:default": [],
+    }),
+    local_defines = BREAKPAD_COMMON_DEFS,
     deps = [
         "//src/common",
     ],

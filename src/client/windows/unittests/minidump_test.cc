@@ -203,11 +203,9 @@ TEST_F(MinidumpTest, Normal) {
   EXPECT_FALSE(mini.HasStream(HandleOperationListStream));
   EXPECT_FALSE(mini.HasStream(TokenStream));
 
-  #ifndef _WIN64
-    // We expect no PEB nor TEBs in this dump.
-    EXPECT_FALSE(mini.HasTebs());
-    EXPECT_FALSE(mini.HasPeb());
-  #endif
+  // We expect no PEB nor TEBs in this dump.
+  EXPECT_FALSE(mini.HasTebs());
+  EXPECT_FALSE(mini.HasPeb());
 
   // We expect no off-stack memory in this dump.
   EXPECT_FALSE(mini.HasMemory(this));
@@ -225,12 +223,9 @@ TEST_F(MinidumpTest, SmallDump) {
   EXPECT_TRUE(mini.HasStream(UnloadedModuleListStream));
   EXPECT_TRUE(mini.HasStream(MiscInfoStream));
 
-  #ifndef _WIN64
-    // Unit tests are not handling 64 bit correctly right now.
-    // We expect PEB and TEBs in this dump.
-    EXPECT_TRUE(mini.HasTebs());
-    EXPECT_TRUE(mini.HasPeb());
-  #endif
+  // We expect PEB and TEBs in this dump.
+  EXPECT_TRUE(mini.HasTebs());
+  EXPECT_TRUE(mini.HasPeb());
 
   EXPECT_FALSE(mini.HasStream(ThreadExListStream));
   EXPECT_FALSE(mini.HasStream(Memory64ListStream));
@@ -263,11 +258,10 @@ TEST_F(MinidumpTest, LargerDump) {
   // We expect memory referenced by stack in this dump.
   EXPECT_TRUE(mini.HasMemory(this));
 
-  #ifndef _WIN64
-   // We expect PEB and TEBs in this dump.
-   EXPECT_TRUE(mini.HasTebs());
-   EXPECT_TRUE(mini.HasPeb());
-  #endif
+  // We expect PEB and TEBs in this dump.
+  EXPECT_TRUE(mini.HasTebs());
+  EXPECT_TRUE(mini.HasPeb());
+
   EXPECT_FALSE(mini.HasStream(ThreadExListStream));
   EXPECT_FALSE(mini.HasStream(Memory64ListStream));
   EXPECT_FALSE(mini.HasStream(CommentStreamA));
@@ -309,11 +303,9 @@ TEST_F(MinidumpTest, FullDump) {
   EXPECT_FALSE(mini.HasMemory(this));
   EXPECT_TRUE(full.HasMemory(this));
 
-  #ifndef _WIN64
-    // We expect PEB and TEBs in this dump.
-    EXPECT_TRUE(mini.HasTebs() || full.HasTebs());
-    EXPECT_TRUE(mini.HasPeb() || full.HasPeb());
-  #endif
+  // We expect PEB and TEBs in this dump.
+  EXPECT_TRUE(mini.HasTebs() || full.HasTebs());
+  EXPECT_TRUE(mini.HasPeb() || full.HasPeb());
 
   EXPECT_TRUE(mini.HasStream(MemoryListStream));
   EXPECT_TRUE(full.HasStream(Memory64ListStream));

@@ -126,7 +126,22 @@ class MinidumpProcessor {
   // does not exist or cannot be determined.
   static string GetAssertion(Minidump* dump);
 
+  // Sets the flag to enable/disable use of objdump during normal crash
+  // processing. This is independent from the flag for use of objdump during
+  // exploitability analysis.
   void set_enable_objdump(bool enabled) { enable_objdump_ = enabled; }
+
+  // Sets the flag to enable/disable use of objdump during exploitability
+  // analysis. This is independent from the flag for use of objdump during
+  // normal crash processing.
+  void set_enable_objdump_for_exploitability(bool enabled) {
+    enable_objdump_for_exploitability_ = enabled;
+  }
+
+  // Sets the maximum number of threads to process.
+  void set_max_thread_count(int max_thread_count) {
+    max_thread_count_ = max_thread_count;
+  }
 
  private:
   StackFrameSymbolizer* frame_symbolizer_;
@@ -138,9 +153,19 @@ class MinidumpProcessor {
   // memory corruption issue.
   bool enable_exploitability_;
 
-  // This flag permits the exploitability scanner to shell out to objdump
-  // for purposes of disassembly.
+  // This flag permits the processor to shell out to objdump for purposes of
+  // disassembly during normal crash processing, but not during exploitability
+  // analysis.
   bool enable_objdump_;
+
+  // This flag permits the exploitability scanner to shell out to objdump for
+  // purposes of disassembly. This results in significantly more overhead than
+  // the enable_objdump_ flag.
+  bool enable_objdump_for_exploitability_;
+
+  // The maximum number of threads to process. This can be exceeded if the
+  // requesting thread comes after the limit. Setting this to -1 means no limit.
+  int max_thread_count_;
 };
 
 }  // namespace google_breakpad

@@ -37,12 +37,7 @@
 
 #include <stdio.h>
 #include <string.h>
-#ifdef _MSC_VER
-#include "msvc-posix.h"
-#include "msvc-getopt.h"
-#else
- #include <unistd.h>
-#endif
+#include <unistd.h>
 
 #include <limits>
 #include <string>

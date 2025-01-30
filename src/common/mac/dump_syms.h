@@ -43,6 +43,7 @@
 #include <vector>
 
 #include "common/byte_cursor.h"
+#include "common/dwarf/dwarf2reader.h"
 #include "common/mac/arch_utilities.h"
 #include "common/mac/macho_reader.h"
 #include "common/mac/super_fat_arch.h"
@@ -70,7 +71,8 @@ class DumpSymbols {
         selected_object_name_(),
         enable_multiple_(enable_multiple),
         module_name_(module_name),
-        prefer_extern_name_(prefer_extern_name) {}
+        prefer_extern_name_(prefer_extern_name),
+        report_warnings_(true) {}
   ~DumpSymbols() = default;
 
   // Prepare to read debugging information from |filename|. |filename| may be
@@ -101,6 +103,9 @@ class DumpSymbols {
   // object file, then the dumper will dump the object file whose
   // architecture matches that of this dumper program.
   bool SetArchitecture(const ArchInfo& info);
+
+  // Set whether or not to report DWARF warnings
+  void SetReportWarnings(bool report_warnings);
 
   // Return a pointer to an array of SuperFatArch structures describing the
   // object files contained in this dumper's file. Set *|count| to the number
@@ -142,6 +147,13 @@ class DumpSymbols {
 
   // Creates an empty module object.
   bool CreateEmptyModule(scoped_ptr<Module>& module);
+
+  // Process the split dwarf file referenced by reader.
+  void StartProcessSplitDwarf(google_breakpad::CompilationUnit* reader,
+                              Module* module,
+                              google_breakpad::Endianness endianness,
+                              bool handle_inter_cu_refs,
+                              bool handle_inline) const;
 
   // Read debugging information from |dwarf_sections|, which was taken from
   // |macho_reader|, and add it to |module|.
@@ -216,6 +228,9 @@ class DumpSymbols {
   // (which are placed in the Extern), not in the DWARF symbols (which are
   // placed in the Function).
   bool prefer_extern_name_;
+
+  // Whether or not to report warnings
+  bool report_warnings_;
 };
 
 }  // namespace google_breakpad

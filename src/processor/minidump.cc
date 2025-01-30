@@ -32,6 +32,11 @@
 //
 // Author: Mark Mentovai
 
+// For <inttypes.h> PRI* macros, before anything else might #include it.
+#ifndef __STDC_FORMAT_MACROS
+#define __STDC_FORMAT_MACROS
+#endif  /* __STDC_FORMAT_MACROS */
+
 #ifdef HAVE_CONFIG_H
 #include <config.h>  // Must come first
 #endif
@@ -42,6 +47,7 @@
 #include <fcntl.h>
 #include <inttypes.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <string.h>
 #include <time.h>
 
@@ -56,8 +62,6 @@
 #include <limits>
 #include <utility>
 
-#include "processor/range_map-inl.h"
-
 #include "common/macros.h"
 #include "common/scoped_ptr.h"
 #include "common/stdio_wrapper.h"
@@ -66,6 +70,7 @@
 #include "processor/basic_code_modules.h"
 #include "processor/convert_old_arm64_context.h"
 #include "processor/logging.h"
+#include "processor/range_map-inl.h"
 
 namespace google_breakpad {
 
@@ -817,9 +822,19 @@ bool MinidumpContext::Read(uint32_t expected_size) {
     switch (cpu_type) {
       case MD_CONTEXT_X86: {
         if (expected_size != sizeof(MDRawContextX86)) {
-          BPLOG(ERROR) << "MinidumpContext x86 size mismatch, " <<
-            expected_size << " != " << sizeof(MDRawContextX86);
-          return false;
+          // Context may include xsave registers and so be larger than
+          // sizeof(MDRawContextX86). For now we skip this extended data.
+          if (context_flags & MD_CONTEXT_X86_XSTATE) {
+            int64_t bytes_left = expected_size - sizeof(MDRawContextX86);
+            if (bytes_left > kMaxXSaveAreaSize) {
+              BPLOG(ERROR) << "MinidumpContext oversized xstate area";
+              return false;
+            }
+          } else {
+            BPLOG(ERROR) << "MinidumpContext x86 size mismatch, "
+                         << expected_size << " != " << sizeof(MDRawContextX86);
+            return false;
+          }
         }
 
         scoped_ptr<MDRawContextX86> context_x86(new MDRawContextX86());
@@ -884,6 +899,16 @@ bool MinidumpContext::Read(uint32_t expected_size) {
         }
 
         SetContextX86(context_x86.release());
+
+        // Skip extended xstate data if present in X86 context.
+        if (context_flags & MD_CONTEXT_X86_XSTATE) {
+          if (!minidump_->SeekSet(
+                  (minidump_->Tell() - sizeof(MDRawContextX86)) +
+                  expected_size)) {
+            BPLOG(ERROR) << "MinidumpContext cannot seek to past xstate data";
+            return false;
+          }
+        }
 
         break;
       }
@@ -1259,12 +1284,11 @@ bool MinidumpContext::Read(uint32_t expected_size) {
           Swap(&context_riscv->t5);
           Swap(&context_riscv->t6);
 
-          for (int fpr_index = 0;
-               fpr_index < MD_FLOATINGSAVEAREA_RISCV_FPR_COUNT;
+          for (int fpr_index = 0; fpr_index < MD_CONTEXT_RISCV_FPR_COUNT;
                ++fpr_index) {
-            Swap(&context_riscv->float_save.regs[fpr_index]);
+            Swap(&context_riscv->fpregs[fpr_index]);
           }
-          Swap(&context_riscv->float_save.fpcsr);
+          Swap(&context_riscv->fcsr);
         }
         SetContextRISCV(context_riscv.release());
 
@@ -1338,12 +1362,11 @@ bool MinidumpContext::Read(uint32_t expected_size) {
           Swap(&context_riscv64->t5);
           Swap(&context_riscv64->t6);
 
-          for (int fpr_index = 0;
-               fpr_index < MD_FLOATINGSAVEAREA_RISCV_FPR_COUNT;
+          for (int fpr_index = 0; fpr_index < MD_CONTEXT_RISCV_FPR_COUNT;
                ++fpr_index) {
-            Swap(&context_riscv64->float_save.regs[fpr_index]);
+            Swap(&context_riscv64->fpregs[fpr_index]);
           }
-          Swap(&context_riscv64->float_save.fpcsr);
+          Swap(&context_riscv64->fcsr);
         }
         SetContextRISCV64(context_riscv64.release());
 
@@ -5445,14 +5468,21 @@ bool MinidumpCrashpadInfo::Read(uint32_t expected_size) {
       module_crashpad_info_links_.push_back(
           module_crashpad_info_links[index].minidump_module_list_index);
       module_crashpad_info_.push_back(module_crashpad_info);
-      module_crashpad_info_list_annotations_.push_back(list_annotations);
-      module_crashpad_info_simple_annotations_.push_back(simple_annotations);
-      module_crashpad_info_annotation_objects_.push_back(annotation_objects);
+      module_crashpad_info_list_annotations_.push_back(std::move(
+          list_annotations));
+      module_crashpad_info_simple_annotations_.push_back(std::move(
+          simple_annotations));
+      module_crashpad_info_annotation_objects_.push_back(std::move(
+          annotation_objects));
     }
   }
 
   valid_ = true;
   return true;
+}
+
+void MinidumpCrashpadInfo::Print() {
+  Print(stdout);
 }
 
 
@@ -5462,34 +5492,34 @@ void MinidumpCrashpadInfo::Print(FILE* fp) {
     return;
   }
 
-  fprintf(fp, "MDRawCrashpadInfo\n");
-  fprintf(fp, "  version = %d\n", crashpad_info_.version);
-  fprintf(fp, "  report_id = %s\n",
+  fprintf(fp,  "MDRawCrashpadInfo\n");
+  fprintf(fp,  "  version = %d\n", crashpad_info_.version);
+  fprintf(fp,  "  report_id = %s\n",
          MDGUIDToString(crashpad_info_.report_id).c_str());
-  fprintf(fp, "  client_id = %s\n",
+  fprintf(fp,  "  client_id = %s\n",
          MDGUIDToString(crashpad_info_.client_id).c_str());
   for (const auto& annot : simple_annotations_) {
-    fprintf(fp, "   simple_annotations[\"%s\"] = %s\n", annot.first.c_str(),
+    fprintf(fp,  "  simple_annotations[\"%s\"] = %s\n", annot.first.c_str(),
            annot.second.c_str());
   }
   for (uint32_t module_index = 0;
        module_index < module_crashpad_info_links_.size();
        ++module_index) {
-    fprintf(fp, "  module_list[%d].minidump_module_list_index = %d\n",
+    fprintf(fp,  "  module_list[%d].minidump_module_list_index = %d\n",
            module_index, module_crashpad_info_links_[module_index]);
-    fprintf(fp, "  module_list[%d].version = %d\n",
+    fprintf(fp,  "  module_list[%d].version = %d\n",
            module_index, module_crashpad_info_[module_index].version);
     const auto& list_annots =
         module_crashpad_info_list_annotations_[module_index];
     for (uint32_t annotation_index = 0; annotation_index < list_annots.size();
          ++annotation_index) {
-      fprintf(fp, "  module_list[%d].list_annotations[%d] = %s\n", module_index,
+      fprintf(fp,  "  module_list[%d].list_annotations[%d] = %s\n", module_index,
              annotation_index, list_annots[annotation_index].c_str());
     }
     const auto& simple_annots =
         module_crashpad_info_simple_annotations_[module_index];
     for (const auto& annot : simple_annots) {
-      fprintf(fp, "  module_list[%d].simple_annotations[\"%s\"] = %s\n",
+      fprintf(fp,  "  module_list[%d].simple_annotations[\"%s\"] = %s\n",
              module_index, annot.first.c_str(), annot.second.c_str());
     }
     const auto& crashpad_annots =
@@ -5505,7 +5535,7 @@ void MinidumpCrashpadInfo::Print(FILE* fp) {
         // Value represents something else.
         char buffer[3];
         for (const uint8_t& v : annot.value) {
-          snprintf(buffer, sizeof(buffer), "%X", v);
+          snprintf(buffer, sizeof(buffer), "%02X", v);
           str_value.append(buffer);
         }
       }
@@ -5513,10 +5543,10 @@ void MinidumpCrashpadInfo::Print(FILE* fp) {
           "  module_list[%d].crashpad_annotations[\"%s\"] (type = %u) = %s\n",
           module_index, annot.name.c_str(), annot.type, str_value.c_str());
     }
-    printf("  address_mask = %" PRIu64 "\n", crashpad_info_.address_mask);
+    fprintf(fp,  "  address_mask = %" PRIu64 "\n", crashpad_info_.address_mask);
   }
 
-  fprintf(fp, "\n");
+  fprintf(fp,  "\n");
 }
 
 
@@ -6249,7 +6279,7 @@ bool Minidump::ReadStringList(
       return false;
     }
 
-    string_list->push_back(entry);
+    string_list->push_back(std::move(entry));
   }
 
   return true;
@@ -6379,9 +6409,9 @@ bool Minidump::ReadCrashpadAnnotationsList(
       return false;
     }
 
-    MinidumpCrashpadInfo::AnnotationObject object = {annotation.type, name,
-                                                     value_data};
-    annotations_list->push_back(object);
+    MinidumpCrashpadInfo::AnnotationObject object{annotation.type, name,
+                                                  value_data};
+    annotations_list->push_back(std::move(object));
   }
 
   return true;

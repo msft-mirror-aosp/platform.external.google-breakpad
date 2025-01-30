@@ -120,7 +120,7 @@ bool MinidumpWrittenCallback(const wchar_t* dump_path,
   return succeeded;
 }
 
-TEST_F(ExceptionHandlerDeathTest, InProcTest) __attribute__((optnone)) {
+TEST_F(ExceptionHandlerDeathTest, InProcTest) {
   // For the in-proc test, we just need to instantiate an exception
   // handler in in-proc mode, and crash.   Since the entire test is
   // reexecuted in the child process, we don't have to worry about
@@ -138,8 +138,7 @@ TEST_F(ExceptionHandlerDeathTest, InProcTest) __attribute__((optnone)) {
   // Disable GTest SEH handler
   testing::DisableExceptionHandlerInScope disable_exception_handler;
 
-  // Do not optmize out this!
-  int *i = NULL;
+  int* i = NULL;
   ASSERT_DEATH((*i)++, kSuccessIndicator);
 }
 
@@ -152,7 +151,7 @@ void clientDumpCallback(void* dump_context,
 }
 
 void ExceptionHandlerDeathTest::DoCrashAccessViolation(
-    const OutOfProcGuarantee out_of_proc_guarantee) __attribute__((optnone)) {
+    const OutOfProcGuarantee out_of_proc_guarantee) {
   scoped_ptr<google_breakpad::ExceptionHandler> exc;
 
   if (out_of_proc_guarantee == OUT_OF_PROC_GUARANTEED) {
@@ -188,8 +187,7 @@ void ExceptionHandlerDeathTest::DoCrashAccessViolation(
   // if it's not true we'll still get an error rather than the crash
   // being expected.
   ASSERT_TRUE(exc->IsOutOfProcess());
-  // Do not optimize out this!
-  int *i = NULL;
+  int* i = NULL;
   printf("%d\n", (*i)++);
 }
 

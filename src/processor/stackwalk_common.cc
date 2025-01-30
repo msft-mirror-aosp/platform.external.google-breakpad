@@ -40,7 +40,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
-#include <cstdio>
+#include <stdio.h>
 
 #include <string>
 #include <vector>
@@ -82,7 +82,7 @@ static int PrintRegister(const char* name, uint32_t value, int start_col) {
 
   if (start_col + static_cast<ssize_t>(strlen(buffer)) > kMaxWidth) {
     start_col = 0;
-    fprintf(PrintStream, "\n ");
+    fprintf(PrintStream,  "\n ");
   }
   fputs(buffer, PrintStream);
 
@@ -96,7 +96,7 @@ static int PrintRegister64(const char* name, uint64_t value, int start_col) {
 
   if (start_col + static_cast<ssize_t>(strlen(buffer)) > kMaxWidth) {
     start_col = 0;
-    fprintf(PrintStream, "\n ");
+    fprintf(PrintStream,  "\n ");
   }
   fputs(buffer, PrintStream);
 
@@ -118,7 +118,7 @@ static string StripSeparator(const string& original) {
   return result;
 }
 
-// PrintStackContents prints the stack contents of the current frame to stdout.
+// PrintStackContents prints the stack contents of the current frame to PrintStream.
 static void PrintStackContents(const string& indent,
                                const StackFrame* frame,
                                const StackFrame* prev_frame,
@@ -206,13 +206,13 @@ static void PrintStackContents(const string& indent,
     return;
 
   // Print stack contents.
-  fprintf(PrintStream, "\n%sStack contents:", indent.c_str());
+  fprintf(PrintStream,  "\n%sStack contents:", indent.c_str());
   for(uint64_t address = stack_begin; address < stack_end; ) {
     // Print the start address of this row.
     if (word_length == 4)
-      fprintf(PrintStream, "\n%s %08x", indent.c_str(), static_cast<uint32_t>(address));
+      fprintf(PrintStream,  "\n%s %08x", indent.c_str(), static_cast<uint32_t>(address));
     else
-      fprintf(PrintStream, "\n%s %016" PRIx64, indent.c_str(), address);
+      fprintf(PrintStream,  "\n%s %016" PRIx64, indent.c_str(), address);
 
     // Print data in hex.
     const int kBytesPerRow = 16;
@@ -221,19 +221,19 @@ static void PrintStackContents(const string& indent,
       uint8_t value = 0;
       if (address < stack_end &&
           memory->GetMemoryAtAddress(address, &value)) {
-        fprintf(PrintStream, " %02x", value);
+        fprintf(PrintStream,  " %02x", value);
         data_as_string.push_back(isprint(value) ? value : '.');
       } else {
-        fprintf(PrintStream, "   ");
+        fprintf(PrintStream,  "   ");
         data_as_string.push_back(' ');
       }
     }
     // Print data as string.
-    fprintf(PrintStream, "  %s", data_as_string.c_str());
+    fprintf(PrintStream,  "  %s", data_as_string.c_str());
   }
 
   // Try to find instruction pointers from stack.
-  fprintf(PrintStream, "\n%sPossible instruction pointers:\n", indent.c_str());
+  fprintf(PrintStream,  "\n%sPossible instruction pointers:\n", indent.c_str());
   for (uint64_t address = stack_begin; address < stack_end;
        address += word_length) {
     StackFrame pointee_frame;
@@ -260,14 +260,14 @@ static void PrintStackContents(const string& indent,
     auto print_function_name = [&](StackFrame* frame) {
       if (!frame->function_name.empty()) {
         if (word_length == 4) {
-          fprintf(PrintStream, "%s *(0x%08x) = 0x%08x", indent.c_str(),
+          fprintf(PrintStream,  "%s *(0x%08x) = 0x%08x", indent.c_str(),
                  static_cast<uint32_t>(address),
                  static_cast<uint32_t>(frame->instruction));
         } else {
-          fprintf(PrintStream, "%s *(0x%016" PRIx64 ") = 0x%016" PRIx64, indent.c_str(),
+          fprintf(PrintStream,  "%s *(0x%016" PRIx64 ") = 0x%016" PRIx64, indent.c_str(),
                  address, frame->instruction);
         }
-        fprintf(PrintStream,
+        printf(
             " <%s> [%s : %d + 0x%" PRIx64 "]\n", frame->function_name.c_str(),
             PathnameStripper::File(frame->source_file_name).c_str(),
             frame->source_line, frame->instruction - frame->source_line_base);
@@ -277,37 +277,36 @@ static void PrintStackContents(const string& indent,
     for (unique_ptr<StackFrame> &frame : inlined_frames)
       print_function_name(frame.get());
   }
-  fprintf(PrintStream, "\n");
+  fprintf(PrintStream,  "\n");
 }
 
-
 static void PrintFrameHeader(const StackFrame* frame, int frame_index) {
-  fprintf(PrintStream, "%2d  ", frame_index);
+  fprintf(PrintStream,  "%2d  ", frame_index);
 
   uint64_t instruction_address = frame->ReturnAddress();
 
   if (frame->module) {
-    fprintf(PrintStream, "%s", PathnameStripper::File(frame->module->code_file()).c_str());
+    fprintf(PrintStream,  "%s", PathnameStripper::File(frame->module->code_file()).c_str());
     if (!frame->function_name.empty()) {
-      fprintf(PrintStream, "!%s", frame->function_name.c_str());
+      fprintf(PrintStream,  "!%s", frame->function_name.c_str());
       if (!frame->source_file_name.empty()) {
         string source_file = PathnameStripper::File(frame->source_file_name);
-        fprintf(PrintStream, " [%s : %d + 0x%" PRIx64 "]", source_file.c_str(),
+        fprintf(PrintStream,  " [%s : %d + 0x%" PRIx64 "]", source_file.c_str(),
                frame->source_line,
                instruction_address - frame->source_line_base);
       } else {
-        fprintf(PrintStream, " + 0x%" PRIx64, instruction_address - frame->function_base);
+        fprintf(PrintStream,  " + 0x%" PRIx64, instruction_address - frame->function_base);
       }
     } else {
-      fprintf(PrintStream, " + 0x%" PRIx64,
+      fprintf(PrintStream,  " + 0x%" PRIx64,
              instruction_address - frame->module->base_address());
     }
   } else {
-    fprintf(PrintStream, "0x%" PRIx64, instruction_address);
+    fprintf(PrintStream,  "0x%" PRIx64, instruction_address);
   }
 }
 
-// PrintStack prints the call stack in |stack| to stdout, in a reasonably
+// PrintStack prints the call stack in |stack| to PrintStream, in a reasonably
 // useful form.  Module, function, and source file names are displayed if
 // they are available.  The code offset to the base code address of the
 // source line, function, or module is printed, preferring them in that
@@ -324,13 +323,12 @@ static void PrintStack(const CallStack* stack,
                        SourceLineResolverInterface* resolver) {
   int frame_count = stack->frames()->size();
   if (frame_count == 0) {
-    fprintf(PrintStream, " <no frames>\n");
+    fprintf(PrintStream,  " <no frames>\n");
   }
   for (int frame_index = 0; frame_index < frame_count; ++frame_index) {
     const StackFrame* frame = stack->frames()->at(frame_index);
     PrintFrameHeader(frame, frame_index);
-    fprintf(PrintStream, "\n ");
-    fprintf(PrintStream, "\n ");
+    fprintf(PrintStream,  "\n ");
 
     // Inlined frames don't have registers info.
     if (frame->trust != StackFrameAMD64::FRAME_TRUST_INLINE) {
@@ -942,7 +940,7 @@ static void PrintStack(const CallStack* stack,
               "t6", frame_riscv64->context.t6, sequence);
       }
     }
-    fprintf(PrintStream, "\n    Found by: %s\n", frame->trust_description().c_str());
+    fprintf(PrintStream,  "\n    Found by: %s\n", frame->trust_description().c_str());
 
     // Print stack contents.
     if (output_stack_contents && frame_index + 1 < frame_count) {
@@ -964,20 +962,20 @@ static void PrintStackMachineReadable(int thread_num, const CallStack* stack) {
   int frame_count = stack->frames()->size();
   for (int frame_index = 0; frame_index < frame_count; ++frame_index) {
     const StackFrame* frame = stack->frames()->at(frame_index);
-    fprintf(PrintStream, "%d%c%d%c", thread_num, kOutputSeparator, frame_index,
+    fprintf(PrintStream,  "%d%c%d%c", thread_num, kOutputSeparator, frame_index,
            kOutputSeparator);
 
     uint64_t instruction_address = frame->ReturnAddress();
 
     if (frame->module) {
       assert(!frame->module->code_file().empty());
-      fprintf(PrintStream, "%s", StripSeparator(PathnameStripper::File(
+      fprintf(PrintStream,  "%s", StripSeparator(PathnameStripper::File(
                      frame->module->code_file())).c_str());
       if (!frame->function_name.empty()) {
-        fprintf(PrintStream, "%c%s", kOutputSeparator,
+        fprintf(PrintStream,  "%c%s", kOutputSeparator,
                StripSeparator(frame->function_name).c_str());
         if (!frame->source_file_name.empty()) {
-          fprintf(PrintStream, "%c%s%c%d%c0x%" PRIx64,
+          fprintf(PrintStream,  "%c%s%c%d%c0x%" PRIx64,
                  kOutputSeparator,
                  StripSeparator(frame->source_file_name).c_str(),
                  kOutputSeparator,
@@ -985,14 +983,14 @@ static void PrintStackMachineReadable(int thread_num, const CallStack* stack) {
                  kOutputSeparator,
                  instruction_address - frame->source_line_base);
         } else {
-          fprintf(PrintStream, "%c%c%c0x%" PRIx64,
+          fprintf(PrintStream,  "%c%c%c0x%" PRIx64,
                  kOutputSeparator,  // empty source file
                  kOutputSeparator,  // empty source line
                  kOutputSeparator,
                  instruction_address - frame->function_base);
         }
       } else {
-        fprintf(PrintStream, "%c%c%c%c0x%" PRIx64,
+        fprintf(PrintStream,  "%c%c%c%c0x%" PRIx64,
                kOutputSeparator,  // empty function name
                kOutputSeparator,  // empty source file
                kOutputSeparator,  // empty source line
@@ -1000,15 +998,15 @@ static void PrintStackMachineReadable(int thread_num, const CallStack* stack) {
                instruction_address - frame->module->base_address());
       }
     } else {
-      // the fprintf before this prints a trailing separator for module name
-      fprintf(PrintStream, "%c%c%c%c0x%" PRIx64,
+      // the printf before this prints a trailing separator for module name
+      fprintf(PrintStream,  "%c%c%c%c0x%" PRIx64,
              kOutputSeparator,  // empty function name
              kOutputSeparator,  // empty source file
              kOutputSeparator,  // empty source line
              kOutputSeparator,
              instruction_address);
     }
-    fprintf(PrintStream, "\n");
+    fprintf(PrintStream,  "\n");
   }
 }
 
@@ -1048,7 +1046,7 @@ static void PrintModule(
         module->debug_identifier() + ")";
   }
   uint64_t base_address = module->base_address();
-  fprintf(PrintStream, "0x%08" PRIx64 " - 0x%08" PRIx64 "  %s  %s%s%s\n",
+  fprintf(PrintStream,  "0x%08" PRIx64 " - 0x%08" PRIx64 "  %s  %s%s%s\n",
          base_address, base_address + module->size() - 1,
          PathnameStripper::File(module->code_file()).c_str(),
          module->version().empty() ? "???" : module->version().c_str(),
@@ -1066,8 +1064,8 @@ static void PrintModules(
   if (!modules)
     return;
 
-  fprintf(PrintStream, "\n");
-  fprintf(PrintStream, "Loaded modules:\n");
+  fprintf(PrintStream,  "\n");
+  fprintf(PrintStream,  "Loaded modules:\n");
 
   uint64_t main_address = 0;
   const CodeModule* main_module = modules->GetMainModule();
@@ -1106,7 +1104,7 @@ static void PrintModulesMachineReadable(const CodeModules* modules) {
        ++module_sequence) {
     const CodeModule* module = modules->GetModuleAtSequence(module_sequence);
     uint64_t base_address = module->base_address();
-    fprintf(PrintStream, "Module%c%s%c%s%c%s%c%s%c0x%08" PRIx64 "%c0x%08" PRIx64 "%c%d\n",
+    fprintf(PrintStream,  "Module%c%s%c%s%c%s%c%s%c0x%08" PRIx64 "%c0x%08" PRIx64 "%c%d\n",
            kOutputSeparator,
            StripSeparator(PathnameStripper::File(module->code_file())).c_str(),
            kOutputSeparator, StripSeparator(module->version()).c_str(),
@@ -1134,44 +1132,53 @@ void PrintProcessState(const ProcessState& process_state,
   // Print OS and CPU information.
   string cpu = process_state.system_info()->cpu;
   string cpu_info = process_state.system_info()->cpu_info;
-  fprintf(PrintStream, "Operating system: %s\n", process_state.system_info()->os.c_str());
-  fprintf(PrintStream, "                  %s\n",
+  fprintf(PrintStream,  "Operating system: %s\n", process_state.system_info()->os.c_str());
+  fprintf(PrintStream,  "                  %s\n",
          process_state.system_info()->os_version.c_str());
-  fprintf(PrintStream, "CPU: %s\n", cpu.c_str());
+  fprintf(PrintStream,  "CPU: %s\n", cpu.c_str());
   if (!cpu_info.empty()) {
     // This field is optional.
-    fprintf(PrintStream, "     %s\n", cpu_info.c_str());
+    fprintf(PrintStream,  "     %s\n", cpu_info.c_str());
   }
-  fprintf(PrintStream, "     %d CPU%s\n",
+  fprintf(PrintStream,  "     %d CPU%s\n",
          process_state.system_info()->cpu_count,
          process_state.system_info()->cpu_count != 1 ? "s" : "");
-  fprintf(PrintStream, "\n");
+  fprintf(PrintStream,  "\n");
 
   // Print GPU information
   string gl_version = process_state.system_info()->gl_version;
   string gl_vendor = process_state.system_info()->gl_vendor;
   string gl_renderer = process_state.system_info()->gl_renderer;
-  fprintf(PrintStream, "GPU:");
+  fprintf(PrintStream,  "GPU:");
   if (!gl_version.empty() || !gl_vendor.empty() || !gl_renderer.empty()) {
-    fprintf(PrintStream, " %s\n", gl_version.c_str());
-    fprintf(PrintStream, "     %s\n", gl_vendor.c_str());
-    fprintf(PrintStream, "     %s\n", gl_renderer.c_str());
+    fprintf(PrintStream,  " %s\n", gl_version.c_str());
+    fprintf(PrintStream,  "     %s\n", gl_vendor.c_str());
+    fprintf(PrintStream,  "     %s\n", gl_renderer.c_str());
   } else {
-    fprintf(PrintStream, " UNKNOWN\n");
+    fprintf(PrintStream,  " UNKNOWN\n");
   }
-  fprintf(PrintStream, "\n");
+  fprintf(PrintStream,  "\n");
 
   // Print crash information.
   if (process_state.crashed()) {
-    fprintf(PrintStream, "Crash reason:  %s\n", process_state.crash_reason().c_str());
-    fprintf(PrintStream, "Crash address: 0x%" PRIx64 "\n", process_state.crash_address());
+    fprintf(PrintStream,  "Crash reason:  %s\n", process_state.crash_reason().c_str());
+    fprintf(PrintStream,  "Crash address: 0x%" PRIx64 "\n", process_state.crash_address());
+    const std::vector<ExceptionParameter>* exception_param_vec =
+        process_state.exception_record()->parameters();
+    if (exception_param_vec->size() > 0) {
+      fprintf(PrintStream,  "Crash parameters:\n");
+      for (const auto& param : *exception_param_vec) {
+        fprintf(PrintStream,  "    value: %" PRIu64 "\tdescription: %s\n", param.value(),
+               param.description().c_str());
+      }
+    }
   } else {
-    fprintf(PrintStream, "No crash\n");
+    fprintf(PrintStream,  "No crash\n");
   }
 
   string assertion = process_state.assertion();
   if (!assertion.empty()) {
-    fprintf(PrintStream, "Assertion: %s\n", assertion.c_str());
+    fprintf(PrintStream,  "Assertion: %s\n", assertion.c_str());
   }
 
   // Compute process uptime if the process creation and crash times are
@@ -1179,18 +1186,18 @@ void PrintProcessState(const ProcessState& process_state,
   if (process_state.time_date_stamp() != 0 &&
       process_state.process_create_time() != 0 &&
       process_state.time_date_stamp() >= process_state.process_create_time()) {
-    fprintf(PrintStream, "Process uptime: %d seconds\n",
+    fprintf(PrintStream,  "Process uptime: %d seconds\n",
            process_state.time_date_stamp() -
                process_state.process_create_time());
   } else {
-    fprintf(PrintStream, "Process uptime: not available\n");
+    fprintf(PrintStream,  "Process uptime: not available\n");
   }
 
   // If the thread that requested the dump is known, print it first.
   int requesting_thread = process_state.requesting_thread();
   if (requesting_thread != -1) {
-    fprintf(PrintStream, "\n");
-    fprintf(PrintStream, "Thread %d (%s)\n",
+    fprintf(PrintStream,  "\n");
+    fprintf(PrintStream,  "Thread %d (%s)\n",
           requesting_thread,
           process_state.crashed() ? "crashed" :
                                     "requested dump, did not crash");
@@ -1200,17 +1207,19 @@ void PrintProcessState(const ProcessState& process_state,
                process_state.modules(), resolver);
   }
 
-  // Print all of the threads in the dump.
-  int thread_count = process_state.threads()->size();
-  for (int thread_index = 0; thread_index < thread_count; ++thread_index) {
-    if (thread_index != requesting_thread) {
-      // Don't print the crash thread again, it was already printed.
-      fprintf(PrintStream, "\n");
-      fprintf(PrintStream, "Thread %d\n", thread_index);
-      PrintStack(process_state.threads()->at(thread_index), cpu,
-                 output_stack_contents,
-                 process_state.thread_memory_regions()->at(thread_index),
-                 process_state.modules(), resolver);
+  if (!output_requesting_thread_only) {
+    // Print all of the threads in the dump.
+    int thread_count = process_state.threads()->size();
+    for (int thread_index = 0; thread_index < thread_count; ++thread_index) {
+      if (thread_index != requesting_thread) {
+        // Don't print the crash thread again, it was already printed.
+        fprintf(PrintStream,  "\n");
+        fprintf(PrintStream,  "Thread %d\n", thread_index);
+        PrintStack(process_state.threads()->at(thread_index), cpu,
+                  output_stack_contents,
+                  process_state.thread_memory_regions()->at(thread_index),
+                  process_state.modules(), resolver);
+      }
     }
   }
 
@@ -1224,18 +1233,18 @@ void PrintProcessStateMachineReadable(const ProcessState& process_state) {
   // OS|{OS Name}|{OS Version}
   // CPU|{CPU Name}|{CPU Info}|{Number of CPUs}
   // GPU|{GPU version}|{GPU vendor}|{GPU renderer}
-  fprintf(PrintStream, "OS%c%s%c%s\n", kOutputSeparator,
+  fprintf(PrintStream,  "OS%c%s%c%s\n", kOutputSeparator,
          StripSeparator(process_state.system_info()->os).c_str(),
          kOutputSeparator,
          StripSeparator(process_state.system_info()->os_version).c_str());
-  fprintf(PrintStream, "CPU%c%s%c%s%c%d\n", kOutputSeparator,
+  fprintf(PrintStream,  "CPU%c%s%c%s%c%d\n", kOutputSeparator,
          StripSeparator(process_state.system_info()->cpu).c_str(),
          kOutputSeparator,
          // this may be empty
          StripSeparator(process_state.system_info()->cpu_info).c_str(),
          kOutputSeparator,
          process_state.system_info()->cpu_count);
-  fprintf(PrintStream, "GPU%c%s%c%s%c%s\n", kOutputSeparator,
+  fprintf(PrintStream,  "GPU%c%s%c%s%c%s\n", kOutputSeparator,
          StripSeparator(process_state.system_info()->gl_version).c_str(),
          kOutputSeparator,
          StripSeparator(process_state.system_info()->gl_vendor).c_str(),
@@ -1246,9 +1255,9 @@ void PrintProcessStateMachineReadable(const ProcessState& process_state) {
 
   // Print crash information.
   // Crash|{Crash Reason}|{Crash Address}|{Crashed Thread}
-  fprintf(PrintStream, "Crash%c", kOutputSeparator);
+  fprintf(PrintStream,  "Crash%c", kOutputSeparator);
   if (process_state.crashed()) {
-    fprintf(PrintStream, "%s%c0x%" PRIx64 "%c",
+    fprintf(PrintStream,  "%s%c0x%" PRIx64 "%c",
            StripSeparator(process_state.crash_reason()).c_str(),
            kOutputSeparator, process_state.crash_address(), kOutputSeparator);
   } else {
@@ -1256,23 +1265,23 @@ void PrintProcessStateMachineReadable(const ProcessState& process_state) {
     // instead of the unhelpful "No crash"
     string assertion = process_state.assertion();
     if (!assertion.empty()) {
-      fprintf(PrintStream, "%s%c%c", StripSeparator(assertion).c_str(),
+      fprintf(PrintStream,  "%s%c%c", StripSeparator(assertion).c_str(),
              kOutputSeparator, kOutputSeparator);
     } else {
-      fprintf(PrintStream, "No crash%c%c", kOutputSeparator, kOutputSeparator);
+      fprintf(PrintStream,  "No crash%c%c", kOutputSeparator, kOutputSeparator);
     }
   }
 
   if (requesting_thread != -1) {
-    fprintf(PrintStream, "%d\n", requesting_thread);
+    fprintf(PrintStream,  "%d\n", requesting_thread);
   } else {
-    fprintf(PrintStream, "\n");
+    fprintf(PrintStream,  "\n");
   }
 
   PrintModulesMachineReadable(process_state.modules());
 
   // blank line to indicate start of threads
-  fprintf(PrintStream, "\n");
+  fprintf(PrintStream,  "\n");
 
   // If the thread that requested the dump is known, print it first.
   if (requesting_thread != -1) {
@@ -1294,18 +1303,17 @@ void PrintProcessStateMachineReadable(const ProcessState& process_state) {
 void PrintRequestingThreadBrief(const ProcessState& process_state) {
   int requesting_thread = process_state.requesting_thread();
   if (requesting_thread == -1) {
-    fprintf(PrintStream, " <no crashing or requesting dump thread identified>\n");
+    fprintf(PrintStream,  " <no crashing or requesting dump thread identified>\n");
     return;
   }
 
-  fprintf(PrintStream, "Thread %d (%s)\n", requesting_thread,
+  fprintf(PrintStream,  "Thread %d (%s)\n", requesting_thread,
          process_state.crashed() ? "crashed" : "requested dump, did not crash");
   const CallStack* stack = process_state.threads()->at(requesting_thread);
   int frame_count = stack->frames()->size();
   for (int frame_index = 0; frame_index < frame_count; ++frame_index) {
     PrintFrameHeader(stack->frames()->at(frame_index), frame_index);
-    fprintf(PrintStream, "\n");
+    fprintf(PrintStream,  "\n");
   }
 }
-
 }  // namespace google_breakpad

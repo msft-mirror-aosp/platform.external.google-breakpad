@@ -40,6 +40,7 @@ class ProcessState;
 class SourceLineResolverInterface;
 
 void SetPrintStream(FILE* fp);
+
 void PrintProcessStateMachineReadable(const ProcessState& process_state);
 void PrintProcessState(const ProcessState& process_state,
                        bool output_stack_contents,

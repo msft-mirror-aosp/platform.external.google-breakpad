@@ -147,15 +147,25 @@ TEST(Context, ARM) {
               == 0);
 }
 
+#if GTEST_OS_WINDOWS && !GTEST_HAS_ABSL
+// GTest on Windows does not support complex regular expressions.
+TEST(ContextDeathTest, DISABLED_X86BadFlags) {
+#else
 TEST(ContextDeathTest, X86BadFlags) {
+#endif
   Dump dump(0, kLittleEndian);
   MDRawContextX86 raw;
   raw.context_flags = MD_CONTEXT_AMD64;
   ASSERT_DEATH(Context context(dump, raw);,
-               "context\\.context_flags & ");
+               "context\\.context_flags & (0x[0-9a-f]+|MD_CONTEXT_X86)");
 }
 
+#if GTEST_OS_WINDOWS && !GTEST_HAS_ABSL
+// GTest on Windows does not support complex regular expressions.
+TEST(ContextDeathTest, DISABLED_X86BadEndianness) {
+#else
 TEST(ContextDeathTest, X86BadEndianness) {
+#endif
   Dump dump(0, kBigEndian);
   MDRawContextX86 raw;
   raw.context_flags = MD_CONTEXT_X86;
@@ -198,7 +208,7 @@ TEST(Exception, Simple) {
   Dump dump(0, kLittleEndian);
   Context context(dump, x86_raw_context);
   context.Finish(0x8665da0c);
-
+  
   Exception exception(dump, context,
                       0x1234abcd, // thread id
                       0xdcba4321, // exception code
@@ -242,7 +252,7 @@ TEST(String, Simple) {
   String s(dump, "All mimsy were the borogoves");
   string contents;
   ASSERT_TRUE(s.GetContents(&contents));
-  static const char expected[] =
+  static const char expected[] = 
     "\x00\x00\x00\x38\0A\0l\0l\0 \0m\0i\0m\0s\0y\0 \0w\0e\0r\0e"
     "\0 \0t\0h\0e\0 \0b\0o\0r\0o\0g\0o\0v\0e\0s";
   string expected_string(expected, sizeof(expected) - 1);

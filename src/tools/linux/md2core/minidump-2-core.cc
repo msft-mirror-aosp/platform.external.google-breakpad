@@ -282,7 +282,7 @@ typedef struct prpsinfo {       /* Information about process                 */
 // We parse the minidump file and keep the parsed information in this structure
 struct CrashedProcess {
   CrashedProcess()
-      : crashing_tid(-1),
+      : exception{-1},
         auxv(NULL),
         auxv_length(0) {
     memset(&prps, 0, sizeof(prps));
@@ -306,7 +306,6 @@ struct CrashedProcess {
   };
   std::map<uint64_t, Mapping> mappings;
 
-  pid_t crashing_tid;
   int fatal_signal;
 
   struct Thread {
@@ -330,6 +329,7 @@ struct CrashedProcess {
     size_t stack_length;
   };
   std::vector<Thread> threads;
+  Thread exception;
 
   const uint8_t* auxv;
   size_t auxv_length;
@@ -347,6 +347,34 @@ struct CrashedProcess {
   string dynamic_data;
   MDRawDebug debug;
   std::vector<MDRawLinkMap> link_map;
+};
+
+/* NT_FILE note as defined by linux kernel in fs/binfmt_elf.c
+ * is structured as:
+ * long count     -- how many files are mapped
+ * long page_size -- units for file_ofs
+ * array of [COUNT] elements of
+ *   long start
+ *   long end
+ *   long file_ofs
+ * followed by COUNT filenames in ASCII: "FILE1" NUL "FILE2" NUL...
+ * we can re-use the file mappings info
+ */
+struct NtFileNote {
+  NtFileNote()
+  // XXX: we really should source page size from the minidump itself but
+  // I cannot find anywhere in the minidump generation code where this
+  // would be stashed.
+  : page_sz((unsigned long)getpagesize()),
+    filename_count(0),
+    filenames_length(0) {
+  }
+
+  unsigned long page_sz;
+  unsigned long filename_count;
+  std::vector<unsigned long> file_mappings;
+  std::vector<std::string> filenames;
+  size_t filenames_length;
 };
 
 #if defined(__i386__)
@@ -583,25 +611,21 @@ ParseThreadRegisters(CrashedProcess::Thread* thread,
   thread->mcontext.__gregs[30] = rawregs->t5;
   thread->mcontext.__gregs[31] = rawregs->t6;
 
-# if __riscv_flen == 32
-  for (int i = 0; i < MD_FLOATINGSAVEAREA_RISCV_FPR_COUNT; ++i) {
-    thread->mcontext.__fpregs.__f.__f[i] = rawregs->float_save.regs[i];
+  // Breakpad only supports RISCV32 with 32 bit floating point.
+  // Breakpad only supports RISCV64 with 64 bit floating point.
+#if __riscv_xlen == 32
+  for (int i = 0; i < MD_CONTEXT_RISCV_FPR_COUNT; ++i) {
+    thread->mcontext.__fpregs.__f.__f[i] = rawregs->fpregs[i];
   }
-  thread->mcontext.__fpregs.__f.__fcsr = rawregs->float_save.fpcsr;
-# elif __riscv_flen == 64
-  for (int i = 0; i < MD_FLOATINGSAVEAREA_RISCV_FPR_COUNT; ++i) {
-    thread->mcontext.__fpregs.__d.__f[i] = rawregs->float_save.regs[i];
+  thread->mcontext.__fpregs.__f.__fcsr = rawregs->fcsr;
+#elif __riscv_xlen == 64
+  for (int i = 0; i < MD_CONTEXT_RISCV_FPR_COUNT; ++i) {
+    thread->mcontext.__fpregs.__d.__f[i] = rawregs->fpregs[i];
   }
-  thread->mcontext.__fpregs.__d.__fcsr = rawregs->float_save.fpcsr;
-# elif __riscv_flen == 128
-  for (int i = 0; i < MD_FLOATINGSAVEAREA_RISCV_FPR_COUNT; ++i) {
-    thread->mcontext.__fpregs.__q.__f[2*i] = rawregs->float_save.regs[i].high;
-    thread->mcontext.__fpregs.__q.__f[2*i+1] = rawregs->float_save.regs[i].low;
-  }
-  thread->mcontext.__fpregs.__q.__fcsr = rawregs->float_save.fpcsr;
-# else
-#  error "Unexpected __riscv_flen"
-# endif
+  thread->mcontext.__fpregs.__d.__fcsr = rawregs->fcsr;
+#else
+#error "Unexpected __riscv_xlen"
+#endif
 }
 #else
 #error "This code has not been ported to your platform yet"
@@ -999,10 +1023,25 @@ ParseDSODebugInfo(const Options& options, CrashedProcess* crashinfo,
 
 static void
 ParseExceptionStream(const Options& options, CrashedProcess* crashinfo,
-                     const MinidumpMemoryRange& range) {
+                     const MinidumpMemoryRange& range,
+                     const MinidumpMemoryRange& full_file) {
   const MDRawExceptionStream* exp = range.GetData<MDRawExceptionStream>(0);
-  crashinfo->crashing_tid = exp->thread_id;
+  if (!exp) {
+    return;
+  }
+  if (options.verbose) {
+    fprintf(stderr,
+            "MD_EXCEPTION_STREAM:\n"
+            "Found exception thread %" PRIu32 " \n"
+            "\n\n",
+            exp->thread_id);
+  }
   crashinfo->fatal_signal = (int) exp->exception_record.exception_code;
+  crashinfo->exception = {};
+  crashinfo->exception.tid = exp->thread_id;
+  // crashinfo->threads[].tid == crashinfo->exception.tid provides the stack.
+  ParseThreadRegisters(&crashinfo->exception,
+                       full_file.Subrange(exp->thread_context));
 }
 
 static bool
@@ -1287,6 +1326,8 @@ AugmentMappings(const Options& options, CrashedProcess* crashinfo,
     }
     AddDataToMapping(crashinfo, crashinfo->dynamic_data,
                      (uintptr_t)crashinfo->debug.dynamic);
+  } else {
+    fprintf(stderr, "dynamic data empty\n");
   }
 }
 
@@ -1365,7 +1406,7 @@ main(int argc, const char* argv[]) {
         break;
       case MD_EXCEPTION_STREAM:
         ParseExceptionStream(options, &crashinfo,
-                             dump.Subrange(dirent->location));
+                             dump.Subrange(dirent->location), dump);
         break;
       case MD_MODULE_LIST_STREAM:
         ParseModuleStream(options, &crashinfo, dump.Subrange(dirent->location),
@@ -1406,19 +1447,40 @@ main(int argc, const char* argv[]) {
   if (!writea(options.out_fd, &ehdr, sizeof(Ehdr)))
     return 1;
 
+  struct NtFileNote nt_file;
+  for (auto iter = crashinfo.mappings.begin();
+       iter != crashinfo.mappings.end(); iter++) {
+    if (iter->second.filename.empty())
+      continue;
+    nt_file.file_mappings.push_back(iter->second.start_address);
+    nt_file.file_mappings.push_back(iter->second.end_address);
+    nt_file.file_mappings.push_back(iter->second.offset);
+    nt_file.filenames.push_back(iter->second.filename);
+    nt_file.filenames_length += iter->second.filename.length() + 1;
+    nt_file.filename_count += 1;
+  }
+  // implementation of NT_FILE note seems to pad alignment by 4 bytes but
+  // keep the header size the true size of the note. so we keep nt_file_align
+  // as separate field.
+  size_t nt_file_data_sz = (2 * sizeof(unsigned long)) +
+      (nt_file.file_mappings.size() * sizeof(unsigned long)) +
+      nt_file.filenames_length;
+  size_t nt_file_align = nt_file_data_sz % 4 == 0 ? 0 : 4 -
+      (nt_file_data_sz % 4);
   size_t offset = sizeof(Ehdr) + ehdr.e_phnum * sizeof(Phdr);
   size_t filesz = sizeof(Nhdr) + 8 + sizeof(prpsinfo) +
-                  // sizeof(Nhdr) + 8 + sizeof(user) +
-                  sizeof(Nhdr) + 8 + crashinfo.auxv_length +
-                  crashinfo.threads.size() * (
-                    (sizeof(Nhdr) + 8 + sizeof(prstatus))
+      // sizeof(Nhdr) + 8 + sizeof(user) +
+      sizeof(Nhdr) + 8 + crashinfo.auxv_length +
+      sizeof(Nhdr) + 8 + nt_file_data_sz + nt_file_align +
+      crashinfo.threads.size() * (
+      (sizeof(Nhdr) + 8 + sizeof(prstatus))
 #if defined(__i386__) || defined(__x86_64__)
-                   + sizeof(Nhdr) + 8 + sizeof(user_fpregs_struct)
+      + sizeof(Nhdr) + 8 + sizeof(user_fpregs_struct)
 #endif
 #if defined(__i386__)
-                   + sizeof(Nhdr) + 8 + sizeof(user_fpxregs_struct)
+      + sizeof(Nhdr) + 8 + sizeof(user_fpxregs_struct)
 #endif
-                    );
+      );
 
   Phdr phdr;
   memset(&phdr, 0, sizeof(Phdr));
@@ -1481,16 +1543,43 @@ main(int argc, const char* argv[]) {
     return 1;
   }
 
-  for (unsigned i = 0; i < crashinfo.threads.size(); ++i) {
-    if (crashinfo.threads[i].tid == crashinfo.crashing_tid) {
-      WriteThread(options, crashinfo.threads[i], crashinfo.fatal_signal);
+  nhdr.n_descsz = nt_file_data_sz;
+  nhdr.n_type = NT_FILE;
+  if (!writea(options.out_fd, &nhdr, sizeof(nhdr)) ||
+      !writea(options.out_fd, "CORE\0\0\0\0", 8) ||
+      !writea(options.out_fd,
+      &nt_file.filename_count, sizeof(nt_file.filename_count)) ||
+      !writea(options.out_fd, &nt_file.page_sz, sizeof(nt_file.page_sz))) {
+    return 1;
+  }
+  for (auto iter = nt_file.file_mappings.begin();
+       iter != nt_file.file_mappings.end(); iter++) {
+    if (!writea(options.out_fd, &*iter, sizeof(*iter)))
+      return 1;
+  }
+  for (auto iter = nt_file.filenames.begin();
+       iter != nt_file.filenames.end(); iter++) {
+    if (!writea(options.out_fd, iter->c_str(), iter->length() + 1))
+      return 1;
+  }
+  if (!writea(options.out_fd, "\0\0\0\0", nt_file_align))
+    return 1;
+
+  for (const auto& current_thread : crashinfo.threads) {
+    if (current_thread.tid == crashinfo.exception.tid) {
+      // Use the exception record's context for the crashed thread instead of
+      // the thread's own context. For the crashed thread the thread's own
+      // context is the state inside the exception handler. Using it would not
+      // result in the expected stack trace from the time of the crash.
+      // The stack memory has already been provided by current_thread.
+      WriteThread(options, crashinfo.exception, crashinfo.fatal_signal);
       break;
     }
   }
 
-  for (unsigned i = 0; i < crashinfo.threads.size(); ++i) {
-    if (crashinfo.threads[i].tid != crashinfo.crashing_tid)
-      WriteThread(options, crashinfo.threads[i], 0);
+  for (const auto& current_thread : crashinfo.threads) {
+    if (current_thread.tid != crashinfo.exception.tid)
+      WriteThread(options, current_thread, 0);
   }
 
   if (note_align) {

@@ -38,7 +38,6 @@
 #endif
 
 #include <stdio.h>
-
 #include <string.h>
 #include <sys/stat.h>
 
@@ -121,7 +120,7 @@ bool SourceLineResolverBase::ReadSymbolFile(const string& map_file,
 
   BPLOG(INFO) << "Opening " << map_file;
 
-  FILE *f = fopen(map_file.c_str(), "rb");
+  FILE* f = fopen(map_file.c_str(), "rt");
   if (!f) {
     string error_string;
     error_code = ErrnoString(&error_string);
@@ -254,7 +253,6 @@ bool SourceLineResolverBase::LoadModuleUsingMemoryBuffer(
     // Returning false from here would be an indication that the symbols for
     // this module are missing which would be wrong.  Intentionally fall through
     // and add the module to both the modules_ and the corrupt_modules_ lists.
-    assert(basic_module->IsCorrupt());
   }
 
   modules_->insert(make_pair(module->code_file(), basic_module));

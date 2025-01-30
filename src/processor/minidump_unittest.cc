@@ -199,7 +199,7 @@ TEST(Dump, OneStream) {
   stream.Append("stream contents");
   dump.Add(&stream);
   dump.Finish();
-
+  
   string contents;
   ASSERT_TRUE(dump.GetContents(&contents));
   istringstream minidump_stream(contents);
@@ -280,10 +280,10 @@ TEST(Dump, OneThread) {
   raw_context.esp = 0x659caaa4;
   raw_context.ss = 0x2e951ef7;
   Context context(dump, raw_context);
-
+  
   Thread thread(dump, 0xa898f11b, stack, context,
                 0x9e39439f, 0x4abfc15f, 0xe499898a, 0x0d43e939dcfd0372ULL);
-
+  
   dump.Add(&stack);
   dump.Add(&context);
   dump.Add(&thread);
@@ -805,7 +805,7 @@ TEST(Dump, OneSystemInfo) {
   dump.Add(&system_info);
   dump.Add(&csd_version);
   dump.Finish();
-
+                         
   string contents;
   ASSERT_TRUE(dump.GetContents(&contents));
   istringstream minidump_stream(contents);
@@ -1041,7 +1041,7 @@ TEST(Dump, OneMemoryInfo) {
         .D32(sizeof(MDRawMemoryInfo))      // size_of_entry
         .D64(kNumberOfEntries);            // number_of_entries
 
-
+  
   // Now add a MDRawMemoryInfo entry.
   const uint64_t kBaseAddress = 0x1000;
   const uint64_t kRegionSize = 0x2000;
@@ -1110,7 +1110,7 @@ TEST(Dump, OneExceptionX86) {
                       0xdcba4321, // exception code
                       0xf0e0d0c0, // exception flags
                       0x0919a9b9c9d9e9f9ULL); // exception address
-
+  
   dump.Add(&context);
   dump.Add(&exception);
   dump.Finish();
@@ -1184,7 +1184,7 @@ TEST(Dump, OneExceptionX86XState) {
                       0xdcba4321, // exception code
                       0xf0e0d0c0, // exception flags
                       0x0919a9b9c9d9e9f9ULL); // exception address
-
+  
   dump.Add(&context);
   dump.Add(&exception);
   dump.Finish();
@@ -1260,7 +1260,7 @@ TEST(Dump, OneExceptionX86NoCPUFlags) {
                       0xdcba4321, // exception code
                       0xf0e0d0c0, // exception flags
                       0x0919a9b9c9d9e9f9ULL); // exception address
-
+  
   dump.Add(&context);
   dump.Add(&exception);
 
@@ -1351,7 +1351,7 @@ TEST(Dump, OneExceptionX86NoCPUFlagsNoSystemInfo) {
                       0xdcba4321, // exception code
                       0xf0e0d0c0, // exception flags
                       0x0919a9b9c9d9e9f9ULL); // exception address
-
+  
   dump.Add(&context);
   dump.Add(&exception);
   dump.Finish();
@@ -1414,7 +1414,7 @@ TEST(Dump, OneExceptionARM) {
                       0xdcba4321, // exception code
                       0xf0e0d0c0, // exception flags
                       0x0919a9b9c9d9e9f9ULL); // exception address
-
+  
   dump.Add(&context);
   dump.Add(&exception);
   dump.Finish();
@@ -1498,7 +1498,7 @@ TEST(Dump, OneExceptionARMOldFlags) {
                       0xdcba4321, // exception code
                       0xf0e0d0c0, // exception flags
                       0x0919a9b9c9d9e9f9ULL); // exception address
-
+  
   dump.Add(&context);
   dump.Add(&exception);
   dump.Finish();
@@ -1597,7 +1597,7 @@ TEST(Dump, OneExceptionMIPS) {
                       0xdcba4321,  // Exception code.
                       0xf0e0d0c0,  // Exception flags.
                       0x0919a9b9); // Exception address.
-
+  
   dump.Add(&context);
   dump.Add(&exception);
   dump.Finish();

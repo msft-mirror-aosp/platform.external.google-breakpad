@@ -37,12 +37,7 @@
 
 #include <stdio.h>
 #include <string.h>
-#ifdef _MSC_VER
-#include "msvc-posix.h"
-#include "msvc-getopt.h"
-#else
 #include <unistd.h>
-#endif
 
 #include "common/path_helper.h"
 #include "common/scoped_ptr.h"
@@ -204,7 +199,7 @@ static bool PrintMinidumpDump(const Options& options) {
   MinidumpCrashpadInfo *crashpad_info = minidump.GetCrashpadInfo();
   if (crashpad_info) {
     // Crashpad info is optional, so don't treat absence as an error.
-    crashpad_info->Print(stdout);
+    crashpad_info->Print();
   }
 
   DumpRawStream(&minidump,

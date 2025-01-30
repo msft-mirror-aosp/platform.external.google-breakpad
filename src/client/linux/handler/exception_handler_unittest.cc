@@ -274,10 +274,9 @@ static void* CrashFunction(void* b_ptr) {
   return NULL;
 }
 
-// Disabled (doesn't work in CIPD build env: https://bugs.fuchsia.dev/p/fuchsia/issues/detail?id=37301#c26)
 // Tests that concurrent crashes do not enter a loop by alternately triggering
 // the signal handler.
-TEST(ExceptionHandlerTest, DISABLED_ParallelChildCrashesDontHang) {
+TEST(ExceptionHandlerTest, ParallelChildCrashesDontHang) {
   AutoTempDir temp_dir;
   const pid_t child = fork();
   if (child == 0) {
@@ -379,7 +378,7 @@ static bool InstallRaiseSIGKILL() {
 
 static void CrashWithCallbacks(ExceptionHandler::FilterCallback filter,
                                ExceptionHandler::MinidumpCallback done,
-                               string path) {
+                               const string& path) {
   ExceptionHandler handler(
       MinidumpDescriptor(path), filter, done, NULL, true, -1);
   // Crash with the exception handler in scope.

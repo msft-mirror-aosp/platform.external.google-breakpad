@@ -175,7 +175,12 @@ cc_library(
         "//src/third_party/lss",
         "//src/third_party/musl",
         "@zlib",
-    ],
+    ] + select({
+        "//conditions:default": [],
+        "@platforms//os:windows": [
+            "@vctools//:msdia",
+        ],
+    }),
 )
 
 cc_test(

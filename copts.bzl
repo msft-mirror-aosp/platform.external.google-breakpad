@@ -17,7 +17,7 @@
 # https://source.chromium.org/chromium/chromium/src/+/main:build/config/win/BUILD.gn;l=570;drc=804d5a91d49d0ad79d3d5529e6ba2610225cfe55
 BREAKPAD_APPLE_DEFS = [
     "HAVE_ARC4RANDOM",
-    "HAVE_CXX7",
+    "HAVE_CXX17",
     "HAVE_GETCONTEXT",
     "HAVE_INTTYPES_H",
     "HAVE_PTHREAD",
@@ -88,16 +88,16 @@ BREAKPAD_WINDOWS_DEFS = [
     "_HAS_EXCEPTIONS=0",
     "_SECURE_ATL",
     "_UNICODE",
-    "_WIN32_WINNT=0x0600",
+    "_WIN32_WINNT=0x0601",
     "_WINDOWS",
     "NOMINMAX",
     "UNICODE",
     "WIN32",
     "WIN32_LEAN_AND_MEAN",
-    "WINVER=0x0600",
+    "WINVER=0x0601",
 ]
 
-BREAKPAD_WINDOWS_COPTS = ["/std=c++20"]
+BREAKPAD_WINDOWS_COPTS = ["/std:c++20", "-Wno-macro-redefined"]
 
 BREAKPAD_COMMON_COPTS = select({
     "@platforms//os:windows": BREAKPAD_WINDOWS_COPTS,

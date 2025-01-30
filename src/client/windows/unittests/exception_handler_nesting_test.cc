@@ -131,7 +131,7 @@ bool MinidumpWrittenCallback(const wchar_t* dump_path,
 }
 
 
-void DoCrash(const char *message) __attribute__((optnone)) {
+void DoCrash(const char* message) {
   if (message) {
     fprintf(stderr, "%s", message);
     fflush(stderr);

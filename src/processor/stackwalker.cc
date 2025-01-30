@@ -263,6 +263,9 @@ Stackwalker* Stackwalker::StackwalkerForCPU(
       int fp_register = -1;
       if (system_info->os_short == "ios")
         fp_register = MD_CONTEXT_ARM_REG_IOS_FP;
+      // This will break MicrodumpProcessorTest.TestProcessArm
+      // else
+      //   fp_register = MD_CONTEXT_ARM_REG_FP;
       cpu_stackwalker = new StackwalkerARM(system_info,
                                            context->GetContextARM(),
                                            fp_register, memory, modules,
