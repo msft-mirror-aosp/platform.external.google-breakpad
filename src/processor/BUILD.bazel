@@ -43,6 +43,7 @@ cc_library(
         "microdump.cc",
         "microdump_processor.cc",
         "minidump.cc",
+        "minidump_processor.cc",
         "module_comparer.cc",
         "module_serializer.cc",
         "pathname_stripper.cc",
