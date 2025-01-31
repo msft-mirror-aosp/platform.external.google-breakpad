@@ -97,7 +97,7 @@ BREAKPAD_WINDOWS_DEFS = [
     "WINVER=0x0601",
 ]
 
-BREAKPAD_WINDOWS_COPTS = ["/std:c++20", "-Wno-macro-redefined"]
+BREAKPAD_WINDOWS_COPTS = ["/std:c++20", "-Wno-macro-redefined", "-Wno-c++11-narrowing"]
 
 BREAKPAD_COMMON_COPTS = select({
     "@platforms//os:windows": BREAKPAD_WINDOWS_COPTS,
