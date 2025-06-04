@@ -15,6 +15,10 @@
 # Description:
 #   Breakpad contains tools to create symbols that can be uploaded to
 #   the a crash server.
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
+load("@rules_cc//cc:objc_library.bzl", "objc_library")
 load("//:copts.bzl", "BREAKPAD_COMMON_COPTS", "BREAKPAD_COMMON_DEFS")
 
 package(
@@ -178,7 +182,7 @@ cc_library(
     ] + select({
         "//conditions:default": [],
         "@platforms//os:windows": [
-            "@vctools//:msdia",
+            "@//build/bazel/toolchains/cc/windows_clang:msdia",
         ],
     }),
 )
