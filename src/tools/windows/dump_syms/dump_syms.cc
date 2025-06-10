@@ -48,7 +48,7 @@ using std::unique_ptr;
 using std::wstring;
 
 int usage(const wchar_t* self) {
-  fprintf(stderr, "Usage: %ws [--pe] [--i] <file.[pdb|exe|dll]>\n", self);
+  fprintf(stderr, "Usage: %ws [--pe] [--i] [--f <file>] <file.[pdb|exe|dll]>\n", self);
   fprintf(stderr, "Options:\n");
   fprintf(stderr,
           "--pe:\tRead debugging information from PE file and do "
@@ -57,6 +57,7 @@ int usage(const wchar_t* self) {
   fprintf(stderr,
           "--i:\tOutput INLINE/INLINE_ORIGIN record\n"
           "\tThis cannot be used with [--pe].\n");
+  fprintf(stderr, "--f:\t Optional output file path, or stdout if omitted.\n");
   return 1;
 }
 
@@ -65,13 +66,18 @@ int wmain(int argc, wchar_t** argv) {
   bool pe = false;
   bool handle_inline = false;
   int arg_index = 1;
+  wchar_t *out_file_path = nullptr;
   while (arg_index < argc && wcslen(argv[arg_index]) > 0 &&
          wcsncmp(L"--", argv[arg_index], 2) == 0) {
     if (wcscmp(L"--pe", argv[arg_index]) == 0) {
       pe = true;
     } else if (wcscmp(L"--i", argv[arg_index]) == 0) {
       handle_inline = true;
+    } else if (wcscmp(L"--f", argv[arg_index]) == 0) {
+      ++arg_index;
+      out_file_path = argv[arg_index];
     }
+
     ++arg_index;
   }
 
@@ -80,17 +86,30 @@ int wmain(int argc, wchar_t** argv) {
     return 1;
   }
 
+  FILE* out = stdout;
+  if (out_file_path != nullptr) {
+    out = _wfopen(out_file_path, L"w");
+    if (!out) {
+      fprintf(stderr, "Failed to open output file %ws\n", out_file_path);
+      return 1;
+    }
+  }
+
   wchar_t* file_path = argv[arg_index];
   if (pe) {
     PESourceLineWriter pe_writer(file_path);
-    success = pe_writer.WriteSymbols(stdout);
+    success = pe_writer.WriteSymbols(out);
   } else {
     PDBSourceLineWriter pdb_writer(handle_inline);
     if (!pdb_writer.Open(wstring(file_path), PDBSourceLineWriter::ANY_FILE)) {
       fprintf(stderr, "Open failed.\n");
       return 1;
     }
-    success = pdb_writer.WriteSymbols(stdout);
+    success = pdb_writer.WriteSymbols(out);
+  }
+
+  if (out != stdout) {
+    fclose(out);
   }
 
   if (!success) {
