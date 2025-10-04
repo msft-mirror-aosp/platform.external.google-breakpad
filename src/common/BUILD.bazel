@@ -182,7 +182,7 @@ cc_library(
     ] + select({
         "//conditions:default": [],
         "@platforms//os:windows": [
-            "@//build/bazel/toolchains/cc/windows_clang:msdia",
+            "@goldfish_build//toolchains/cc/windows_clang:msdia",
         ],
     }),
 )
