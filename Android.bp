@@ -106,6 +106,10 @@ cc_library_static {
             cflags: ["-mno-stackrealign"],
         },
     },
+    visibility: [
+        "//tools/rootcanal",
+        "//tools/netsim",
+    ],
 }
 
 // core2md binary.
@@ -258,6 +262,10 @@ cc_library_host_static {
         "src/third_party/libdisasm/x86_misc.c",
         "src/third_party/libdisasm/x86_operand_list.c",
     ],
+    // External updater cannot cleanly update the repo because upstream
+    // uses git submodules that are not allowed in Android leading to
+    // conflicts. We just pin this library to C++20 to avoid C++23 errors.
+    cpp_std: "c++20",
 }
 
 // minidump_stackwalk host tool.
