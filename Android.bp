@@ -52,6 +52,14 @@ license {
     ],
 }
 
+cc_defaults {
+    name: "breakpad_pin",
+    // External updater cannot cleanly update the repo because upstream
+    // uses git submodules that are not allowed in Android leading to
+    // conflicts. We just pin this library to C++20 to avoid C++23 errors.
+    cpp_std: "gnu++20",
+}
+
 cc_library_static {
     name: "breakpad_client",
     host_supported: true,
@@ -139,6 +147,7 @@ cc_binary {
 // =================================================
 cc_binary_host {
     name: "dump_syms",
+    defaults: ["breakpad_pin"],
     rtti: true,
     target: {
         darwin: {
@@ -232,6 +241,7 @@ cc_binary_host {
 // =================================================
 cc_library_host_static {
     name: "libdisasm",
+    defaults: ["breakpad_pin"],
     target: {
         darwin: {
             enabled: false,
@@ -262,10 +272,6 @@ cc_library_host_static {
         "src/third_party/libdisasm/x86_misc.c",
         "src/third_party/libdisasm/x86_operand_list.c",
     ],
-    // External updater cannot cleanly update the repo because upstream
-    // uses git submodules that are not allowed in Android leading to
-    // conflicts. We just pin this library to C++20 to avoid C++23 errors.
-    cpp_std: "c++20",
 }
 
 // minidump_stackwalk host tool.
