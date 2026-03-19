@@ -20,10 +20,17 @@ package(
 
 license(
     name = "license",
+    package_name = "google-breakpad",
+    copyright_notice = "Copyright 2006 Google LLC",
     license_kinds = [
         "@rules_license//licenses/spdx:BSD-3-Clause",
     ],
+    license_text = "LICENSE",
+    package_url = "https://chromium.googlesource.com/breakpad/breakpad/",
+    visibility = ["//visibility:public"],
 )
+
+exports_files(["LICENSE"])
 
 test_suite(
     name = "breakpad_tests",
@@ -32,6 +39,7 @@ test_suite(
         "//src/processor:processor_tests",
     ],
 )
+
 # Library for decoding symbols, walking the stack, etc.
 alias(
     name = "breakpad",
