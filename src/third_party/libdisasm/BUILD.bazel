@@ -11,8 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+load("@rules_cc//cc:defs.bzl", "cc_library")
 load("@rules_license//rules:license.bzl", "license")
-load("//:copts.bzl", "BREAKPAD_COMMON_COPTS", "BREAKPAD_COMMON_DEFS")
+load("//:copts.bzl", "BREAKPAD_COMMON_DEFS")
 
 package(
     default_applicable_licenses = [":license"],
@@ -45,7 +47,7 @@ cc_library(
         "x86_operand_list.c",
     ] + glob(["*.h"]),
     hdrs = ["libdis.h"],
-    include_prefix = "third_party/libdisasm",
     copts = ["-Wno-format"],
+    include_prefix = "third_party/libdisasm",
     local_defines = BREAKPAD_COMMON_DEFS,
 )
