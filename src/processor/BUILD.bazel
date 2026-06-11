@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 
 # Description:
@@ -128,4 +129,14 @@ processor_tests = [
 test_suite(
     name = "processor_tests",
     tests = processor_tests,
+)
+
+cc_binary(
+    name = "minidump_stackwalk",
+    srcs = ["minidump_stackwalk.cc"],
+    copts = BREAKPAD_COMMON_COPTS,
+    visibility = ["//visibility:public"],
+    deps = [
+        ":processor",
+    ],
 )
