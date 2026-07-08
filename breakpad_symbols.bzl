@@ -127,6 +127,7 @@ def _breakpad_symbols_impl(ctx):
                 outputs = [output_file],
                 inputs = input_files,
                 executable = ctx.executable._dump_syms,
+                tools = ctx.attr._dump_syms[DefaultInfo].default_runfiles.files,
                 arguments = prepend_args + [
                     "--f",  # Output to:
                     windows_path(output_file.path),
@@ -139,6 +140,7 @@ def _breakpad_symbols_impl(ctx):
                 outputs = [output_file],
                 inputs = input_files,
                 executable = ctx.executable._dump_syms,
+                tools = ctx.attr._dump_syms[DefaultInfo].default_runfiles.files,
                 arguments = prepend_args + [
                     "-d",  # Generate INLINE/INLINE_ORIGIN records
                     "-m",  # Handle multiple symbols at same address, if any.
@@ -170,7 +172,6 @@ breakpad_symbols = rule(
         ),
         "_dump_syms": attr.label(
             default = Label("//:dump_syms"),
-            allow_single_file = True,
             executable = True,
             cfg = "exec",
             doc = "The dump_syms executable. Defaults to //:dump_syms.",
