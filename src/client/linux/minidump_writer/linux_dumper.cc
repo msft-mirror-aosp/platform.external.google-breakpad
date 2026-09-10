@@ -586,6 +586,7 @@ bool LinuxDumper::EnumerateMappings() {
         const char* i3 = my_read_hex_ptr(&offset, i2 + 6 /* skip ' rwxp ' */);
         if (*i3 == ' ') {
           const char* name = nullptr;
+          MappingInfo* image_base = nullptr;
           // Only copy name if the name is a valid path name, or if
           // it's the VDSO image.
           if (((name = my_strchr(line, '/')) == nullptr) &&
@@ -603,7 +604,10 @@ bool LinuxDumper::EnumerateMappings() {
             // one is, to handle lld's output (see crbug.com/716484).
             MappingInfo* module = mappings_.back();
             if (name) {
-              if ((start_addr == module->start_addr + module->size) &&
+              // Do not merge into a follower here; only the split-image path
+              // below updates the header's module span.
+              if (!module->split_image.follower &&
+                  (start_addr == module->start_addr + module->size) &&
                   (my_strlen(name) == my_strlen(module->name)) &&
                   (my_strncmp(name, module->name, my_strlen(name)) == 0) &&
                   ((exec == module->exec) || (!module->exec && exec))) {
@@ -612,6 +616,27 @@ bool LinuxDumper::EnumerateMappings() {
                 module->exec |= exec;
                 line_reader->PopLine(line_len);
                 continue;
+              }
+              // Find the ELF header for this noncontiguous executable segment.
+              if (exec && offset != 0) {
+                for (size_t i = mappings_.size(); i > 0; --i) {
+                  MappingInfo* const header = mappings_[i - 1];
+                  if (header->name[0] == '\0')
+                    continue;  // Anonymous mappings can occupy loader gaps.
+                  if (my_strcmp(header->name, name) != 0) {
+                    // Another file occupies the gap. Leave the image split to
+                    // avoid overlapping modules and preserve the previous
+                    // behavior.
+                    break;
+                  }
+                  if (header->offset == 0 &&
+                      start_addr >= header->start_addr + header->size) {
+                    image_base = header;
+                    break;
+                  }
+                  // An ELF can have multiple executable PT_LOADs. Keep
+                  // looking for header.
+                }
               }
             } else if (is_padding) {
               // Extend the previous mapping if the current mapping is a padding
@@ -639,6 +664,11 @@ bool LinuxDumper::EnumerateMappings() {
             if (l < sizeof(module->name))
               my_memcpy(module->name, name, l);
           }
+          if (image_base) {
+            // Extend the header's module span and suppress this follower.
+            image_base->split_image.end_addr = end_addr;
+            module->split_image.follower = true;
+          }
         }
       }
     }
@@ -654,9 +684,15 @@ bool LinuxDumper::EnumerateMappings() {
       // format assumes the first module is the one that corresponds to the main
       // executable (as codified in
       // processor/minidump.cc:MinidumpModuleList::GetMainModule()).
+      // The header mapping covers entry points in split-image followers.
+      if (module->split_image.follower) {
+        continue;
+      }
       if ((entry_point_loc >= reinterpret_cast<void*>(module->start_addr)) &&
           (entry_point_loc <
-           reinterpret_cast<void*>(module->start_addr + module->size))) {
+           reinterpret_cast<void*>(module->split_image.end_addr
+                                       ? module->split_image.end_addr
+                                       : module->start_addr + module->size))) {
         for (size_t j = i; j > 0; j--)
           mappings_[j] = mappings_[j - 1];
         mappings_[0] = module;

@@ -742,7 +742,7 @@ void ExceptionHandler::AddMappingInfo(const std::string& name,
                                       const uint8_t identifier[sizeof(MDGUID)],
                                       uintptr_t start_address,
                                       size_t mapping_size, size_t file_offset) {
-  MappingInfo info;
+  MappingInfo info = {};
   info.start_addr = start_address;
   info.size = mapping_size;
   info.offset = file_offset;

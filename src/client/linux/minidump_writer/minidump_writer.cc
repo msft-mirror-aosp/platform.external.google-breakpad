@@ -554,6 +554,12 @@ class MinidumpWriter {
       return false;
     }
 
+    // The header mapping emits the whole split image; emitting this follower
+    // would create an overlapping module.
+    if (mapping.split_image.follower) {
+      return false;
+    }
+
     return true;
   }
 
@@ -639,7 +645,11 @@ class MinidumpWriter {
     my_memset(mod, 0, MD_MODULE_SIZE);
 
     mod->base_of_image = mapping.start_addr;
-    mod->size_of_image = mapping.size;
+    // Only dumper-derived mappings set |split_image|. Do not inspect it for
+    // caller-provided mappings; keep their declared size.
+    mod->size_of_image = (member && mapping.split_image.end_addr)
+                             ? mapping.split_image.end_addr - mapping.start_addr
+                             : mapping.size;
 
     char file_name[NAME_MAX];
     char file_path[NAME_MAX];
