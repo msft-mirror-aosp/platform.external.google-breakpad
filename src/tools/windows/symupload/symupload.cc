@@ -162,11 +162,85 @@ static bool DumpSymbolsToTempFile(const wchar_t* file,
   return writer.GetModuleInfo(pdb_info);
 }
 
+// Returns true if |filename| ends with a ".sym" extension (case-insensitive).
+static bool HasSymExtension(const wchar_t* filename) {
+  if (!filename) {
+    return false;
+  }
+  size_t len = wcslen(filename);
+  return len >= 4 && _wcsicmp(filename + len - 4, L".sym") == 0;
+}
+
+// Parses a Breakpad MODULE header line ("MODULE <os> <cpu> <debug_id>
+// <debug_file>") into |pdb_info|.
+static bool ParseSymbolFileHeaderLine(const wstring& raw_line,
+                                      PDBModuleInfo* pdb_info) {
+  if (!pdb_info) {
+    return false;
+  }
+  wstring line = raw_line;
+  while (!line.empty() && (line.back() == L'\n' || line.back() == L'\r')) {
+    line.pop_back();
+  }
+
+  vector<wstring> tokens;
+  size_t pos = 0;
+  for (int i = 0; i < 4; ++i) {
+    size_t space = line.find(L' ', pos);
+    if (space == wstring::npos || space == pos) {
+      return false;
+    }
+    tokens.push_back(line.substr(pos, space - pos));
+    pos = space + 1;
+  }
+  if (pos >= line.size()) {
+    return false;
+  }
+  wstring debug_file = line.substr(pos);
+  if (tokens.size() != 4 || tokens[0] != L"MODULE" || debug_file.empty()) {
+    return false;
+  }
+
+  pdb_info->cpu = tokens[2];
+  pdb_info->debug_identifier.clear();
+  for (size_t i = 0; i < tokens[3].size(); ++i) {
+    if (tokens[3][i] != L'-') {
+      pdb_info->debug_identifier.push_back(tokens[3][i]);
+    }
+  }
+  pdb_info->debug_file = WindowsStringUtils::GetBaseName(debug_file);
+  return !pdb_info->debug_identifier.empty() && !pdb_info->debug_file.empty();
+}
+
+// Reads the MODULE header line from an existing Breakpad .sym file at |file|.
+static bool ReadSymbolFileHeader(const wchar_t* file, PDBModuleInfo* pdb_info) {
+  FILE* fp = NULL;
+#if _MSC_VER >= 1400  // MSVC 2005/8
+  if (_wfopen_s(&fp, file, L"r") != 0 || !fp)
+#else
+  if (!(fp = _wfopen(file, L"r")))
+#endif
+  {
+    return false;
+  }
+
+  wchar_t buffer[1024];
+  bool has_line =
+      fgetws(buffer, sizeof(buffer) / sizeof(buffer[0]), fp) != NULL;
+  fclose(fp);
+  if (!has_line) {
+    return false;
+  }
+
+  return ParseSymbolFileHeaderLine(wstring(buffer), pdb_info);
+}
+
 __declspec(noreturn) void printUsageAndExit() {
-  wprintf(L"Usage:\n\n"
-          L"    symupload [--i] [--timeout NN] [--product product_name] ^\n"
-          L"              <file.exe|file.dll> <symbol upload URL> ^\n"
-          L"              [...<symbol upload URLs>]\n\n");
+  wprintf(
+      L"Usage:\n\n"
+      L"    symupload [--i] [--timeout NN] [--product product_name] ^\n"
+      L"              <file.exe|file.dll|file.sym> <symbol upload URL> ^\n"
+      L"              [...<symbol upload URLs>]\n\n");
   wprintf(L"  - i: Extract inline information from pdb.\n");
   wprintf(L"  - Timeout is in milliseconds, or can be 0 to be unlimited.\n");
   wprintf(L"  - product_name is an HTTP-friendly product name. It must only\n"
@@ -176,8 +250,10 @@ __declspec(noreturn) void printUsageAndExit() {
           L"    symupload.exe --timeout 0 --product Chrome ^\n"
           L"        chrome.dll http://no.free.symbol.server.for.you\n");
   wprintf(L"\n");
-  wprintf(L"sym-upload-v2 usage:\n"
-          L"    symupload -p [-f] <file.exe|file.dll> <API-URL> <API-key>\n");
+  wprintf(
+      L"sym-upload-v2 usage:\n"
+      L"    symupload -p [-f] <file.exe|file.dll|file.sym> <API-URL> "
+      L"<API-key>\n");
   wprintf(L"\n");
   wprintf(L"sym_upload_v2 Options:\n");
   wprintf(L"    <API-URL> is the sym_upload_v2 API URL.\n");
@@ -234,16 +310,26 @@ int wmain(int argc, wchar_t* argv[]) {
 
   wstring symbol_file;
   PDBModuleInfo pdb_info;
-  if (!DumpSymbolsToTempFile(module, &symbol_file, &pdb_info, handle_inline)) {
+  const bool is_sym_file = HasSymExtension(module);
+  if (is_sym_file) {
+    symbol_file = module;
+    if (!ReadSymbolFileHeader(module, &pdb_info)) {
+      fwprintf(stderr, L"Could not read symbol header from %s\n", module);
+      return 1;
+    }
+  } else if (!DumpSymbolsToTempFile(module, &symbol_file, &pdb_info,
+                                    handle_inline)) {
     fwprintf(stderr, L"Could not get symbol data from %s\n", module);
     return 1;
   }
 
-  wstring code_file = WindowsStringUtils::GetBaseName(wstring(module));
+  wstring code_file = is_sym_file
+                          ? pdb_info.debug_file
+                          : WindowsStringUtils::GetBaseName(wstring(module));
   wstring file_version;
   // Don't make a missing version a hard error.  Issue a warning, and let the
   // server decide whether to reject files without versions.
-  if (!GetFileVersionString(module, &file_version)) {
+  if (!is_sym_file && !GetFileVersionString(module, &file_version)) {
     fwprintf(stderr, L"Warning: Could not get file version for %s\n", module);
   }
 
@@ -303,7 +389,9 @@ int wmain(int argc, wchar_t* argv[]) {
     }
   }
 
-  _wunlink(symbol_file.c_str());
+  if (!is_sym_file) {
+    _wunlink(symbol_file.c_str());
+  }
 
   fwprintf(success ? stdout : stderr,
            L"%S breakpad symbols for windows-%s/%s/%s (%s %s)\n",
