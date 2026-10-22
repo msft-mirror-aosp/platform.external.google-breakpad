@@ -261,6 +261,11 @@ bool PrintPEFrameData(const wstring & pe_file, FILE * out_file)
     fprintf(stderr, "Failed to load %s\n", img_file.c_str());
     return false;
   }
+  if (img->FileHeader->FileHeader.Machine != IMAGE_FILE_MACHINE_AMD64) {
+    fprintf(stderr, "PrintPEFrameData only supports AMD64 PE files\n");
+    abort();
+    return false;
+  }
   PIMAGE_OPTIONAL_HEADER64 optional_header =
     &(reinterpret_cast<PIMAGE_NT_HEADERS64>(img->FileHeader))->OptionalHeader;
   if (optional_header->Magic != IMAGE_NT_OPTIONAL_HDR64_MAGIC) {
@@ -273,8 +278,8 @@ bool PrintPEFrameData(const wstring & pe_file, FILE * out_file)
     DataDirectory[IMAGE_DIRECTORY_ENTRY_EXCEPTION].VirtualAddress;
   DWORD exception_size = optional_header->
     DataDirectory[IMAGE_DIRECTORY_ENTRY_EXCEPTION].Size;
-  PIMAGE_RUNTIME_FUNCTION_ENTRY funcs =
-    static_cast<PIMAGE_RUNTIME_FUNCTION_ENTRY>(
+  PIMAGE_AMD64_RUNTIME_FUNCTION_ENTRY funcs =
+    static_cast<PIMAGE_AMD64_RUNTIME_FUNCTION_ENTRY>(
       ImageRvaToVa(img->FileHeader,
         img->MappedAddress,
         exception_rva,
@@ -284,8 +289,8 @@ bool PrintPEFrameData(const wstring & pe_file, FILE * out_file)
     // handle chaining
     while (unwind_rva & 0x1) {
       unwind_rva ^= 0x1;
-      PIMAGE_RUNTIME_FUNCTION_ENTRY chained_func =
-        static_cast<PIMAGE_RUNTIME_FUNCTION_ENTRY>(
+      PIMAGE_AMD64_RUNTIME_FUNCTION_ENTRY chained_func =
+        static_cast<PIMAGE_AMD64_RUNTIME_FUNCTION_ENTRY>(
           ImageRvaToVa(img->FileHeader,
             img->MappedAddress,
             unwind_rva,
@@ -354,8 +359,8 @@ bool PrintPEFrameData(const wstring & pe_file, FILE * out_file)
         }
       }
       if (unwind_info->flags & UNW_FLAG_CHAININFO) {
-        PIMAGE_RUNTIME_FUNCTION_ENTRY chained_func =
-          reinterpret_cast<PIMAGE_RUNTIME_FUNCTION_ENTRY>(
+        PIMAGE_AMD64_RUNTIME_FUNCTION_ENTRY chained_func =
+          reinterpret_cast<PIMAGE_AMD64_RUNTIME_FUNCTION_ENTRY>(
           (unwind_info->unwind_code +
             ((unwind_info->count_of_codes + 1) & ~1)));
 
